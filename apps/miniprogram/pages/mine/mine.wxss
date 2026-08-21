@@ -1,0 +1,14 @@
+.panel {
+  margin-top: 26rpx;
+  overflow: hidden;
+  border-radius: 14rpx;
+  background: #fff;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 28rpx 24rpx;
+  border-bottom: 1rpx solid #edf0eb;
+  font-size: 28rpx;
+}

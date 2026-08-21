@@ -1,0 +1,41 @@
+import { request, WallpaperDetail } from "../../utils/api";
+
+Page({
+  data: {
+    item: null as WallpaperDetail | null,
+    sizeText: "",
+    typeText: ""
+  },
+
+  async onLoad(options: { id?: string }) {
+    if (!options.id) return;
+    const item = await request<WallpaperDetail>(`/wallpapers/${options.id}`);
+    this.setData({ item, sizeText: formatBytes(item.fileSize), typeText: formatType(item.type) });
+  },
+
+  copyLink(event: WechatMiniprogram.TouchEvent) {
+    const url = event.currentTarget.dataset.url;
+    wx.setClipboardData({
+      data: url,
+      success: () => wx.showToast({ title: "短链已复制", icon: "success" })
+    });
+  }
+});
+
+function formatBytes(value: number) {
+  if (!value) return "原图资源";
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.ceil(value / 1024)} KB`;
+}
+
+function formatType(value: string) {
+  const map: Record<string, string> = {
+    live: "动态壁纸",
+    static: "静态壁纸",
+    mobile: "手机壁纸",
+    desktop: "电脑壁纸",
+    other: "壁纸资源"
+  };
+  return map[value] || "壁纸资源";
+}

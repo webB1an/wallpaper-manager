@@ -1,0 +1,84 @@
+.detail-page {
+  min-height: 100vh;
+  background: #101915;
+}
+
+.detail-cover {
+  display: block;
+  width: 100%;
+  min-height: 460rpx;
+  background: #27332d;
+}
+
+.detail-panel {
+  margin-top: -28rpx;
+  padding: 34rpx 28rpx 60rpx;
+  border-radius: 28rpx 28rpx 0 0;
+  background: #f5f3ea;
+}
+
+.detail-title {
+  display: block;
+  font-size: 38rpx;
+  font-weight: 820;
+  line-height: 1.35;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  color: #6d7a72;
+  font-size: 24rpx;
+}
+
+.tag-row {
+  margin-top: 24rpx;
+}
+
+.download-list {
+  display: grid;
+  gap: 16rpx;
+  margin-top: 30rpx;
+}
+
+.download-card {
+  display: grid;
+  grid-template-columns: 1fr 136rpx;
+  gap: 14rpx;
+  align-items: center;
+  padding: 18rpx;
+  border: 2rpx solid #dde4dc;
+  border-radius: 14rpx;
+  background: #fff;
+}
+
+.download-label {
+  display: block;
+  color: #1d2d24;
+  font-size: 28rpx;
+  font-weight: 760;
+}
+
+.download-url {
+  display: block;
+  margin-top: 8rpx;
+  overflow: hidden;
+  color: #68766e;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-button {
+  height: 70rpx;
+  padding: 0;
+  border-radius: 14rpx;
+  color: #fff;
+  background: #1f7a5a;
+  font-size: 27rpx;
+  font-weight: 760;
+  line-height: 70rpx;
+}

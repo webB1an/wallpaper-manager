@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">按风格探索</text>
+    <text class="hero-subtitle">分类来自 AI 识图和人工整理，不沿用老站分类</text>
+  </view>
+  <view class="category-grid">
+    <block wx:for="{{tags}}" wx:key="*this">
+      <view class="category-card" bindtap="openTag" data-tag="{{item}}">
+        <text>{{item}}</text>
+      </view>
+    </block>
+  </view>
+  <view wx:if="{{tags.length === 0}}" class="empty">暂无分类</view>
+</view>

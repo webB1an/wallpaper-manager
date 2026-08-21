@@ -1,0 +1,217 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 1180px;
+  background: #f4f2eb;
+  color: #17201b;
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.sider {
+  background: #15201b !important;
+  color: #fff;
+  padding: 18px 12px;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px 24px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #d8f16a;
+  color: #102018;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand span {
+  margin-top: 3px;
+  color: #a8b8ad;
+  font-size: 12px;
+}
+
+.sider .ant-menu {
+  background: transparent;
+  color: #c8d4cd;
+  border: 0;
+}
+
+.sider .ant-menu-item-selected {
+  background: #244b38 !important;
+  color: #fff !important;
+}
+
+.content {
+  padding: 30px;
+  background:
+    linear-gradient(120deg, rgba(216, 241, 106, 0.12), transparent 34%),
+    #f6f5ef;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: #52705f;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 8px 0 6px;
+  font-size: 30px;
+  letter-spacing: 0;
+}
+
+.page-header p {
+  margin: 0;
+  color: #66746b;
+}
+
+.toolbar {
+  margin-bottom: 18px;
+}
+
+.cover-thumb,
+.cover-empty {
+  width: 86px;
+  height: 54px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: #dfe5dc;
+}
+
+small {
+  display: block;
+  margin-top: 4px;
+  color: #7b887f;
+}
+
+.upload-options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: #536359;
+}
+
+.upload-dragger {
+  background: #fbfbf7 !important;
+  border-color: #b6c7ba !important;
+}
+
+.upload-dragger h2 {
+  margin: 12px 0 6px;
+  font-size: 22px;
+}
+
+.upload-dragger p {
+  color: #738178;
+}
+
+.form-grid {
+  max-width: 760px;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #e2e6dd;
+  border-radius: 8px;
+}
+
+.sub-panel {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #e2e6dd;
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.sub-panel strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.storage-form {
+  display: grid;
+  grid-template-columns: 120px 1fr 120px 110px auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.storage-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(140deg, rgba(31, 122, 90, 0.25), transparent 40%),
+    linear-gradient(25deg, rgba(216, 241, 106, 0.2), transparent 34%),
+    #101915;
+}
+
+.login-panel {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  width: min(880px, calc(100vw - 40px));
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.login-art {
+  min-height: 430px;
+  padding: 42px;
+  color: #fff;
+  background:
+    linear-gradient(160deg, rgba(16, 25, 21, 0.26), rgba(16, 25, 21, 0.88)),
+    url("https://wallpaper.wdbzk.com/covers/%E6%B2%BB%E6%84%88__Lily%20On%20The%20Hill%20(%E4%B8%98%E3%81%AE%E4%B8%8A%E3%81%AE%E3%83%A6%E3%83%AA)%20-%20Lily%20Watching%20the%20Clouds%20-%20%5B4K%5D..jpg") center / cover;
+}
+
+.login-art span {
+  color: #d8f16a;
+  font-weight: 700;
+}
+
+.login-art h1 {
+  margin-top: 92px;
+  font-size: 40px;
+}
+
+.login-art p {
+  max-width: 360px;
+  line-height: 1.7;
+}
+
+.login-panel form {
+  align-self: center;
+  padding: 42px;
+}

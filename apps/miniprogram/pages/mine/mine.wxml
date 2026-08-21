@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">服务中心</text>
+    <text class="hero-subtitle">短链复制后请在浏览器或网盘 App 中打开</text>
+  </view>
+  <view class="panel">
+    <view class="row">
+      <text>下载记录</text>
+      <text class="muted">保存在微信本地缓存</text>
+    </view>
+    <view class="row">
+      <text>关于我们</text>
+      <text class="muted">Wallpaper壁纸库</text>
+    </view>
+  </view>
+</view>

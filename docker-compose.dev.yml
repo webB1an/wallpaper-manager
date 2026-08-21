@@ -1,0 +1,24 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root-password
+      MYSQL_DATABASE: wallpaper_manager
+      MYSQL_USER: wallpaper
+      MYSQL_PASSWORD: wallpaper-password
+    ports:
+      - "3306:3306"
+    volumes:
+      - wallpaper_mysql:/var/lib/mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - wallpaper_redis:/data
+
+volumes:
+  wallpaper_mysql:
+  wallpaper_redis:

@@ -1,0 +1,28 @@
+<view class="detail-page" wx:if="{{item}}">
+  <image class="detail-cover" src="{{item.coverUrl}}" mode="widthFix" />
+  <view class="detail-panel">
+    <text class="detail-title">{{item.title}}</text>
+    <view class="detail-meta">
+      <text>{{typeText}}</text>
+      <text>{{sizeText}}</text>
+      <text>{{item.downloadCount}} 次下载</text>
+    </view>
+    <view class="tag-row">
+      <block wx:for="{{item.tags}}" wx:key="*this">
+        <text class="tag">{{item}}</text>
+      </block>
+    </view>
+    <view class="download-list">
+      <block wx:for="{{item.shortLinks}}" wx:key="url">
+        <view class="download-card">
+          <view>
+            <text class="download-label">{{item.label}}</text>
+            <text class="download-url">{{item.url}}</text>
+          </view>
+          <button class="download-button" data-url="{{item.url}}" bindtap="copyLink">复制</button>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
+<view wx:else class="empty">加载中...</view>

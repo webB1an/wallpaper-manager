@@ -1,0 +1,78 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: wallpaper-manager-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build And Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/www/wwwroot/wallpaper-manager' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate
+        env:
+          DATABASE_URL: mysql://wallpaper_manager_user:password@127.0.0.1:3306/wallpaper_manager
+        run: |
+          npm run prisma:validate
+          npm run typecheck
+          npm run build
+          npm run smoke:json
+          npm audit --omit=dev
+
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT || '22' }}" "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Ensure remote path
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mkdir -p '${DEPLOY_PATH}'"
+
+      - name: Sync source to server
+        run: |
+          rsync -az --human-readable \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.runs/' \
+            --exclude='node_modules/' \
+            --exclude='apps/*/node_modules/' \
+            --exclude='packages/*/node_modules/' \
+            --exclude='apps/api/.env' \
+            --exclude='.env' \
+            --exclude='storage/' \
+            --exclude='*.tar.gz' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT || '22' }}" \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${DEPLOY_PATH}/"
+
+      - name: Bootstrap production
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "APP_DIR='${DEPLOY_PATH}' bash '${DEPLOY_PATH}/deploy/bootstrap-server.sh'"

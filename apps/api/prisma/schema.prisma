@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum WallpaperType {
+  static
+  live
+  mobile
+  desktop
+  other
+}
+
+enum WallpaperStatus {
+  draft
+  processing
+  pending_review
+  published
+  rejected
+  archived
+}
+
+enum StorageProvider {
+  quark
+  baidu
+}
+
+enum TaskStatus {
+  queued
+  running
+  success
+  failed
+  skipped
+}
+
+enum TaskType {
+  upload_asset
+  ai_classify
+  quark_sync
+  baidu_sync
+  wdbzk_sync
+  channel_publish
+  old_cover_import
+}
+
+model Wallpaper {
+  id              String          @id @default(cuid())
+  title           String
+  originalName    String
+  type            WallpaperType   @default(other)
+  status          WallpaperStatus @default(draft)
+  coverPath       String?
+  coverUrl        String?
+  assetPath       String?
+  mimeType        String?
+  fileSize        BigInt?
+  tags            WallpaperTag[]
+  storageLinks    StorageLink[]
+  shortLinks      ShortLink[]
+  aiAnalysis      AiAnalysis?
+  matchKey        String?         @db.VarChar(512)
+  matchConfidence Float?
+  sortOrder       Int             @default(0)
+  viewCount       Int             @default(0)
+  downloadCount   Int             @default(0)
+  autoPublish     Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status, sortOrder])
+  @@index([matchKey])
+}
+
+model Tag {
+  id         String         @id @default(cuid())
+  name       String         @unique
+  createdAt  DateTime       @default(now())
+  wallpapers WallpaperTag[]
+}
+
+model WallpaperTag {
+  wallpaperId String
+  tagId       String
+  wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([wallpaperId, tagId])
+}
+
+model StorageLink {
+  id             String          @id @default(cuid())
+  wallpaperId    String
+  provider       StorageProvider
+  url            String          @db.Text
+  passcode       String?
+  remotePath     String?
+  remoteFileId   String?
+  wdbzkResourceId Int?
+  isPrimary      Boolean         @default(false)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  wallpaper      Wallpaper       @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  shortLinks     ShortLink[]
+
+  @@index([provider, isActive])
+  @@index([wallpaperId])
+}
+
+model ShortLink {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  wallpaperId   String
+  storageLinkId String
+  provider      StorageProvider
+  clickCount    Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  wallpaper     Wallpaper    @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  storageLink   StorageLink  @relation(fields: [storageLinkId], references: [id], onDelete: Cascade)
+}
+
+model AiAnalysis {
+  id             String    @id @default(cuid())
+  wallpaperId    String    @unique
+  title          String
+  type           WallpaperType
+  tags           Json
+  sensitiveFlags Json
+  safe           Boolean
+  summary        String?   @db.Text
+  raw            Json?
+  createdAt      DateTime  @default(now())
+  wallpaper      Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  type        TaskType
+  status      TaskStatus @default(queued)
+  progress    Int        @default(0)
+  message     String?    @db.Text
+  payload     Json?
+  result      Json?
+  error       String?    @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model ChannelAccount {
+  id          String   @id @default(cuid())
+  label       String
+  tokenCipher String   @db.Text
+  tokenTail   String
+  guildId     String
+  guildName   String?
+  channelId   String
+  channelName String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model OldCoverImport {
+  id              String   @id @default(cuid())
+  coverFileName   String   @unique
+  coverPath       String?
+  candidateTitle  String
+  matchKey        String   @db.VarChar(512)
+  oldResourceId   Int?
+  oldResourceName String?
+  oldResourceLink String?  @db.Text
+  confidence      Float    @default(0)
+  status          String   @default("pending")
+  message         String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

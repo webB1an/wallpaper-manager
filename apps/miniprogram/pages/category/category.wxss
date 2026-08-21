@@ -1,0 +1,20 @@
+.category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 26rpx;
+}
+
+.category-card {
+  display: flex;
+  align-items: flex-end;
+  min-height: 172rpx;
+  padding: 22rpx;
+  border-radius: 14rpx;
+  color: #fff;
+  background:
+    linear-gradient(145deg, rgba(16, 25, 21, 0.08), rgba(16, 25, 21, 0.74)),
+    linear-gradient(135deg, #1f7a5a, #94b447);
+  font-size: 32rpx;
+  font-weight: 800;
+}
