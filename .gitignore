@@ -9,6 +9,8 @@ build/
 *.log
 wallpaper-manager-deploy-*.tar.gz
 *-smoke.png
+bt-*.png
+github-*.png
 .DS_Store
 Thumbs.db
 .runs/
