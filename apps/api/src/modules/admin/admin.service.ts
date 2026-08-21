@@ -596,13 +596,13 @@ export class AdminService {
 
   private async checkTencentCli(): Promise<DiagnosticItem> {
     const configured = this.config.get<string>("TENCENT_CHANNEL_CLI")?.trim();
-    if (configured) return this.checkCommand("tencent_cli", "腾讯频道 CLI", configured, ["--version"]);
+    if (configured) return this.checkCommand("tencent_cli", "腾讯频道 CLI", configured, ["--help"]);
     const wrapper = resolve(process.cwd(), "node_modules", "tencent-channel-cli", "bin", "tencent-channel-cli");
     if (existsSync(wrapper)) {
-      return this.checkCommand("tencent_cli", "腾讯频道 CLI", process.execPath, [wrapper, "--version"]);
+      return this.checkCommand("tencent_cli", "腾讯频道 CLI", process.execPath, [wrapper, "--help"]);
     }
     const runner = process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : "npx";
-    const args = process.platform === "win32" ? ["/d", "/s", "/c", "npx -y tencent-channel-cli --version"] : ["-y", "tencent-channel-cli", "--version"];
+    const args = process.platform === "win32" ? ["/d", "/s", "/c", "npx -y tencent-channel-cli --help"] : ["-y", "tencent-channel-cli", "--help"];
     const result = await runCli(runner, args, { timeoutMs: 30_000 });
     if (result.ok) return ok("tencent_cli", "腾讯频道 CLI", "tencent-channel-cli 可通过 npx 调用");
     return warn("tencent_cli", "腾讯频道 CLI", `tencent-channel-cli 不可用：${shortError(result.stderr || result.stdout)}`);
