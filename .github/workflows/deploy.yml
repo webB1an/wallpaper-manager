@@ -67,7 +67,8 @@ jobs:
             --exclude='packages/*/node_modules/' \
             --exclude='apps/api/.env' \
             --exclude='.env' \
-            --exclude='storage/' \
+            --exclude='/storage/' \
+            --exclude='/uploads/' \
             --exclude='*.tar.gz' \
             -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT || '22' }}" \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${DEPLOY_PATH}/"
