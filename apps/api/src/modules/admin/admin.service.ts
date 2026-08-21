@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
@@ -522,7 +522,7 @@ export class AdminService {
 
   private async assertWallpapersCanPublish(ids: string[]) {
     const uniqueIds = unique(ids);
-    if (!uniqueIds.length) throw new Error("请选择壁纸");
+    if (!uniqueIds.length) throw new BadRequestException("请选择壁纸");
     const blocked = await this.prisma.wallpaper.findMany({
       where: {
         id: { in: uniqueIds },
@@ -541,7 +541,7 @@ export class AdminService {
     });
     if (!blocked.length) return;
     const names = blocked.map((item) => item.title).join("、");
-    throw new Error(`存在未通过 AI 审核的壁纸，禁止上架或发帖：${names}`);
+    throw new BadRequestException(`存在未通过 AI 审核的壁纸，禁止上架或发帖：${names}`);
   }
 
   private async checkDatabase(): Promise<DiagnosticItem> {
