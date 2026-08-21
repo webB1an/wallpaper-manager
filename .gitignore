@@ -14,8 +14,8 @@ github-*.png
 .DS_Store
 Thumbs.db
 .runs/
-uploads/
-storage/
+/uploads/
+/storage/
 coverage/
 .tmp-*/
 old-covers.js

@@ -37,6 +37,7 @@ jobs:
           DATABASE_URL: mysql://wallpaper_manager_user:password@127.0.0.1:3306/wallpaper_manager
         run: |
           npm run prisma:validate
+          npm run prisma:generate
           npm run typecheck
           npm run build
           npm run smoke:json
