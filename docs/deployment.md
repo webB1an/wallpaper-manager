@@ -23,7 +23,7 @@
 - ffmpeg
 - `bdpan`
 - 夸克网盘 skill CLI，并完成授权
-- `tencent-channel-cli`，可由后端运行时通过 `npx` 调用，也可配置固定路径
+- `tencent-channel-cli`，默认作为 API 生产依赖安装；也可配置固定路径
 
 ## 3. 宝塔数据库
 
@@ -103,6 +103,7 @@ BDPAN_PATH=bdpan
 BAIDU_REMOTE_BASE=/apps/bdpan/wallpapers
 FFMPEG_PATH=ffmpeg
 TENCENT_CHANNEL_CLI=
+TENCENT_CHANNEL_RUN_ROOT=/www/wwwroot/wallpaper-manager/.runs/tencent-channel
 ```
 
 ## 6. 首次服务器启动
@@ -117,13 +118,12 @@ vim apps/api/.env
 bash deploy/bootstrap-server.sh
 ```
 
-`bootstrap-server.sh` 会执行：
+`bootstrap-server.sh` 不在服务器重新构建前端和 TypeScript；GitHub runner 已经完成校验和构建。服务器只安装 API 运行时依赖、执行 Prisma 并重载 PM2：
 
 ```bash
-npm ci
+npm ci --omit=dev --workspace apps/api --include-workspace-root=false
 npm run prisma:generate
 npm run prisma:deploy
-npm run build
 pm2 startOrReload ecosystem.config.cjs --update-env
 pm2 save
 ```
@@ -167,3 +167,8 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 任务队列里查看“提醒”列：单个网盘失败或腾讯频道发帖失败不会重试，也不会阻断已通过审核的资源上架。
 - 资源库里可手动补夸克/百度链接，后台会为新增链接生成 `r.wdbzk.com` 短链。
 - 小程序详情页会展示短链文本，用户点击复制后自行打开网盘。
+
+## 10. 网盘分享规则
+
+- 夸克分享使用公开链接和 `expired-type=1`，按夸克 skill 文档为永久有效。
+- `bdpan share` 当前不支持调用方指定提取码；系统会解析百度返回的随机提取码。若返回提取码，小程序短链跳转时会自动拼接 `pwd`。

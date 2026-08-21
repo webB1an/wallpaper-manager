@@ -440,6 +440,14 @@ export class AdminService {
     return this.channel.listAccounts();
   }
 
+  discoverChannelGuilds(token: string) {
+    return this.channel.discoverGuilds(token);
+  }
+
+  discoverChannelChannels(token: string, guildId: string) {
+    return this.channel.discoverChannels(token, guildId);
+  }
+
   saveChannelAccount(input: Parameters<ChannelService["saveAccount"]>[0]) {
     return this.channel.saveAccount(input);
   }
@@ -589,11 +597,15 @@ export class AdminService {
   private async checkTencentCli(): Promise<DiagnosticItem> {
     const configured = this.config.get<string>("TENCENT_CHANNEL_CLI")?.trim();
     if (configured) return this.checkCommand("tencent_cli", "腾讯频道 CLI", configured, ["--version"]);
+    const wrapper = resolve(process.cwd(), "node_modules", "tencent-channel-cli", "bin", "tencent-channel-cli");
+    if (existsSync(wrapper)) {
+      return this.checkCommand("tencent_cli", "腾讯频道 CLI", process.execPath, [wrapper, "--version"]);
+    }
     const runner = process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : "npx";
-    const args = process.platform === "win32" ? ["/d", "/s", "/c", "npx --version"] : ["--version"];
-    const result = await runCli(runner, args, { timeoutMs: 15_000 });
-    if (result.ok) return ok("tencent_cli", "腾讯频道 CLI", "未固定 TENCENT_CHANNEL_CLI，将通过 npx 调用");
-    return warn("tencent_cli", "腾讯频道 CLI", `npx 不可用：${shortError(result.stderr || result.stdout)}`);
+    const args = process.platform === "win32" ? ["/d", "/s", "/c", "npx -y tencent-channel-cli --version"] : ["-y", "tencent-channel-cli", "--version"];
+    const result = await runCli(runner, args, { timeoutMs: 30_000 });
+    if (result.ok) return ok("tencent_cli", "腾讯频道 CLI", "tencent-channel-cli 可通过 npx 调用");
+    return warn("tencent_cli", "腾讯频道 CLI", `tencent-channel-cli 不可用：${shortError(result.stderr || result.stdout)}`);
   }
 
   private async checkChannelAccounts(): Promise<DiagnosticItem> {

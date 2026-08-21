@@ -125,6 +125,18 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Post("channels/discover-guilds")
+  async discoverGuilds(@Body() body: { token: string }) {
+    return { code: 200, data: await this.admin.discoverChannelGuilds(body.token) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("channels/discover-channels")
+  async discoverChannels(@Body() body: { token: string; guildId: string }) {
+    return { code: 200, data: await this.admin.discoverChannelChannels(body.token, body.guildId) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Post("channels")
   async saveChannel(@Body() body: {
     label: string;

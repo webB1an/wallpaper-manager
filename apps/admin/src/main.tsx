@@ -46,6 +46,18 @@ type ChannelAccount = {
   isDefault: boolean;
 };
 
+type TencentGuildOption = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+type TencentChannelOption = {
+  id: string;
+  name: string;
+  type?: string;
+};
+
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
@@ -477,9 +489,61 @@ function OldImport() {
 
 function Channels() {
   const [items, setItems] = useState<ChannelAccount[]>([]);
+  const [guildOptions, setGuildOptions] = useState<TencentGuildOption[]>([]);
+  const [channelOptions, setChannelOptions] = useState<TencentChannelOption[]>([]);
+  const [loadingGuilds, setLoadingGuilds] = useState(false);
+  const [loadingChannels, setLoadingChannels] = useState(false);
   const [form] = Form.useForm();
   const load = () => request<ChannelAccount[]>("/api/admin/channels").then(setItems);
   useEffect(() => { void load(); }, []);
+
+  const discoverGuilds = async () => {
+    const token = String(form.getFieldValue("token") || "").trim();
+    if (!token) {
+      message.warning("先填写 Token");
+      return;
+    }
+    setLoadingGuilds(true);
+    try {
+      const guilds = await request<TencentGuildOption[]>("/api/admin/channels/discover-guilds", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      });
+      setGuildOptions(guilds);
+      setChannelOptions([]);
+      message.success(`已获取 ${guilds.length} 个频道`);
+      if (guilds.length === 1) {
+        form.setFieldsValue({ guildId: guilds[0].id, guildName: guilds[0].name, channelId: "", channelName: "" });
+        await discoverChannels(guilds[0].id);
+      }
+    } finally {
+      setLoadingGuilds(false);
+    }
+  };
+
+  const discoverChannels = async (selectedGuildId?: string) => {
+    const token = String(form.getFieldValue("token") || "").trim();
+    const guildId = String(selectedGuildId || form.getFieldValue("guildId") || "").trim();
+    if (!token || !guildId) {
+      message.warning("先填写 Token 和频道 ID");
+      return;
+    }
+    setLoadingChannels(true);
+    try {
+      const channels = await request<TencentChannelOption[]>("/api/admin/channels/discover-channels", {
+        method: "POST",
+        body: JSON.stringify({ token, guildId }),
+      });
+      setChannelOptions(channels);
+      message.success(`已获取 ${channels.length} 个版块`);
+      if (channels.length === 1) {
+        form.setFieldsValue({ channelId: channels[0].id, channelName: channels[0].name });
+      }
+    } finally {
+      setLoadingChannels(false);
+    }
+  };
+
   return (
     <section>
       <Header title="腾讯频道" subtitle="支持多个 Token 账号，保存后上传批次可以选择默认账号自动发帖。" />
@@ -513,8 +577,41 @@ function Channels() {
           }}>
             <Form.Item label="账号名称" name="label" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item label="Token" name="token" rules={[{ required: true }]}><Input.Password /></Form.Item>
+            <Space className="toolbar">
+              <Button loading={loadingGuilds} onClick={discoverGuilds}>验证 Token 并获取频道</Button>
+              <Button loading={loadingChannels} onClick={() => discoverChannels()}>获取版块</Button>
+            </Space>
+            {guildOptions.length > 0 && (
+              <Form.Item label="选择频道">
+                <Select
+                  showSearch
+                  placeholder="选择频道后会自动填写 ID"
+                  optionFilterProp="label"
+                  options={guildOptions.map((guild) => ({ label: `${guild.name} · ${guild.role}`, value: guild.id }))}
+                  onChange={async (guildId) => {
+                    const guild = guildOptions.find((item) => item.id === guildId);
+                    form.setFieldsValue({ guildId, guildName: guild?.name, channelId: "", channelName: "" });
+                    await discoverChannels(guildId);
+                  }}
+                />
+              </Form.Item>
+            )}
             <Form.Item label="频道 ID" name="guildId" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item label="频道名称" name="guildName"><Input /></Form.Item>
+            {channelOptions.length > 0 && (
+              <Form.Item label="选择版块">
+                <Select
+                  showSearch
+                  placeholder="选择版块后会自动填写 ID"
+                  optionFilterProp="label"
+                  options={channelOptions.map((channel) => ({ label: channel.type ? `${channel.name} · ${channel.type}` : channel.name, value: channel.id }))}
+                  onChange={(channelId) => {
+                    const channel = channelOptions.find((item) => item.id === channelId);
+                    form.setFieldsValue({ channelId, channelName: channel?.name });
+                  }}
+                />
+              </Form.Item>
+            )}
             <Form.Item label="版块 ID" name="channelId" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item label="版块名称" name="channelName"><Input /></Form.Item>
             <Form.Item label="设为默认" name="isDefault" valuePropName="checked"><Switch /></Form.Item>
