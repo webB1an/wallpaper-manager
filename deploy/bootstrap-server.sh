@@ -13,10 +13,11 @@ fi
 
 mkdir -p storage/public/originals storage/public/covers storage/public/legacy-covers .runs/tencent-channel
 
-npm ci
+# The GitHub runner already validates and builds all workspaces before rsync.
+# On the small production host we only install runtime dependencies for the API.
+npm ci --omit=dev --workspace apps/api --include-workspace-root=false
 npm run prisma:generate
 npm run prisma:deploy
-npm run build
 
 if command -v pm2 >/dev/null 2>&1; then
   pm2 startOrReload ecosystem.config.cjs --update-env
