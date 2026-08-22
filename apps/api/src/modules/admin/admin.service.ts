@@ -88,6 +88,9 @@ export class AdminService {
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
     const autoPublish = options?.autoPublish ?? settings.defaultAutoPublish;
+    if (autoPublish) {
+      await this.assertDefaultChannelReady("未配置默认腾讯频道账号，不能开启上传后自动发帖");
+    }
     const created = [];
     for (const file of files) {
       this.assertUploadFile(file);
@@ -121,8 +124,7 @@ export class AdminService {
   async updateSettings(input: Partial<SystemSettings>) {
     const current = await this.getSettings();
     if (input.defaultAutoPublish === true) {
-      const defaultAccount = await this.channel.getDefaultAccount();
-      if (!defaultAccount) throw new BadRequestException("未配置默认腾讯频道账号，不能开启默认自动发帖");
+      await this.assertDefaultChannelReady("未配置默认腾讯频道账号，不能开启默认自动发帖");
     }
     const value: SystemSettings = {
       ...current,
@@ -721,6 +723,11 @@ export class AdminService {
       const names = missingDownloads.map((item) => item.title).join("、");
       throw new BadRequestException(`存在没有可用网盘短链的壁纸，禁止上架或发帖：${names}`);
     }
+  }
+
+  private async assertDefaultChannelReady(message: string) {
+    const defaultAccount = await this.channel.getDefaultAccount();
+    if (!defaultAccount) throw new BadRequestException(message);
   }
 
   private async checkDatabase(): Promise<DiagnosticItem> {
