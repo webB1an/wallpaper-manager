@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
+import { Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadProps } from "antd";
 import { Activity, CloudUpload, GalleryVerticalEnd, ListChecks, RadioTower, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
@@ -644,10 +644,19 @@ function Channels() {
             { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="green">默认</Tag> : null },
             {
               title: "操作",
-              render: (_, row) => row.isDefault ? null : <Button size="small" onClick={async () => {
-                await request(`/api/admin/channels/${row.id}/default`, { method: "POST" });
-                await load();
-              }}>设为默认</Button>,
+              render: (_, row) => <Space>
+                {row.isDefault ? null : <Button size="small" onClick={async () => {
+                  await request(`/api/admin/channels/${row.id}/default`, { method: "POST" });
+                  await load();
+                }}>设为默认</Button>}
+                <Popconfirm title="删除这个频道账号？" okText="删除" cancelText="取消" onConfirm={async () => {
+                  await request(`/api/admin/channels/${row.id}`, { method: "DELETE" });
+                  message.success("频道账号已删除");
+                  await load();
+                }}>
+                  <Button size="small" danger>删除</Button>
+                </Popconfirm>
+              </Space>,
             },
           ]} />,
         },

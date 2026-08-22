@@ -464,6 +464,10 @@ export class AdminService {
     return this.channel.setDefaultAccount(id);
   }
 
+  deleteChannel(id: string) {
+    return this.channel.deleteAccount(id);
+  }
+
   private async persistFile(file: Express.Multer.File) {
     const dir = join(process.cwd(), "storage", "public", "originals");
     await mkdir(dir, { recursive: true });

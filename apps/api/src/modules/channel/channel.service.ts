@@ -93,6 +93,17 @@ export class ChannelService {
     return this.prisma.channelAccount.update({ where: { id }, data: { isDefault: true } });
   }
 
+  async deleteAccount(id: string) {
+    const account = await this.prisma.channelAccount.findUnique({ where: { id } });
+    if (!account) throw new Error("腾讯频道账号不存在");
+    await this.prisma.channelAccount.delete({ where: { id } });
+    if (account.isDefault) {
+      const next = await this.prisma.channelAccount.findFirst({ orderBy: { createdAt: "desc" } });
+      if (next) await this.prisma.channelAccount.update({ where: { id: next.id }, data: { isDefault: true } });
+    }
+    return { deleted: true };
+  }
+
   async discoverGuilds(token: string): Promise<TencentGuildOption[]> {
     const data = await this.runAuthenticatedQuery(token, ["manage", "get-my-join-guild-info", "--json"]);
     const guilds = normalizeGuilds(data);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { AdminService } from "./admin.service";
@@ -154,5 +154,11 @@ export class AdminController {
   @Post("channels/:id/default")
   async defaultChannel(@Param("id") id: string) {
     return { code: 200, data: await this.admin.setDefaultChannel(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Delete("channels/:id")
+  async deleteChannel(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.deleteChannel(id) };
   }
 }
