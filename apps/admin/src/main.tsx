@@ -144,6 +144,7 @@ type AdminOverview = {
 
 type LibraryPreset = {
   status?: string;
+  type?: string;
   aiReview?: string;
   storageFilter?: string;
   nonce?: number;
@@ -362,6 +363,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   const [data, setData] = useState<{ list: Wallpaper[]; total: number }>({ list: [], total: 0 });
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [aiReview, setAiReview] = useState("");
   const [storageFilter, setStorageFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -378,7 +380,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   const [channelLoading, setChannelLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  const load = async (nextPage = page, nextStatus = status, nextAiReview = aiReview, nextStorageFilter = storageFilter) => {
+  const load = async (nextPage = page, nextStatus = status, nextType = typeFilter, nextAiReview = aiReview, nextStorageFilter = storageFilter) => {
     setLoading(true);
     try {
       const query = new URLSearchParams({
@@ -386,6 +388,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         pageSize: String(pageSize),
         keyword,
         status: nextStatus,
+        type: nextType,
         aiReview: nextAiReview,
         storage: nextStorageFilter,
       });
@@ -402,13 +405,15 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   useEffect(() => {
     if (!preset) return;
     const nextStatus = preset.status || "";
+    const nextType = preset.type || "";
     const nextAiReview = preset.aiReview || "";
     const nextStorageFilter = preset.storageFilter || "";
     setStatus(nextStatus);
+    setTypeFilter(nextType);
     setAiReview(nextAiReview);
     setStorageFilter(nextStorageFilter);
     setSelectedRowKeys([]);
-    void load(1, nextStatus, nextAiReview, nextStorageFilter);
+    void load(1, nextStatus, nextType, nextAiReview, nextStorageFilter);
   }, [preset?.nonce]);
 
   const reloadFromFirstPage = () => {
@@ -458,13 +463,26 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         />
         <Select
           allowClear
+          placeholder="全部类型"
+          value={typeFilter || undefined}
+          onChange={(value) => {
+            const nextType = value || "";
+            setTypeFilter(nextType);
+            setSelectedRowKeys([]);
+            void load(1, status, nextType);
+          }}
+          options={["static", "live", "mobile", "desktop", "other"].map((value) => ({ value, label: typeText(value) }))}
+          style={{ width: 150 }}
+        />
+        <Select
+          allowClear
           placeholder="AI审核"
           value={aiReview || undefined}
           onChange={(value) => {
             const nextAiReview = value || "";
             setAiReview(nextAiReview);
             setSelectedRowKeys([]);
-            void load(1, status, nextAiReview, storageFilter);
+            void load(1, status, typeFilter, nextAiReview, storageFilter);
           }}
           options={[
             { value: "unreviewed", label: "未识别" },
@@ -481,7 +499,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             const nextStorageFilter = value || "";
             setStorageFilter(nextStorageFilter);
             setSelectedRowKeys([]);
-            void load(1, status, aiReview, nextStorageFilter);
+            void load(1, status, typeFilter, aiReview, nextStorageFilter);
           }}
           options={[
             { value: "has_quark", label: "有夸克" },

@@ -292,11 +292,12 @@ export class AdminService {
     return analysis;
   }
 
-  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: AiReviewFilter; storage?: StorageFilter }) {
+  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; aiReview?: AiReviewFilter; storage?: StorageFilter }) {
     const page = Math.max(1, Number(query.page || 1));
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
     const where: Prisma.WallpaperWhereInput = {
       ...(query.status ? { status: query.status } : {}),
+      ...(query.type ? { type: query.type } : {}),
       ...(query.keyword ? { title: { contains: query.keyword } } : {}),
       ...aiReviewWhere(query.aiReview),
       ...storageWhere(query.storage),
