@@ -69,6 +69,7 @@ if (!rootPackage.workspaces?.includes("apps/miniprogram")) fail("root package wo
 if (rootPackage.scripts?.["smoke:admin"] !== "node scripts/smoke-admin.mjs") fail("root package must expose smoke:admin");
 if (rootPackage.scripts?.["smoke:public"] !== "node scripts/smoke-public.mjs") fail("root package must expose smoke:public");
 if (rootPackage.scripts?.["smoke:production"] !== "npm run smoke:public && npm run smoke:admin") fail("root package must expose smoke:production");
+if (rootPackage.scripts?.["smoke:production:strict"] !== "node scripts/smoke-public.mjs && node scripts/smoke-admin.mjs --strict") fail("root package must expose smoke:production:strict");
 
 requireFile("apps/miniprogram/package.json");
 requireFile("apps/miniprogram/tsconfig.json");
@@ -133,6 +134,7 @@ requireContains("apps/api/src/modules/public/public.service.ts", "storageLink.is
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
 requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper.status !== WallpaperStatus.published");
 requireContains("scripts/smoke-admin.mjs", "STRICT_ADMIN_SMOKE");
+requireContains("scripts/smoke-admin.mjs", "--strict");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/overview");
 requireContains("scripts/smoke-admin.mjs", "diagnostics");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
@@ -182,6 +184,7 @@ requireContains("docs/deployment.md", "网盘授权");
 requireContains("docs/deployment.md", "腾讯频道配置");
 requireContains("docs/deployment.md", "发布前验收清单");
 requireContains("docs/deployment.md", "npm run smoke:production");
+requireContains("docs/deployment.md", "npm run smoke:production:strict");
 requireContains("docs/deployment.md", "bdpan' login --accept-disclaimer --get-auth-url");
 requireContains("docs/deployment.md", "bdpan' login --accept-disclaimer --set-code <授权码>");
 requireContains("docs/deployment.md", "CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login");

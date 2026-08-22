@@ -8,6 +8,7 @@ const env = {
 const adminOrigin = (env.ADMIN_ORIGIN || "https://wall-admin.wdbzk.com").replace(/\/$/, "");
 const username = env.ADMIN_USERNAME || "admin";
 const password = env.ADMIN_PASSWORD;
+const strict = env.STRICT_ADMIN_SMOKE === "1" || process.argv.includes("--strict");
 
 if (!password) {
   throw new Error("ADMIN_PASSWORD is required. Run this on the server or provide ADMIN_PASSWORD in the environment.");
@@ -51,7 +52,7 @@ const diagnosticCounts = diagnostics.reduce((acc, item) => {
   acc[item.status] = (acc[item.status] || 0) + 1;
   return acc;
 }, {});
-if (env.STRICT_ADMIN_SMOKE === "1" && (diagnosticCounts.fail || diagnosticCounts.warn)) {
+if (strict && (diagnosticCounts.fail || diagnosticCounts.warn)) {
   throw new Error(`strict diagnostics failed: ${JSON.stringify(diagnosticCounts)}`);
 }
 
@@ -70,6 +71,7 @@ console.log(JSON.stringify({
     unpublishedActiveShortLinks: overview.storage.unpublishedActiveShortLinks,
   },
   diagnostics: diagnosticCounts,
+  strict,
   settings: {
     defaultAutoProcess: settings.defaultAutoProcess,
     defaultAutoPublish: settings.defaultAutoPublish,
