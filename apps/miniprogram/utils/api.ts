@@ -40,3 +40,8 @@ export interface WallpaperDetail extends WallpaperCard {
   fileSize: number;
   shortLinks: Array<{ provider: string; label: string; url: string }>;
 }
+
+export interface WallpaperFacets {
+  types: Array<{ type: string; count: number }>;
+  tags: Array<{ name: string; count: number }>;
+}

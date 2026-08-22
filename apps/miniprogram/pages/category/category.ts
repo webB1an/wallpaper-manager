@@ -1,27 +1,33 @@
-import { request } from "../../utils/api";
+import { request, WallpaperFacets } from "../../utils/api";
+
+type TypeCard = { key: string; title: string; subtitle: string; count: number };
 
 Page({
   data: {
     types: [
-      { key: "live", title: "动态壁纸", subtitle: "视频与动态资源" },
-      { key: "static", title: "静态壁纸", subtitle: "单张高清图片" },
-      { key: "mobile", title: "手机壁纸", subtitle: "竖屏优先" },
-      { key: "desktop", title: "电脑壁纸", subtitle: "桌面场景" }
-    ],
-    tags: [] as string[],
+      { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", count: 0 },
+      { key: "static", title: "静态壁纸", subtitle: "单张高清图片", count: 0 },
+      { key: "mobile", title: "手机壁纸", subtitle: "竖屏优先", count: 0 },
+      { key: "desktop", title: "电脑壁纸", subtitle: "桌面场景", count: 0 }
+    ] as TypeCard[],
+    tags: [] as Array<{ name: string; count: number }>,
     loading: false,
     error: ""
   },
 
   async onLoad() {
-    this.loadTags();
+    this.loadFacets();
   },
 
-  async loadTags() {
+  async loadFacets() {
     this.setData({ loading: true, error: "" });
     try {
-      const tags = await request<string[]>("/wallpapers/tags");
-      this.setData({ tags });
+      const facets = await request<WallpaperFacets>("/wallpapers/facets");
+      const countByType = new Map(facets.types.map((item) => [item.type, item.count]));
+      this.setData({
+        types: this.data.types.map((item) => ({ ...item, count: countByType.get(item.key) || 0 })),
+        tags: facets.tags
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "分类加载失败";
       this.setData({ error: message });
@@ -32,16 +38,16 @@ Page({
   },
 
   retry() {
-    this.loadTags();
+    this.loadFacets();
   },
 
   openTag(event: WechatMiniprogram.TouchEvent) {
-    const tag = event.currentTarget.dataset.tag;
+    const tag = String(event.currentTarget.dataset.tag || "");
     wx.navigateTo({ url: `/pages/index/index?tag=${encodeURIComponent(tag)}` });
   },
 
   openType(event: WechatMiniprogram.TouchEvent) {
-    const type = event.currentTarget.dataset.type;
+    const type = String(event.currentTarget.dataset.type || "");
     wx.navigateTo({ url: `/pages/index/index?type=${encodeURIComponent(type)}` });
   }
 });

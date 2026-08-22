@@ -15,6 +15,11 @@ export class PublicController {
     return { code: 200, data: await this.service.tags() };
   }
 
+  @Get("wallpapers/facets")
+  async facets() {
+    return { code: 200, data: await this.service.facets() };
+  }
+
   @Get("wallpapers/:id")
   async detail(@Param("id") id: string) {
     return { code: 200, data: await this.service.detail(id) };

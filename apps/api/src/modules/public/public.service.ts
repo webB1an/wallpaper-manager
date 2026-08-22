@@ -89,6 +89,35 @@ export class PublicService {
     return tags.map((tag) => tag.name);
   }
 
+  async facets() {
+    const [typeGroups, tagGroups] = await Promise.all([
+      this.prisma.wallpaper.groupBy({
+        by: ["type"],
+        where: { status: WallpaperStatus.published },
+        _count: { _all: true },
+      }),
+      this.prisma.wallpaperTag.groupBy({
+        by: ["tagId"],
+        where: { wallpaper: { status: WallpaperStatus.published } },
+        _count: { _all: true },
+        orderBy: { _count: { tagId: "desc" } },
+        take: 80,
+      }),
+    ]);
+    const tags = tagGroups.length
+      ? await this.prisma.tag.findMany({ where: { id: { in: tagGroups.map((group) => group.tagId) } } })
+      : [];
+    const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
+    return {
+      types: typeGroups
+        .map((group) => ({ type: group.type, count: group._count._all }))
+        .sort((left, right) => right.count - left.count),
+      tags: tagGroups
+        .map((group) => ({ name: tagNameById.get(group.tagId) || "", count: group._count._all }))
+        .filter((tag) => tag.name),
+    };
+  }
+
   async redirect(code: string) {
     const link = await this.prisma.shortLink.findUnique({
       where: { code },
