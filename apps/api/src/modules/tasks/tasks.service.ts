@@ -29,11 +29,17 @@ export class TasksService {
     });
   }
 
-  list(page = 1, pageSize = 50) {
-    return this.prisma.task.findMany({
-      orderBy: { createdAt: "desc" },
-      skip: (Math.max(1, page) - 1) * pageSize,
-      take: Math.min(100, Math.max(1, pageSize)),
-    });
+  async list(page = 1, pageSize = 50) {
+    const safePage = Math.max(1, page);
+    const safePageSize = Math.min(100, Math.max(1, pageSize));
+    const [list, total] = await Promise.all([
+      this.prisma.task.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: (safePage - 1) * safePageSize,
+        take: safePageSize,
+      }),
+      this.prisma.task.count(),
+    ]);
+    return { list, total, page: safePage, pageSize: safePageSize };
   }
 }

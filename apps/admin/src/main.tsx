@@ -612,9 +612,14 @@ function Diagnostics() {
 }
 
 function Tasks() {
-  const [items, setItems] = useState<TaskItem[]>([]);
+  const [data, setData] = useState<{ list: TaskItem[]; total: number }>({ list: [], total: 0 });
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const load = () => request<TaskItem[]>("/api/admin/tasks").then(setItems);
+  const load = (nextPage = page) => request<{ list: TaskItem[]; total: number }>(`/api/admin/tasks?page=${nextPage}&pageSize=${pageSize}`).then((next) => {
+    setData(next);
+    setPage(nextPage);
+  });
   useEffect(() => { void load(); }, []);
   useEffect(() => {
     if (!autoRefresh) return undefined;
@@ -625,11 +630,20 @@ function Tasks() {
     <section>
       <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。" />
       <Space className="toolbar">
-        <Button onClick={load}>刷新</Button>
+        <Button onClick={() => void load()}>刷新</Button>
+        <Tag color="blue">共 {data.total} 条</Tag>
         <span>自动刷新</span>
         <Switch checked={autoRefresh} onChange={setAutoRefresh} />
       </Space>
-      <Table rowKey="id" dataSource={items} columns={[
+      <Table
+        rowKey="id"
+        dataSource={data.list}
+        pagination={{ total: data.total, pageSize, current: page, showSizeChanger: false }}
+        onChange={(pagination) => {
+          const nextPage = Number(pagination.current || 1);
+          void load(nextPage);
+        }}
+        columns={[
         { title: "类型", dataIndex: "type" },
         { title: "状态", dataIndex: "status", render: (status) => <StatusTag status={status} /> },
         { title: "进度", dataIndex: "progress", render: (value, row) => <Progress percent={value} size="small" status={row.status === "failed" ? "exception" : row.status === "success" ? "success" : "active"} /> },
