@@ -150,6 +150,15 @@ h1 {
   color: #5f6e65;
 }
 
+.status-pills span.is-clickable {
+  cursor: pointer;
+}
+
+.status-pills span.is-clickable:hover {
+  border-color: #b8cfc1;
+  background: #f2f7ee;
+}
+
 .status-pills strong {
   display: block;
   margin-bottom: 5px;

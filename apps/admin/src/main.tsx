@@ -316,7 +316,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
           <h2>资源状态</h2>
           <div className="status-pills">
             {["draft", "processing", "pending_review", "published", "rejected", "archived"].map((status) => (
-              <span key={status}>
+              <span key={status} className="is-clickable" onClick={() => onOpenLibrary({ status })}>
                 <strong>{overview?.wallpapers.byStatus[status] ?? 0}</strong>
                 {statusText(status)}
               </span>
@@ -327,7 +327,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
           <h2>已上架类型</h2>
           <div className="status-pills">
             {(overview?.wallpapers.byType.length ? overview.wallpapers.byType : [{ type: "暂无", count: 0 }]).map((item) => (
-              <span key={item.type}>
+              <span key={item.type} className={item.type === "暂无" ? "" : "is-clickable"} onClick={item.type === "暂无" ? undefined : () => onOpenLibrary({ status: "published", type: item.type })}>
                 <strong>{item.count}</strong>
                 {typeText(item.type)}
               </span>
