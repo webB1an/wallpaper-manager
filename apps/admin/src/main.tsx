@@ -847,8 +847,15 @@ function Uploader() {
     headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
     data: { autoProcess: String(autoProcess), autoPublish: String(autoPublish) },
     onChange(info) {
-      if (info.file.status === "done") message.success(autoProcess ? `${info.file.name} 已上传并加入处理队列` : `${info.file.name} 已上传为草稿`);
-      if (info.file.status === "error") message.error(`${info.file.name} 上传失败`);
+      if (info.file.status === "done") {
+        const response = info.file.response as { code?: number; message?: string; error?: string } | undefined;
+        if (response?.code && response.code !== 200) {
+          message.error(`${info.file.name} 上传失败：${uploadErrorMessage(response)}`);
+          return;
+        }
+        message.success(autoProcess ? `${info.file.name} 已上传并加入处理队列` : `${info.file.name} 已上传为草稿`);
+      }
+      if (info.file.status === "error") message.error(`${info.file.name} 上传失败：${uploadErrorMessage(info.file.response || info.file.error)}`);
     },
   };
   return (
@@ -1316,6 +1323,19 @@ function StatusTag({ status }: { status: string }) {
     success: "green",
   };
   return <Tag color={colors[status] || "default"}>{statusText(status)}</Tag>;
+}
+
+function uploadErrorMessage(value: unknown) {
+  if (!value) return "请检查文件格式和大小";
+  if (typeof value === "string") return value.slice(0, 120);
+  if (typeof value === "object") {
+    const data = value as { message?: unknown; error?: unknown; statusText?: unknown };
+    const messageText = typeof data.message === "string" ? data.message : "";
+    const errorText = typeof data.error === "string" ? data.error : "";
+    const statusText = typeof data.statusText === "string" ? data.statusText : "";
+    return (messageText || errorText || statusText || "请检查文件格式和大小").slice(0, 120);
+  }
+  return "请检查文件格式和大小";
 }
 
 function DiagnosticStatusTag({ status }: { status: DiagnosticItem["status"] }) {
