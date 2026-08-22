@@ -40,6 +40,52 @@ export class OldCoverImportService {
     });
   }
 
+  async stats() {
+    const [groups, totalWallpapers, published, rejected, pendingReview, unclassified] = await Promise.all([
+      this.prisma.oldCoverImport.groupBy({ by: ["status"], _count: { status: true } }),
+      this.prisma.wallpaper.count({ where: { matchKey: { not: null } } }),
+      this.prisma.wallpaper.count({ where: { matchKey: { not: null }, status: WallpaperStatus.published } }),
+      this.prisma.wallpaper.count({ where: { matchKey: { not: null }, status: WallpaperStatus.rejected } }),
+      this.prisma.wallpaper.count({ where: { matchKey: { not: null }, status: WallpaperStatus.pending_review } }),
+      this.prisma.wallpaper.count({ where: { matchKey: { not: null }, aiAnalysis: null } }),
+    ]);
+    return {
+      imports: Object.fromEntries(groups.map((item) => [item.status, item._count.status])),
+      wallpapers: {
+        total: totalWallpapers,
+        published,
+        rejected,
+        pendingReview,
+        unclassified,
+      },
+    };
+  }
+
+  async records(query: { page?: number; pageSize?: number; status?: string; keyword?: string }) {
+    const page = Math.max(1, Number(query.page || 1));
+    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
+    const where = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.keyword ? {
+        OR: [
+          { coverFileName: { contains: query.keyword } },
+          { candidateTitle: { contains: query.keyword } },
+          { oldResourceName: { contains: query.keyword } },
+        ],
+      } : {}),
+    };
+    const [list, total] = await Promise.all([
+      this.prisma.oldCoverImport.findMany({
+        where,
+        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.oldCoverImport.count({ where }),
+    ]);
+    return { list, total, page, pageSize };
+  }
+
   async run(limit = 0) {
     const covers = await this.readCoverFiles();
     const resources = await this.readAllOldResources();
