@@ -968,6 +968,7 @@ function Diagnostics() {
   };
   useEffect(() => { void load(); }, []);
   const okCount = items.filter((item) => item.status === "ok").length;
+  const warnCount = items.filter((item) => item.status === "warn").length;
   const failCount = items.filter((item) => item.status === "fail").length;
   return (
     <section>
@@ -975,6 +976,7 @@ function Diagnostics() {
       <Space className="toolbar">
         <Button type="primary" onClick={load} loading={loading}>重新检查</Button>
         <Tag color="green">正常 {okCount}</Tag>
+        <Tag color={warnCount ? "gold" : "default"}>提醒 {warnCount}</Tag>
         <Tag color={failCount ? "red" : "default"}>失败 {failCount}</Tag>
       </Space>
       <Table rowKey="key" loading={loading} dataSource={items} pagination={false} columns={[
