@@ -150,6 +150,8 @@ requireContains("apps/admin/src/main.tsx", "unpublishedActiveShortLinks");
 requireContains("apps/admin/src/main.tsx", "下架活跃短链");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
+requireContains(".github/workflows/deploy.yml", "Smoke production");
+requireContains(".github/workflows/deploy.yml", "npm run smoke:production");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",
