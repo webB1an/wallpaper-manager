@@ -16,6 +16,9 @@ const ALLOWED_UPLOAD_MIME_TYPES = new Set([
 ]);
 const DEFAULT_UPLOAD_MAX_FILE_MB = 300;
 const STORAGE_FILTERS = new Set(["has_quark", "has_baidu", "missing_quark", "missing_baidu", "missing_active", "missing_short"]);
+const AI_REVIEW_FILTERS = new Set(["unreviewed", "safe", "blocked"]);
+type StorageFilterQuery = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short";
+type AiReviewQuery = "unreviewed" | "safe" | "blocked";
 
 @Controller("admin")
 export class AdminController {
@@ -99,8 +102,11 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Get("wallpapers")
   async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; aiReview?: "unreviewed" | "safe" | "blocked"; storage?: string }) {
-    if (query.storage && !STORAGE_FILTERS.has(query.storage)) throw new BadRequestException("网盘筛选不正确");
-    return { code: 200, data: await this.admin.listWallpapers(query as typeof query & { storage?: "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short" }) };
+    const status = optionalEnum(query.status, WallpaperStatus, "壁纸状态");
+    const type = optionalEnum(query.type, WallpaperType, "壁纸类型");
+    const aiReview = optionalSet(query.aiReview, AI_REVIEW_FILTERS, "AI 审核筛选") as AiReviewQuery | undefined;
+    const storage = optionalSet(query.storage, STORAGE_FILTERS, "网盘筛选") as StorageFilterQuery | undefined;
+    return { code: 200, data: await this.admin.listWallpapers({ ...query, status, type, aiReview, storage }) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -112,7 +118,9 @@ export class AdminController {
     sortOrder?: number;
     tags?: string[];
   }) {
-    return { code: 200, data: await this.admin.updateWallpaper(id, body) };
+    const type = optionalEnum(body.type, WallpaperType, "壁纸类型");
+    const status = optionalEnum(body.status, WallpaperStatus, "壁纸状态");
+    return { code: 200, data: await this.admin.updateWallpaper(id, { ...body, type, status }) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -123,7 +131,8 @@ export class AdminController {
     passcode?: string;
     isPrimary?: boolean;
   }) {
-    return { code: 200, data: await this.admin.addStorageLink(id, body) };
+    const provider = requiredEnum(body.provider, StorageProvider, "网盘类型");
+    return { code: 200, data: await this.admin.addStorageLink(id, { ...body, provider }) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -135,7 +144,8 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/bulk")
   async bulk(@Body() body: { ids: string[]; status?: WallpaperStatus; tags?: string[] }) {
-    return { code: 200, data: await this.admin.bulkUpdate(body.ids, body) };
+    const status = optionalEnum(body.status, WallpaperStatus, "壁纸状态");
+    return { code: 200, data: await this.admin.bulkUpdate(body.ids, { ...body, status }) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -192,4 +202,22 @@ export class AdminController {
 function uploadMaxBytes() {
   const value = Number(process.env.UPLOAD_MAX_FILE_MB || DEFAULT_UPLOAD_MAX_FILE_MB);
   return Math.max(1, value) * 1024 * 1024;
+}
+
+function optionalEnum<T extends Record<string, string>>(value: string | undefined, values: T, label: string): T[keyof T] | undefined {
+  if (!value) return undefined;
+  if (Object.values(values).includes(value)) return value as T[keyof T];
+  throw new BadRequestException(`${label}不正确`);
+}
+
+function requiredEnum<T extends Record<string, string>>(value: string | undefined, values: T, label: string): T[keyof T] {
+  const result = optionalEnum(value, values, label);
+  if (result) return result;
+  throw new BadRequestException(`${label}不能为空`);
+}
+
+function optionalSet(value: string | undefined, values: Set<string>, label: string) {
+  if (!value) return undefined;
+  if (values.has(value)) return value;
+  throw new BadRequestException(`${label}不正确`);
 }
