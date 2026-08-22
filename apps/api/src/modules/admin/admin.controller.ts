@@ -15,6 +15,7 @@ const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "video/webm",
 ]);
 const DEFAULT_UPLOAD_MAX_FILE_MB = 300;
+const STORAGE_FILTERS = new Set(["has_quark", "has_baidu", "missing_quark", "missing_baidu", "missing_active", "missing_short"]);
 
 @Controller("admin")
 export class AdminController {
@@ -97,8 +98,9 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Get("wallpapers")
-  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: "unreviewed" | "safe" | "blocked" }) {
-    return { code: 200, data: await this.admin.listWallpapers(query) };
+  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: "unreviewed" | "safe" | "blocked"; storage?: string }) {
+    if (query.storage && !STORAGE_FILTERS.has(query.storage)) throw new BadRequestException("网盘筛选不正确");
+    return { code: 200, data: await this.admin.listWallpapers(query as typeof query & { storage?: "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short" }) };
   }
 
   @UseGuards(AdminAuthGuard)

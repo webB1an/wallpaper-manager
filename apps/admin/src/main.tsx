@@ -342,6 +342,7 @@ function Library() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [aiReview, setAiReview] = useState("");
+  const [storageFilter, setStorageFilter] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [loading, setLoading] = useState(false);
@@ -356,7 +357,7 @@ function Library() {
   const [channelLoading, setChannelLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  const load = async (nextPage = page, nextStatus = status, nextAiReview = aiReview) => {
+  const load = async (nextPage = page, nextStatus = status, nextAiReview = aiReview, nextStorageFilter = storageFilter) => {
     setLoading(true);
     try {
       const query = new URLSearchParams({
@@ -365,6 +366,7 @@ function Library() {
         keyword,
         status: nextStatus,
         aiReview: nextAiReview,
+        storage: nextStorageFilter,
       });
       setData(await request<{ list: Wallpaper[]; total: number }>(`/api/admin/wallpapers?${query.toString()}`));
       setPage(nextPage);
@@ -427,7 +429,7 @@ function Library() {
             const nextAiReview = value || "";
             setAiReview(nextAiReview);
             setSelectedRowKeys([]);
-            void load(1, status, nextAiReview);
+            void load(1, status, nextAiReview, storageFilter);
           }}
           options={[
             { value: "unreviewed", label: "未识别" },
@@ -435,6 +437,26 @@ function Library() {
             { value: "blocked", label: "已拦截" },
           ]}
           style={{ width: 150 }}
+        />
+        <Select
+          allowClear
+          placeholder="网盘状态"
+          value={storageFilter || undefined}
+          onChange={(value) => {
+            const nextStorageFilter = value || "";
+            setStorageFilter(nextStorageFilter);
+            setSelectedRowKeys([]);
+            void load(1, status, aiReview, nextStorageFilter);
+          }}
+          options={[
+            { value: "has_quark", label: "有夸克" },
+            { value: "has_baidu", label: "有百度" },
+            { value: "missing_quark", label: "缺夸克" },
+            { value: "missing_baidu", label: "缺百度" },
+            { value: "missing_active", label: "缺活跃链接" },
+            { value: "missing_short", label: "缺短链" },
+          ]}
+          style={{ width: 160 }}
         />
         <Button onClick={reloadFromFirstPage}>搜索</Button>
         <Button type="primary" onClick={() => processBatch(selectedRowKeys, load)}>批量处理</Button>

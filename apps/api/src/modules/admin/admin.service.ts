@@ -33,6 +33,7 @@ type DiagnosticItem = {
 };
 
 type AiReviewFilter = "unreviewed" | "safe" | "blocked";
+type StorageFilter = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short";
 
 const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
@@ -285,13 +286,14 @@ export class AdminService {
     return analysis;
   }
 
-  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: AiReviewFilter }) {
+  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: AiReviewFilter; storage?: StorageFilter }) {
     const page = Math.max(1, Number(query.page || 1));
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
     const where: Prisma.WallpaperWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.keyword ? { title: { contains: query.keyword } } : {}),
       ...aiReviewWhere(query.aiReview),
+      ...storageWhere(query.storage),
     };
     const [list, total] = await Promise.all([
       this.prisma.wallpaper.findMany({
@@ -827,6 +829,16 @@ function aiReviewWhere(value?: AiReviewFilter): Prisma.WallpaperWhereInput {
   if (value === "unreviewed") return { aiAnalysis: null };
   if (value === "safe") return { aiAnalysis: { safe: true } };
   if (value === "blocked") return { aiAnalysis: { safe: false } };
+  return {};
+}
+
+function storageWhere(value?: StorageFilter): Prisma.WallpaperWhereInput {
+  if (value === "has_quark") return { storageLinks: { some: { provider: StorageProvider.quark, isActive: true } } };
+  if (value === "has_baidu") return { storageLinks: { some: { provider: StorageProvider.baidu, isActive: true } } };
+  if (value === "missing_quark") return { storageLinks: { none: { provider: StorageProvider.quark, isActive: true } } };
+  if (value === "missing_baidu") return { storageLinks: { none: { provider: StorageProvider.baidu, isActive: true } } };
+  if (value === "missing_active") return { storageLinks: { none: { isActive: true } } };
+  if (value === "missing_short") return { shortLinks: { none: {} } };
   return {};
 }
 
