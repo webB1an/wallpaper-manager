@@ -67,6 +67,8 @@ requireContains("apps/miniprogram/pages/mine/mine.ts", "openDetail");
 requireContains("apps/miniprogram/pages/index/index.wxml", "hero-stack");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigins");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
+requireContains("apps/api/src/modules/channel/channel.service.ts", "PUBLIC_CHANNEL_ACCOUNT_SELECT");
+requireContains("apps/api/src/modules/channel/channel.service.ts", "select: PUBLIC_CHANNEL_ACCOUNT_SELECT");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",

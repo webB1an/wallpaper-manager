@@ -7,6 +7,18 @@ import { runCli } from "../../common/cli";
 import { decryptSecret, encryptSecret } from "../../common/crypto";
 import { PrismaService } from "../prisma/prisma.service";
 
+const PUBLIC_CHANNEL_ACCOUNT_SELECT = {
+  id: true,
+  label: true,
+  tokenTail: true,
+  guildId: true,
+  guildName: true,
+  channelId: true,
+  channelName: true,
+  isDefault: true,
+  createdAt: true,
+} as const;
+
 interface PublishInput {
   accountId: string;
   content: string;
@@ -37,17 +49,7 @@ export class ChannelService {
   async listAccounts() {
     return this.prisma.channelAccount.findMany({
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-      select: {
-        id: true,
-        label: true,
-        tokenTail: true,
-        guildId: true,
-        guildName: true,
-        channelId: true,
-        channelName: true,
-        isDefault: true,
-        createdAt: true,
-      },
+      select: PUBLIC_CHANNEL_ACCOUNT_SELECT,
     });
   }
 
@@ -83,6 +85,7 @@ export class ChannelService {
         channelName: input.channelName,
         isDefault: Boolean(input.isDefault),
       },
+      select: PUBLIC_CHANNEL_ACCOUNT_SELECT,
     });
   }
 
@@ -90,7 +93,7 @@ export class ChannelService {
     const account = await this.prisma.channelAccount.findUnique({ where: { id } });
     if (!account) throw new NotFoundException("腾讯频道账号不存在");
     await this.prisma.channelAccount.updateMany({ data: { isDefault: false } });
-    return this.prisma.channelAccount.update({ where: { id }, data: { isDefault: true } });
+    return this.prisma.channelAccount.update({ where: { id }, data: { isDefault: true }, select: PUBLIC_CHANNEL_ACCOUNT_SELECT });
   }
 
   async deleteAccount(id: string) {
