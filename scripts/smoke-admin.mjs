@@ -52,8 +52,19 @@ const diagnosticCounts = diagnostics.reduce((acc, item) => {
   acc[item.status] = (acc[item.status] || 0) + 1;
   return acc;
 }, {});
+const blockingDiagnostics = diagnostics
+  .filter((item) => item.status === "fail" || item.status === "warn")
+  .map((item) => ({
+    key: item.key,
+    status: item.status,
+    label: item.label,
+    message: item.message,
+  }));
 if (strict && (diagnosticCounts.fail || diagnosticCounts.warn)) {
-  throw new Error(`strict diagnostics failed: ${JSON.stringify(diagnosticCounts)}`);
+  throw new Error(`strict diagnostics failed: ${JSON.stringify({
+    counts: diagnosticCounts,
+    items: blockingDiagnostics.slice(0, 20),
+  })}`);
 }
 
 console.log(JSON.stringify({
@@ -71,6 +82,7 @@ console.log(JSON.stringify({
     unpublishedActiveShortLinks: overview.storage.unpublishedActiveShortLinks,
   },
   diagnostics: diagnosticCounts,
+  blockingDiagnostics,
   strict,
   settings: {
     defaultAutoProcess: settings.defaultAutoProcess,

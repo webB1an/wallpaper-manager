@@ -135,6 +135,7 @@ requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirect
 requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper.status !== WallpaperStatus.published");
 requireContains("scripts/smoke-admin.mjs", "STRICT_ADMIN_SMOKE");
 requireContains("scripts/smoke-admin.mjs", "--strict");
+requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/overview");
 requireContains("scripts/smoke-admin.mjs", "diagnostics");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
