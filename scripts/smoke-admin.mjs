@@ -59,6 +59,7 @@ const blockingDiagnostics = diagnostics
     status: item.status,
     label: item.label,
     message: item.message,
+    command: item.command || undefined,
   }));
 if (strict && (diagnosticCounts.fail || diagnosticCounts.warn)) {
   throw new Error(`strict diagnostics failed: ${JSON.stringify({
