@@ -370,7 +370,7 @@ export class AdminService {
     const passcode = data.passcode?.trim() || undefined;
     if (data.isPrimary) {
       await this.prisma.storageLink.updateMany({
-        where: { wallpaperId: id, provider: data.provider },
+        where: { wallpaperId: id },
         data: { isPrimary: false },
       });
     }
@@ -399,7 +399,7 @@ export class AdminService {
     if (!link) throw new Error("网盘链接不存在");
     if (data.isPrimary) {
       await this.prisma.storageLink.updateMany({
-        where: { wallpaperId: link.wallpaperId, provider: link.provider },
+        where: { wallpaperId: link.wallpaperId },
         data: { isPrimary: false },
       });
     }

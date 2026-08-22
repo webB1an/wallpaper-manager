@@ -105,6 +105,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认�
 requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认腾讯频道账号，不能开启上传后自动发帖");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertDefaultChannelReady");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "updateSettings({ defaultAutoPublish: false })");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "where: { wallpaperId: link.wallpaperId }");
 requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
 requireContains("apps/admin/src/main.tsx", "row.command");
 requireContains("apps/admin/src/main.tsx", "命令已复制");
@@ -113,6 +114,8 @@ requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpa
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 requireContains("apps/api/src/modules/public/public.service.ts", "publicCoverUrl");
 requireContains("apps/api/src/modules/public/public.service.ts", "FALLBACK_COVER_URL");
+requireContains("apps/api/src/modules/public/public.service.ts", "compareShortLinks");
+requireContains("apps/api/src/modules/public/public.service.ts", "storageLink.isPrimary");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');

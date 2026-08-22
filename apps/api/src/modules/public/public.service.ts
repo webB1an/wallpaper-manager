@@ -68,7 +68,7 @@ export class PublicService {
       createdAt: item.createdAt,
       shortLinks: item.shortLinks
         .filter((link) => link.storageLink.isActive)
-        .sort((left) => left.provider === StorageProvider.quark ? -1 : 1)
+        .sort(compareShortLinks)
         .map((link) => ({
           provider: link.provider,
           label: link.provider === StorageProvider.quark ? "夸克下载" : "百度备用",
@@ -151,6 +151,23 @@ export class PublicService {
 }
 
 const FALLBACK_COVER_URL = "https://wallpaper.wdbzk.com/covers/%E6%B2%BB%E6%84%88__Lily%20On%20The%20Hill%20(%E4%B8%98%E3%81%AE%E4%B8%8A%E3%81%AE%E3%83%A6%E3%83%AA)%20-%20Lily%20Watching%20the%20Clouds%20-%20%5B4K%5D..jpg";
+
+type PublicShortLink = {
+  provider: StorageProvider;
+  storageLink: {
+    isPrimary: boolean;
+  };
+};
+
+function compareShortLinks(left: PublicShortLink, right: PublicShortLink) {
+  if (left.storageLink.isPrimary !== right.storageLink.isPrimary) {
+    return left.storageLink.isPrimary ? -1 : 1;
+  }
+  if (left.provider !== right.provider) {
+    return left.provider === StorageProvider.quark ? -1 : 1;
+  }
+  return 0;
+}
 
 function wallpaperCard(item: {
   id: string;
