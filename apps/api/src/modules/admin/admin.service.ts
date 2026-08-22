@@ -11,7 +11,7 @@ import sharp from "sharp";
 import { nanoid } from "nanoid";
 import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
-import { publicAssetUrl } from "../../common/public-url";
+import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { AiService } from "../ai/ai.service";
 import { ChannelService } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -197,7 +197,18 @@ export class AdminService {
       }),
       this.prisma.wallpaper.count({ where }),
     ]);
-    return { list, total, page, pageSize };
+    return {
+      list: list.map((item) => ({
+        ...item,
+        shortLinks: item.shortLinks.map((link) => ({
+          ...link,
+          url: shortUrl(this.config, link.code),
+        })),
+      })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   async updateWallpaper(id: string, data: {

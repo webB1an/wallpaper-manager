@@ -155,6 +155,17 @@ small {
   margin-bottom: 10px;
 }
 
+.link-actions {
+  width: 100%;
+}
+
+.link-chip {
+  padding: 6px 8px;
+  border: 1px solid #e2e6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
 .storage-form {
   display: grid;
   grid-template-columns: 120px 1fr 120px 110px auto;

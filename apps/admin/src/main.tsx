@@ -18,6 +18,7 @@ type Wallpaper = {
   sortOrder: number;
   tags: Array<{ tag: { name: string } }>;
   storageLinks: Array<{ id: string; provider: string; url: string; isActive: boolean; isPrimary: boolean }>;
+  shortLinks: Array<{ id: string; provider: string; storageLinkId: string; url: string; clickCount: number }>;
 };
 
 type TaskItem = {
@@ -304,11 +305,22 @@ function Library() {
         { title: "标签", render: (_, row) => row.tags?.map((item) => <Tag key={item.tag.name}>{item.tag.name}</Tag>) },
         {
           title: "网盘",
-          render: (_, row) => row.storageLinks?.map((item) => (
-            <Tag key={item.id} color={!item.isActive ? "default" : item.provider === "quark" ? "green" : "blue"}>
-              {item.provider}{item.isPrimary ? " 主" : ""}{item.isActive ? "" : " 停"}
-            </Tag>
-          )),
+          render: (_, row) => (
+            <Space direction="vertical" size={2}>
+              <Space wrap>
+                {row.storageLinks?.map((item) => (
+                  <Tag key={item.id} color={!item.isActive ? "default" : item.provider === "quark" ? "green" : "blue"}>
+                    {item.provider}{item.isPrimary ? " 主" : ""}{item.isActive ? "" : " 停"}
+                  </Tag>
+                ))}
+              </Space>
+              <Space wrap>
+                {row.shortLinks?.map((item) => (
+                  <Button key={item.id} size="small" type="link" onClick={() => copyText(item.url)}>复制{providerText(item.provider)}短链</Button>
+                ))}
+              </Space>
+            </Space>
+          ),
         },
         {
           title: "操作",
@@ -439,22 +451,33 @@ function StorageLinkEditor({ wallpaper, reload }: { wallpaper: Wallpaper; reload
   return (
     <div className="sub-panel">
       <strong>网盘链接</strong>
-      <Space wrap>
+      <Space wrap className="link-actions">
         {wallpaper.storageLinks?.map((link) => (
-          <Button
-            key={link.id}
-            size="small"
-            onClick={async () => {
-              await request(`/api/admin/storage-links/${link.id}`, {
-                method: "PATCH",
-                body: JSON.stringify({ isActive: !link.isActive }),
-              });
-              message.success(link.isActive ? "链接已停用" : "链接已启用");
-              reload();
-            }}
-          >
-            {link.provider} {link.isActive ? "停用" : "启用"}
-          </Button>
+          <Space key={link.id} className="link-chip" wrap>
+            <Tag color={!link.isActive ? "default" : link.provider === "quark" ? "green" : "blue"}>
+              {providerText(link.provider)}{link.isPrimary ? " 主链接" : ""}
+            </Tag>
+            <Button
+              size="small"
+              onClick={async () => {
+                await request(`/api/admin/storage-links/${link.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ isActive: !link.isActive }),
+                });
+                message.success(link.isActive ? "链接已停用" : "链接已启用");
+                reload();
+              }}
+            >
+              {link.isActive ? "停用" : "启用"}
+            </Button>
+            {wallpaper.shortLinks
+              ?.filter((shortLink) => shortLink.storageLinkId === link.id)
+              .map((shortLink) => (
+                <Button key={shortLink.id} size="small" type="link" onClick={() => copyText(shortLink.url)}>
+                  复制短链
+                </Button>
+              ))}
+          </Space>
         ))}
       </Space>
       <Form form={form} layout="vertical" className="storage-form" onFinish={async (values) => {
@@ -927,6 +950,26 @@ function splitTags(value?: string) {
     .split(/[,\n，]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function providerText(value: string) {
+  return value === "quark" ? "夸克" : value === "baidu" ? "百度" : value;
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+  } else {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  }
+  message.success("短链已复制");
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
