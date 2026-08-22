@@ -40,3 +40,9 @@ Production deploys from GitHub Actions on every push to `main`.
 - Short links: `https://r.wdbzk.com`
 
 See `docs/deployment.md` for Baota database setup, GitHub Secrets, Nginx configuration, storage authorization commands, Tencent channel setup, and the release checklist.
+
+On the server, run this when you want the remaining launch work as copyable actions:
+
+```bash
+npm run readiness:production
+```

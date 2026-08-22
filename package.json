@@ -15,6 +15,8 @@
     "prisma:migrate": "npm run prisma:migrate -w apps/api",
     "prisma:deploy": "npm run prisma:deploy -w apps/api",
     "package:release": "powershell -ExecutionPolicy Bypass -File deploy/package-release.ps1",
+    "readiness:production": "node scripts/production-readiness.mjs",
+    "readiness:production:strict": "node scripts/production-readiness.mjs --strict",
     "smoke:admin": "node scripts/smoke-admin.mjs",
     "smoke:json": "npm run smoke:json -w apps/api",
     "smoke:production": "npm run smoke:public && npm run smoke:admin",

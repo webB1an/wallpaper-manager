@@ -210,6 +210,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 - 先打开管理端“上线诊断”，确认公开域名、数据库、Redis、ffmpeg、bdpan、夸克 skill、旧站封面目录、DeepSeek、panapi、腾讯频道 CLI 和频道账号状态。
 - 对诊断失败项，优先使用页面右侧“复制命令”按钮，把命令粘贴到宝塔终端执行。
+- 在服务器执行 `npm run readiness:production`，把当前失败/提醒项整理成可直接操作的上线待办；需要把提醒也作为失败处理时执行 `npm run readiness:production:strict`。
 - 在服务器执行 `npm run smoke:production`，一次确认公开列表、详情、封面域名、短链域名、分类聚合、后台登录、概览、诊断和系统设置接口都可用。
 - 需要强制所有诊断项无失败/提醒时执行 `npm run smoke:production:strict`。
 - `DEEPSEEK_API_KEY` 必须配置后才能自动上架；未配置时 AI 审核会保护性失败，资源不会自动发布。
@@ -227,6 +228,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 - GitHub Actions 最新 `main` 部署成功。
 - `https://wall-api.wdbzk.com/health` 返回 `{"code":200}`。
 - `npm run smoke:production` 中 public/admin 两段都返回 `"ok": true`。
+- `npm run readiness:production` 没有失败项；最终发布前 `npm run readiness:production:strict` 也应通过。
 - 百度、夸克、腾讯频道授权配置完成后，`npm run smoke:production:strict` 通过。
 - PM2 中 `wallpaper-api` 为 `online`。
 - 管理端“上线诊断”中数据库、Redis、ffmpeg、DeepSeek、panapi、bdpan、夸克 skill、腾讯频道 CLI 都为正常。
