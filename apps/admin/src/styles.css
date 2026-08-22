@@ -97,6 +97,85 @@ h1 {
   margin-bottom: 18px;
 }
 
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.stat-grid .ant-statistic {
+  min-height: 104px;
+  padding: 18px;
+  border: 1px solid #e2e6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ops-panel {
+  min-height: 190px;
+  padding: 18px;
+  border: 1px solid #e2e6dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ops-panel h2 {
+  margin: 0 0 14px;
+  font-size: 17px;
+}
+
+.status-pills {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.status-pills span {
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid #edf0e9;
+  border-radius: 8px;
+  background: #fbfcf8;
+  color: #5f6e65;
+}
+
+.status-pills strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #17201b;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.issue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 38px;
+  border-bottom: 1px solid #edf0e9;
+  color: #607067;
+}
+
+.issue-row:last-child {
+  border-bottom: 0;
+}
+
+.issue-row strong {
+  color: #1f7a5a;
+  font-size: 18px;
+}
+
+.issue-row strong.is-danger {
+  color: #b42318;
+}
+
 .cover-thumb,
 .cover-empty {
   width: 86px;

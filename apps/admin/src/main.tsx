@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadProps } from "antd";
-import { Activity, CloudUpload, GalleryVerticalEnd, ListChecks, RadioTower, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
+import { Activity, CloudUpload, GalleryVerticalEnd, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
 import "./styles.css";
 
@@ -107,6 +107,39 @@ type DiagnosticItem = {
   message: string;
 };
 
+type AdminOverview = {
+  wallpapers: {
+    total: number;
+    byStatus: Record<string, number>;
+    draft: number;
+    processing: number;
+    pendingReview: number;
+    published: number;
+    rejected: number;
+    archived: number;
+    byType: Array<{ type: string; count: number }>;
+  };
+  ai: {
+    unreviewed: number;
+    safe: number;
+    blocked: number;
+  };
+  storage: {
+    activeQuark: number;
+    activeBaidu: number;
+    missingActiveLinks: number;
+    missingShortLinks: number;
+  };
+  channelAccounts: {
+    total: number;
+    defaultConfigured: boolean;
+  };
+  tags: {
+    total: number;
+  };
+  tasks: TaskSummary;
+};
+
 function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem("wm_token");
   return fetch(`${API}${path}`, {
@@ -125,7 +158,7 @@ function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 function App() {
   const [authed, setAuthed] = useState(Boolean(localStorage.getItem("wm_token")));
-  const [active, setActive] = useState("library");
+  const [active, setActive] = useState("overview");
 
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
 
@@ -145,6 +178,7 @@ function App() {
             selectedKeys={[active]}
             onClick={(event) => setActive(event.key)}
             items={[
+              { key: "overview", icon: <Home size={18} />, label: "概览" },
               { key: "library", icon: <GalleryVerticalEnd size={18} />, label: "资源库" },
               { key: "upload", icon: <UploadCloud size={18} />, label: "批量上传" },
               { key: "tasks", icon: <ListChecks size={18} />, label: "任务队列" },
@@ -156,6 +190,7 @@ function App() {
           />
         </Layout.Sider>
         <Layout.Content className="content">
+          {active === "overview" && <Dashboard onNavigate={setActive} />}
           {active === "library" && <Library />}
           {active === "upload" && <Uploader />}
           {active === "tasks" && <Tasks />}
@@ -204,6 +239,87 @@ function Login({ onLogin }: { onLogin: () => void }) {
         </Form>
       </section>
     </div>
+  );
+}
+
+function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      setOverview(await request<AdminOverview>("/api/admin/overview"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const issueCount = overview
+    ? overview.ai.unreviewed + overview.storage.missingActiveLinks + overview.storage.missingShortLinks + overview.tasks.failedToday
+    : 0;
+
+  return (
+    <section>
+      <Header title="概览" subtitle="今日任务、审核风险、网盘短链和频道账号状态。" />
+      <Space className="toolbar">
+        <Button type="primary" icon={<RefreshCw size={16} />} loading={loading} onClick={load}>刷新</Button>
+        <Button onClick={() => onNavigate("upload")}>上传壁纸</Button>
+        <Button onClick={() => onNavigate("library")}>查看资源库</Button>
+        <Button onClick={() => onNavigate("tasks")}>任务队列</Button>
+      </Space>
+      <div className="stat-grid">
+        <Statistic title="资源总数" value={overview?.wallpapers.total ?? "--"} />
+        <Statistic title="已上架" value={overview?.wallpapers.published ?? "--"} />
+        <Statistic title="待审核" value={overview?.wallpapers.pendingReview ?? "--"} />
+        <Statistic title="待处理项" value={overview ? issueCount : "--"} valueStyle={{ color: issueCount ? "#b45309" : "#1f7a5a" }} />
+      </div>
+      <div className="overview-grid">
+        <div className="ops-panel">
+          <h2>资源状态</h2>
+          <div className="status-pills">
+            {["draft", "processing", "pending_review", "published", "rejected", "archived"].map((status) => (
+              <span key={status}>
+                <strong>{overview?.wallpapers.byStatus[status] ?? 0}</strong>
+                {statusText(status)}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="ops-panel">
+          <h2>已上架类型</h2>
+          <div className="status-pills">
+            {(overview?.wallpapers.byType.length ? overview.wallpapers.byType : [{ type: "暂无", count: 0 }]).map((item) => (
+              <span key={item.type}>
+                <strong>{item.count}</strong>
+                {typeText(item.type)}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="ops-panel">
+          <h2>审核与同步</h2>
+          <IssueRow label="AI 未识别" value={overview?.ai.unreviewed ?? 0} danger={Boolean(overview?.ai.unreviewed)} />
+          <IssueRow label="AI 已拦截" value={overview?.ai.blocked ?? 0} danger={Boolean(overview?.ai.blocked)} />
+          <IssueRow label="缺活跃网盘链接" value={overview?.storage.missingActiveLinks ?? 0} danger={Boolean(overview?.storage.missingActiveLinks)} />
+          <IssueRow label="缺短链" value={overview?.storage.missingShortLinks ?? 0} danger={Boolean(overview?.storage.missingShortLinks)} />
+        </div>
+        <div className="ops-panel">
+          <h2>外部服务</h2>
+          <IssueRow label="夸克活跃链接" value={overview?.storage.activeQuark ?? 0} />
+          <IssueRow label="百度活跃链接" value={overview?.storage.activeBaidu ?? 0} />
+          <IssueRow label="标签总数" value={overview?.tags.total ?? 0} />
+          <div className="issue-row">
+            <span>频道账号</span>
+            <Tag color={overview?.channelAccounts.defaultConfigured ? "green" : "gold"}>
+              {overview?.channelAccounts.total ?? 0} 个{overview?.channelAccounts.defaultConfigured ? " · 已设默认" : " · 未设默认"}
+            </Tag>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -990,6 +1106,15 @@ function DiagnosticStatusTag({ status }: { status: DiagnosticItem["status"] }) {
   return <Tag color={color}>{label}</Tag>;
 }
 
+function IssueRow({ label, value, danger = false }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <div className="issue-row">
+      <span>{label}</span>
+      <strong className={danger ? "is-danger" : ""}>{value}</strong>
+    </div>
+  );
+}
+
 async function analyze(id: string, reload: () => void) {
   await request(`/api/admin/wallpapers/${id}/analyze`, { method: "POST" });
   message.success("AI 识别完成");
@@ -1039,6 +1164,29 @@ function splitTags(value?: string) {
 
 function providerText(value: string) {
   return value === "quark" ? "夸克" : value === "baidu" ? "百度" : value;
+}
+
+function statusText(value: string) {
+  const map: Record<string, string> = {
+    draft: "草稿",
+    processing: "处理中",
+    pending_review: "待审核",
+    published: "已上架",
+    rejected: "已拦截",
+    archived: "已下架",
+  };
+  return map[value] || value;
+}
+
+function typeText(value: string) {
+  const map: Record<string, string> = {
+    static: "静态壁纸",
+    live: "动态壁纸",
+    mobile: "手机壁纸",
+    desktop: "桌面壁纸",
+    other: "其他",
+  };
+  return map[value] || value;
 }
 
 function sensitiveFlagText(value: string) {

@@ -150,6 +150,96 @@ export class AdminService {
     return checks;
   }
 
+  async overview() {
+    const [
+      statusGroups,
+      typeGroups,
+      aiUnreviewed,
+      aiSafe,
+      aiBlocked,
+      activeQuark,
+      activeBaidu,
+      missingActiveLinks,
+      missingShortLinks,
+      channelAccounts,
+      defaultChannelAccounts,
+      tagTotal,
+      tasks,
+    ] = await Promise.all([
+      this.prisma.wallpaper.groupBy({ by: ["status"], _count: { _all: true } }),
+      this.prisma.wallpaper.groupBy({
+        by: ["type"],
+        where: { status: WallpaperStatus.published },
+        _count: { _all: true },
+      }),
+      this.prisma.wallpaper.count({ where: { aiAnalysis: null } }),
+      this.prisma.aiAnalysis.count({ where: { safe: true } }),
+      this.prisma.aiAnalysis.count({ where: { safe: false } }),
+      this.prisma.storageLink.count({ where: { provider: StorageProvider.quark, isActive: true } }),
+      this.prisma.storageLink.count({ where: { provider: StorageProvider.baidu, isActive: true } }),
+      this.prisma.wallpaper.count({
+        where: {
+          status: WallpaperStatus.published,
+          storageLinks: { none: { isActive: true } },
+        },
+      }),
+      this.prisma.wallpaper.count({
+        where: {
+          status: WallpaperStatus.published,
+          shortLinks: { none: {} },
+        },
+      }),
+      this.prisma.channelAccount.count(),
+      this.prisma.channelAccount.count({ where: { isDefault: true } }),
+      this.prisma.tag.count(),
+      this.tasks.summary(),
+    ]);
+
+    const byStatus = Object.fromEntries(
+      Object.values(WallpaperStatus).map((status) => [status, 0]),
+    ) as Record<WallpaperStatus, number>;
+    for (const group of statusGroups) {
+      byStatus[group.status] = group._count._all;
+    }
+
+    const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
+
+    return {
+      wallpapers: {
+        total,
+        byStatus,
+        draft: byStatus.draft,
+        processing: byStatus.processing,
+        pendingReview: byStatus.pending_review,
+        published: byStatus.published,
+        rejected: byStatus.rejected,
+        archived: byStatus.archived,
+        byType: typeGroups
+          .map((group) => ({ type: group.type, count: group._count._all }))
+          .sort((left, right) => right.count - left.count),
+      },
+      ai: {
+        unreviewed: aiUnreviewed,
+        safe: aiSafe,
+        blocked: aiBlocked,
+      },
+      storage: {
+        activeQuark,
+        activeBaidu,
+        missingActiveLinks,
+        missingShortLinks,
+      },
+      channelAccounts: {
+        total: channelAccounts,
+        defaultConfigured: defaultChannelAccounts > 0,
+      },
+      tags: {
+        total: tagTotal,
+      },
+      tasks,
+    };
+  }
+
   async analyzeNow(wallpaperId: string) {
     const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId } });
     if (!wallpaper?.coverPath) throw new Error("壁纸或封面不存在");

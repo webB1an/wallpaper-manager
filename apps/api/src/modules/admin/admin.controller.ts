@@ -60,6 +60,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get("overview")
+  async overview() {
+    return { code: 200, data: await this.admin.overview() };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Patch("settings")
   async updateSettings(@Body() body: { defaultAutoProcess?: boolean; defaultAutoPublish?: boolean }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
