@@ -32,6 +32,7 @@ type DiagnosticItem = {
   label: string;
   status: "ok" | "warn" | "fail";
   message: string;
+  command?: string;
 };
 
 type AiReviewFilter = "unreviewed" | "safe" | "blocked";
@@ -813,7 +814,7 @@ export class AdminService {
       const result = await this.baiduStorage.probe();
       return result.ok
         ? ok("bdpan", "百度网盘 bdpan", "bdpan 已登录且可用")
-        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}；请在服务器执行 ${this.baiduLoginCommand()}`);
+        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}`, this.baiduLoginCommand());
     } catch (error) {
       return fail("bdpan", "百度网盘 bdpan", `bdpan 探测失败：${shortError(error)}`);
     }
@@ -824,7 +825,7 @@ export class AdminService {
       const result = await this.quarkStorage.probe();
       return result.ok
         ? ok("quark_skill", "夸克 skill", "夸克 skill 已登录且可用")
-        : fail("quark_skill", "夸克 skill", `夸克 skill 不可用：${shortError(result.message)}；请在服务器执行 ${this.quarkLoginCommand()}`);
+        : fail("quark_skill", "夸克 skill", `夸克 skill 不可用：${shortError(result.message)}`, this.quarkLoginCommand());
     } catch (error) {
       return fail("quark_skill", "夸克 skill", `夸克 skill 探测失败：${shortError(error)}`);
     }
@@ -986,8 +987,8 @@ function warn(key: string, label: string, message: string): DiagnosticItem {
   return { key, label, status: "warn", message };
 }
 
-function fail(key: string, label: string, message: string): DiagnosticItem {
-  return { key, label, status: "fail", message };
+function fail(key: string, label: string, message: string, command?: string): DiagnosticItem {
+  return { key, label, status: "fail", message, command };
 }
 
 function shortError(error: unknown): string {

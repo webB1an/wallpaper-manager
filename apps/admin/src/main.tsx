@@ -105,6 +105,7 @@ type DiagnosticItem = {
   label: string;
   status: "ok" | "warn" | "fail";
   message: string;
+  command?: string;
 };
 
 type AdminOverview = {
@@ -972,11 +973,10 @@ function Diagnostics() {
       <Table rowKey="key" loading={loading} dataSource={items} pagination={false} columns={[
         { title: "项目", dataIndex: "label", width: 220 },
         { title: "状态", dataIndex: "status", width: 120, render: (status) => <DiagnosticStatusTag status={status} /> },
-        { title: "说明", dataIndex: "message", render: (value) => <DiagnosticMessage value={String(value || "")} /> },
+        { title: "说明", render: (_, row) => <DiagnosticMessage value={row.message} command={row.command} /> },
         { title: "操作", width: 150, render: (_, row) => {
-          const command = diagnosticCommand(row.message);
-          return command ? (
-            <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(command, "命令已复制")}>复制命令</Button>
+          return row.command ? (
+            <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(row.command || "", "命令已复制")}>复制命令</Button>
           ) : null;
         } },
       ]} />
@@ -1384,13 +1384,11 @@ function DiagnosticStatusTag({ status }: { status: DiagnosticItem["status"] }) {
   return <Tag color={color}>{label}</Tag>;
 }
 
-function DiagnosticMessage({ value }: { value: string }) {
-  const command = diagnosticCommand(value);
+function DiagnosticMessage({ value, command }: { value: string; command?: string }) {
   if (!command) return <span>{value}</span>;
-  const [messageText] = value.split("；请在服务器执行 ");
   return (
     <div className="diagnostic-message">
-      <span>{messageText}</span>
+      <span>{value}</span>
       <code>{command}</code>
     </div>
   );
@@ -1538,13 +1536,6 @@ function getChannelPublishIssue(ids: React.Key[], rows: Wallpaper[]) {
   if (hasLive && ids.length > 1) return "动态壁纸一次只能发布 1 个，不能和静态图混发";
   if (!hasLive && ids.length > 18) return "静态壁纸一次最多发布 18 张图";
   return "";
-}
-
-function diagnosticCommand(messageText: string) {
-  const marker = "；请在服务器执行 ";
-  const index = messageText.indexOf(marker);
-  if (index === -1) return "";
-  return messageText.slice(index + marker.length).trim();
 }
 
 async function copyText(value: string, successText = "短链已复制") {

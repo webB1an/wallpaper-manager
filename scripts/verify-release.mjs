@@ -71,6 +71,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配�
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkQuarkStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "quarkLoginCommand");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "command?: string");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "CODEX_ENV=1 AI_AGENT=codex");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "primaryProvider");
 requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "quarkAgentEnv");
@@ -93,7 +94,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认�
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertDefaultChannelReady");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "updateSettings({ defaultAutoPublish: false })");
 requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
-requireContains("apps/admin/src/main.tsx", "diagnosticCommand");
+requireContains("apps/admin/src/main.tsx", "row.command");
 requireContains("apps/admin/src/main.tsx", "命令已复制");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
