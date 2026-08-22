@@ -71,6 +71,8 @@ requireContains("apps/api/src/modules/channel/channel.service.ts", "PUBLIC_CHANN
 requireContains("apps/api/src/modules/channel/channel.service.ts", "select: PUBLIC_CHANNEL_ACCOUNT_SELECT");
 requireContains("apps/api/src/modules/channel/channel.service.ts", "accountCount === 0");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "默认账号已设置");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "assertChannelMediaReady");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "频道发帖素材不完整");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",

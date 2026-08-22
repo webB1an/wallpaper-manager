@@ -520,6 +520,12 @@ export class AdminService {
     const absoluteAsset = wallpaper.assetPath ? join(process.cwd(), "storage", "public", wallpaper.assetPath) : undefined;
     const absoluteCover = wallpaper.coverPath ? join(process.cwd(), "storage", "public", wallpaper.coverPath) : undefined;
     const isVideo = wallpaper.mimeType?.startsWith("video/") || wallpaper.type === WallpaperType.live;
+    assertChannelMediaReady([{
+      title: wallpaper.title,
+      isVideo,
+      coverPath: absoluteCover,
+      assetPath: absoluteAsset,
+    }]);
     return this.channel.publish({
       accountId: account.id,
       content,
@@ -530,16 +536,18 @@ export class AdminService {
   }
 
   async publishWallpapersToChannel(ids: string[], accountId?: string) {
+    const uniqueIds = unique(ids.map(String));
     const account = accountId
       ? await this.prisma.channelAccount.findUnique({ where: { id: accountId } })
       : await this.channel.getDefaultAccount();
     if (!account) throw new Error("未配置腾讯频道账号");
     const wallpapers = await this.prisma.wallpaper.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: uniqueIds } },
       include: { tags: { include: { tag: true } } },
       orderBy: [{ sortOrder: "desc" }, { createdAt: "desc" }],
     });
     if (!wallpapers.length) throw new Error("没有可发布的壁纸");
+    if (wallpapers.length !== uniqueIds.length) throw new Error("存在未找到的壁纸，无法发布到频道");
     await this.assertWallpapersCanPublish(wallpapers.map((item) => item.id));
     const liveItems = wallpapers.filter((item) => item.mimeType?.startsWith("video/") || item.type === WallpaperType.live);
     if (liveItems.length > 1 || (liveItems.length === 1 && wallpapers.length > 1)) {
@@ -548,6 +556,12 @@ export class AdminService {
     if (!liveItems.length && wallpapers.length > 18) {
       throw new Error("静态壁纸一次最多发布 18 张图");
     }
+    assertChannelMediaReady(wallpapers.map((item) => ({
+      title: item.title,
+      isVideo: item.mimeType?.startsWith("video/") || item.type === WallpaperType.live,
+      coverPath: item.coverPath ? join(process.cwd(), "storage", "public", item.coverPath) : undefined,
+      assetPath: item.assetPath ? join(process.cwd(), "storage", "public", item.assetPath) : undefined,
+    })));
 
     const tags = unique(wallpapers.flatMap((item) => item.tags.map(({ tag }) => tag.name))).slice(0, 8);
     const content = buildChannelContent(
@@ -854,6 +868,18 @@ function detectType(mimeType: string, name: string): WallpaperType {
 function buildChannelContent(title: string, tags: string[]): string {
   const tagLine = tags.slice(0, 6).map((tag) => `#${tag}`).join(" ");
   return [title, tagLine].filter(Boolean).join("\n").slice(0, 1000);
+}
+
+function assertChannelMediaReady(items: Array<{ title: string; isVideo: boolean; coverPath?: string; assetPath?: string }>) {
+  const missing = items.flatMap((item) => {
+    if (item.isVideo) {
+      return item.assetPath && existsSync(item.assetPath) ? [] : [`${item.title} 缺少动态原文件`];
+    }
+    return item.coverPath && existsSync(item.coverPath) ? [] : [`${item.title} 缺少封面图`];
+  });
+  if (missing.length) {
+    throw new BadRequestException(`频道发帖素材不完整：${missing.slice(0, 5).join("、")}`);
+  }
 }
 
 function unique(values: string[]): string[] {
