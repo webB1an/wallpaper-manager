@@ -1,0 +1,15 @@
+{
+  "request": [
+    "https://wall-api.wdbzk.com"
+  ],
+  "downloadFile": [
+    "https://wall-api.wdbzk.com"
+  ],
+  "uploadFile": [],
+  "connectSocket": [],
+  "businessDomain": [],
+  "notes": [
+    "The mini program copies r.wdbzk.com short links as text and does not request or open them inside the mini program.",
+    "Cover images are returned by wall-api.wdbzk.com and should be allowed in downloadFile to avoid production image-domain failures."
+  ]
+}

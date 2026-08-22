@@ -45,6 +45,7 @@ function parseEnvExample(path) {
 
 const app = readJson("apps/miniprogram/app.json");
 const project = readJson("apps/miniprogram/project.config.json");
+const wechatDomains = readJson("deploy/wechat-miniprogram-domains.json");
 const rootPackage = readJson("package.json");
 const env = parseEnvExample("deploy/production.env.example");
 
@@ -61,6 +62,9 @@ for (const page of ["pages/index/index", "pages/category/category", "pages/mine/
 
 if (project.appid !== "") fail("project.config.json appid must stay blank until the real WeChat AppID is assigned");
 if (project.setting?.urlCheck !== true) fail("project.config.json setting.urlCheck must stay true for production parity");
+if (!wechatDomains.request?.includes("https://wall-api.wdbzk.com")) fail("wechat request domain must include wall-api.wdbzk.com");
+if (!wechatDomains.downloadFile?.includes("https://wall-api.wdbzk.com")) fail("wechat downloadFile domain must include wall-api.wdbzk.com");
+if (wechatDomains.request?.includes("https://r.wdbzk.com")) fail("r.wdbzk.com should not be configured as a mini program request domain while it is copied as text only");
 if (!rootPackage.workspaces?.includes("apps/miniprogram")) fail("root package workspaces must include apps/miniprogram");
 
 requireFile("apps/miniprogram/package.json");
@@ -158,8 +162,10 @@ if (env.DEEPSEEK_MODEL !== "deepseek-v4-flash-vision-exp") fail("DEEPSEEK_MODEL 
 requireContains("deploy/nginx/wall-api.wdbzk.com.conf", "server_name wall-api.wdbzk.com r.wdbzk.com");
 requireContains("deploy/nginx/wall-api.wdbzk.com.conf", "server_name r.wdbzk.com");
 requireContains("docs/deployment.md", "微信小程序发布");
+requireContains("docs/deployment.md", "deploy/wechat-miniprogram-domains.json");
 requireContains("docs/deployment.md", "https://wall-api.wdbzk.com");
 requireContains("docs/deployment.md", "r.wdbzk.com");
+requireContains("docs/deployment.md", "不要勾选“不校验合法域名”");
 requireContains("docs/deployment.md", "网盘授权");
 requireContains("docs/deployment.md", "腾讯频道配置");
 requireContains("docs/deployment.md", "发布前验收清单");
