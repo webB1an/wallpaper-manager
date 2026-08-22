@@ -231,6 +231,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 任务队列里查看“提醒”列：单个网盘失败或腾讯频道发帖失败不会重试，也不会阻断已通过审核的资源上架。
 - 资源库里可手动补夸克/百度链接，后台会为新增链接生成 `r.wdbzk.com` 短链。
 - 小程序详情页会展示短链文本，用户点击复制后自行打开网盘。
+- 下架资源仍有关联活跃短链时，可先在服务器执行 `npm run cleanup:unpublished-links` 做 dry-run 审计；确认后执行 `npm run cleanup:unpublished-links -- --apply` 停用这些非上架资源的活跃网盘链接。
 
 ## 12. 发布前验收清单
 
@@ -245,6 +246,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 管理端“上线诊断”中数据库、Redis、ffmpeg、DeepSeek、panapi、bdpan、夸克 skill、腾讯频道 CLI 都为正常。
 - 管理端至少存在一个默认腾讯频道账号。
 - 资源库里已上架资源都有可用 `r.wdbzk.com` 短链。
+- `npm run cleanup:unpublished-links` 返回 `Matched wallpapers: 0`，或已确认并执行过 `--apply`。
 - 小程序首页、分类页、详情页、我的页都能加载线上数据。
 - 详情页复制短链后，“我的”页出现最近复制记录，且能点回详情。
 - 抽查百度备用链接时，小程序详情页能展示提取码。

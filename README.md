@@ -54,3 +54,9 @@ npm run auth:storage -- baidu-url
 npm run auth:storage -- baidu-code <code>
 npm run auth:storage -- quark-login
 ```
+
+To audit the remaining non-published resources that still have active short-link targets:
+
+```bash
+npm run cleanup:unpublished-links
+```

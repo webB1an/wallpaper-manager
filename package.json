@@ -16,6 +16,7 @@
     "prisma:deploy": "npm run prisma:deploy -w apps/api",
     "auth:storage": "node scripts/storage-auth.mjs",
     "package:release": "powershell -ExecutionPolicy Bypass -File deploy/package-release.ps1",
+    "cleanup:unpublished-links": "node scripts/cleanup-unpublished-links.mjs",
     "readiness:production": "node scripts/production-readiness.mjs",
     "readiness:production:strict": "node scripts/production-readiness.mjs --strict",
     "smoke:admin": "node scripts/smoke-admin.mjs",
