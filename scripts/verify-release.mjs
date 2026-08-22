@@ -130,6 +130,11 @@ requireContains("deploy/nginx/wall-api.wdbzk.com.conf", "server_name r.wdbzk.com
 requireContains("docs/deployment.md", "微信小程序发布");
 requireContains("docs/deployment.md", "https://wall-api.wdbzk.com");
 requireContains("docs/deployment.md", "r.wdbzk.com");
+requireContains("docs/deployment.md", "网盘授权");
+requireContains("docs/deployment.md", "腾讯频道配置");
+requireContains("docs/deployment.md", "发布前验收清单");
+requireContains("docs/deployment.md", "CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login");
+requireContains("README.md", "storage authorization commands");
 
 if (failures.length) {
   console.error("Release verification failed:");

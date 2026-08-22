@@ -137,7 +137,37 @@ npm run package:release
 
 生成 `wallpaper-manager-deploy-YYYYMMDDHHmmss.tar.gz` 后上传到宝塔服务器并解压到 `/www/wwwroot/wallpaper-manager`。
 
-## 7. Nginx
+## 7. 网盘授权
+
+首次部署、换服务器、重装 `bdpan` 或夸克 skill 后，都需要在服务器上完成一次授权。授权完成前，管理端“上线诊断”会把对应命令展示出来，并提供“复制命令”按钮。
+
+百度网盘登录：
+
+```bash
+'/root/.local/bin/bdpan' login
+```
+
+如果 `BDPAN_PATH` 配置为其他路径，以诊断页展示的命令为准。登录后验证：
+
+```bash
+'/root/.local/bin/bdpan' whoami
+```
+
+夸克 skill 登录：
+
+```bash
+cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login
+```
+
+夸克 skill CLI 会识别 Agent 环境；生产后端调用时也会带 `CODEX_ENV=1 AI_AGENT=codex`。登录后验证：
+
+```bash
+cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs get-user-info
+```
+
+两个网盘授权都完成后，打开管理端“上线诊断”重新检查，`百度网盘 bdpan` 和 `夸克 skill` 都应显示“正常”。如果只完成其中一个，上传处理仍可能继续使用另一个成功源，但会在任务结果里留下同步失败提醒。
+
+## 8. Nginx
 
 把 `deploy/nginx/wall-api.wdbzk.com.conf` 和 `deploy/nginx/wall-admin.wdbzk.com.conf` 内容放入宝塔对应站点配置。
 
@@ -148,7 +178,7 @@ npm run package:release
 - `wall-admin.wdbzk.com` 指向 `/www/wwwroot/wallpaper-manager/apps/admin/dist`
 - `/assets/` 指向 `/www/wwwroot/wallpaper-manager/storage/public/`
 
-## 8. 老封面迁移
+## 9. 老封面迁移
 
 先预览：
 
@@ -158,9 +188,21 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 后台也提供“老封面迁移”页面。迁移只复制封面，并按旧站同款归一化规则做唯一精确匹配；没有唯一匹配的资源会保留为待复核，避免把封面和网盘链接错配。分类、tag 和审核全部重新由 AI 识别。部署在旧站同一台服务器时，配置 `OLD_WALLPAPER_ROOT=/www/wwwroot/wallpaper.wdbzk.com` 后会优先从本地 `covers` 目录复制封面，找不到本地目录时才回退到公网下载。
 
-## 9. 上线后检查
+## 10. 腾讯频道配置
+
+腾讯频道不在 `.env` 中保存账号 Token。进入管理端“腾讯频道”页面添加一个或多个频道账号：
+
+1. 填写账号名称和 Token。
+2. 使用“获取频道”“获取版块”选择目标频道和版块。
+3. 保存后至少设置一个默认账号。
+4. 回到“上线诊断”，确认“腾讯频道账号”不再提醒。
+
+没有默认频道账号时，后台会禁止开启“默认上传后自动发腾讯频道”，上传接口也会拒绝 `autoPublish=true`，防止资源处理成功后才发现无法发帖。
+
+## 11. 上线后检查
 
 - 先打开管理端“上线诊断”，确认公开域名、数据库、Redis、ffmpeg、bdpan、夸克 skill、旧站封面目录、DeepSeek、panapi、腾讯频道 CLI 和频道账号状态。
+- 对诊断失败项，优先使用页面右侧“复制命令”按钮，把命令粘贴到宝塔终端执行。
 - `DEEPSEEK_API_KEY` 必须配置后才能自动上架；未配置时 AI 审核会保护性失败，资源不会自动发布。
 - 管理端登录连续失败 5 次会锁定 10 分钟；仍建议宝塔站点只开放 HTTPS，并妥善保存后台密码。
 - 管理端新增至少一个腾讯频道账号，并设为默认账号。
@@ -169,12 +211,26 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 资源库里可手动补夸克/百度链接，后台会为新增链接生成 `r.wdbzk.com` 短链。
 - 小程序详情页会展示短链文本，用户点击复制后自行打开网盘。
 
-## 10. 网盘分享规则
+## 12. 发布前验收清单
+
+上线前建议逐项确认：
+
+- GitHub Actions 最新 `main` 部署成功。
+- `https://wall-api.wdbzk.com/health` 返回 `{"code":200}`。
+- PM2 中 `wallpaper-api` 为 `online`。
+- 管理端“上线诊断”中数据库、Redis、ffmpeg、DeepSeek、panapi、bdpan、夸克 skill、腾讯频道 CLI 都为正常。
+- 管理端至少存在一个默认腾讯频道账号。
+- 资源库里已上架资源都有可用 `r.wdbzk.com` 短链。
+- 小程序首页、分类页、详情页、我的页都能加载线上数据。
+- 详情页复制短链后，“我的”页出现最近复制记录，且能点回详情。
+- 抽查百度备用链接时，小程序详情页能展示提取码。
+
+## 13. 网盘分享规则
 
 - 夸克分享使用公开链接和 `expired-type=1`，按夸克 skill 文档为永久有效。
 - `bdpan share` 当前不支持调用方指定提取码；系统会解析百度返回的随机提取码。若返回提取码，小程序短链跳转时会自动拼接 `pwd`。
 
-## 11. 微信小程序发布
+## 14. 微信小程序发布
 
 小程序源码在 `apps/miniprogram`，当前 `project.config.json` 的 `appid` 按需求留空。准备发布时：
 

@@ -39,4 +39,4 @@ Production deploys from GitHub Actions on every push to `main`.
 - Admin domain: `https://wall-admin.wdbzk.com`
 - Short links: `https://r.wdbzk.com`
 
-See `docs/deployment.md` for Baota database setup, GitHub Secrets, and Nginx configuration.
+See `docs/deployment.md` for Baota database setup, GitHub Secrets, Nginx configuration, storage authorization commands, Tencent channel setup, and the release checklist.
