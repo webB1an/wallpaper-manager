@@ -615,8 +615,13 @@ export class AdminService {
     return this.channel.setDefaultAccount(id);
   }
 
-  deleteChannel(id: string) {
-    return this.channel.deleteAccount(id);
+  async deleteChannel(id: string) {
+    const result = await this.channel.deleteAccount(id);
+    const defaultAccount = await this.channel.getDefaultAccount();
+    if (!defaultAccount) {
+      await this.updateSettings({ defaultAutoPublish: false });
+    }
+    return result;
   }
 
   private async persistFile(file: Express.Multer.File) {
