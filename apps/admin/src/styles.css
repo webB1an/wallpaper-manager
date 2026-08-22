@@ -112,6 +112,13 @@ small {
   color: #7b887f;
 }
 
+.ai-summary {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .upload-options {
   display: flex;
   align-items: center;

@@ -20,6 +20,11 @@ type Wallpaper = {
   tags: Array<{ tag: { name: string } }>;
   storageLinks: Array<{ id: string; provider: string; url: string; isActive: boolean; isPrimary: boolean }>;
   shortLinks: Array<{ id: string; provider: string; storageLinkId: string; url: string; clickCount: number }>;
+  aiAnalysis?: {
+    safe: boolean;
+    sensitiveFlags: string[];
+    summary?: string;
+  } | null;
 };
 
 type TaskItem = {
@@ -315,6 +320,7 @@ function Library() {
         { title: "标题", dataIndex: "title", render: (text, row) => <div><strong>{text}</strong><small>{row.originalName}</small></div> },
         { title: "类型", dataIndex: "type", render: (type) => <Tag>{type}</Tag> },
         { title: "状态", dataIndex: "status", render: (status) => <StatusTag status={status} /> },
+        { title: "AI审核", width: 170, render: (_, row) => <AiReviewCell wallpaper={row} /> },
         { title: "标签", render: (_, row) => row.tags?.map((item) => <Tag key={item.tag.name}>{item.tag.name}</Tag>) },
         {
           title: "网盘",
@@ -457,6 +463,28 @@ function Library() {
         </Form>
       </Modal>
     </section>
+  );
+}
+
+function AiReviewCell({ wallpaper }: { wallpaper: Wallpaper }) {
+  const analysis = wallpaper.aiAnalysis;
+  if (!analysis) {
+    return (
+      <Space direction="vertical" size={2}>
+        <Tag>未识别</Tag>
+        <small>需要 AI 审核后上架</small>
+      </Space>
+    );
+  }
+  const flags = Array.isArray(analysis.sensitiveFlags) ? analysis.sensitiveFlags : [];
+  return (
+    <Space direction="vertical" size={2}>
+      <Space wrap size={2}>
+        <Tag color={analysis.safe ? "green" : "red"}>{analysis.safe ? "通过" : "已拦截"}</Tag>
+        {flags.map((flag) => <Tag key={flag} color="red">{sensitiveFlagText(flag)}</Tag>)}
+      </Space>
+      {analysis.summary ? <small className="ai-summary">{analysis.summary}</small> : null}
+    </Space>
   );
 }
 
@@ -992,6 +1020,16 @@ function splitTags(value?: string) {
 
 function providerText(value: string) {
   return value === "quark" ? "夸克" : value === "baidu" ? "百度" : value;
+}
+
+function sensitiveFlagText(value: string) {
+  const map: Record<string, string> = {
+    sexual: "色情",
+    violence: "暴力",
+    political: "政治",
+    vulgar: "低俗",
+  };
+  return map[value] || value;
 }
 
 function getChannelPublishIssue(ids: React.Key[], rows: Wallpaper[]) {
