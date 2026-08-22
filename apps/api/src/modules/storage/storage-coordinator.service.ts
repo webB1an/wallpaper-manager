@@ -31,7 +31,16 @@ export class StorageCoordinatorService {
       results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
     }
 
-    for (const result of results.filter((item) => item.ok && item.url)) {
+    const successful = results.filter((item) => item.ok && item.url);
+    const primaryProvider = successful[0]?.provider;
+    if (primaryProvider) {
+      await this.prisma.storageLink.updateMany({
+        where: { wallpaperId },
+        data: { isPrimary: false },
+      });
+    }
+
+    for (const result of successful) {
       const storageLink = await this.prisma.storageLink.create({
         data: {
           wallpaperId,
@@ -40,7 +49,7 @@ export class StorageCoordinatorService {
           passcode: result.passcode,
           remoteFileId: result.remoteFileId,
           remotePath: result.remotePath,
-          isPrimary: result.provider === StorageProvider.quark,
+          isPrimary: result.provider === primaryProvider,
         },
       });
       await this.prisma.shortLink.create({

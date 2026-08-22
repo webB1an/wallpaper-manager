@@ -15,6 +15,8 @@ import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { AiService } from "../ai/ai.service";
 import { ChannelService } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { BaiduStorageService } from "../storage/baidu-storage.service";
+import { QuarkStorageService } from "../storage/quark-storage.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
@@ -64,6 +66,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly channel: ChannelService,
+    private readonly quarkStorage: QuarkStorageService,
+    private readonly baiduStorage: BaiduStorageService,
     private readonly storage: StorageCoordinatorService,
     private readonly wdbzk: WdbzkService,
     private readonly tasks: TasksService,
@@ -147,8 +151,8 @@ export class AdminService {
     checks.push(await this.checkWritableStorage());
     checks.push(this.checkPublicOrigins());
     checks.push(await this.checkCommand("ffmpeg", "ffmpeg 视频封面", this.config.get<string>("FFMPEG_PATH")?.trim() || "ffmpeg", ["-version"]));
-    checks.push(await this.checkCommand("bdpan", "百度网盘 bdpan", this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan", ["--version"]));
-    checks.push(this.checkQuarkSkill());
+    checks.push(await this.checkBaiduStorage());
+    checks.push(await this.checkQuarkStorage());
     checks.push(this.checkOldCoverSource());
     checks.push(await this.checkPanapi());
     checks.push(this.checkDeepSeekConfig());
@@ -804,12 +808,26 @@ export class AdminService {
     return fail(key, label, `命令不可用：${shortError(result.stderr || result.stdout || `exit ${result.code}`)}`);
   }
 
-  private checkQuarkSkill(): DiagnosticItem {
-    const skillDir = this.config.get<string>("QUARK_SKILL_DIR")?.trim();
-    if (!skillDir) return fail("quark_skill", "夸克 skill", "未配置 QUARK_SKILL_DIR");
-    const scriptPath = join(skillDir, "scripts", "quark-drive.cjs");
-    if (!existsSync(scriptPath)) return fail("quark_skill", "夸克 skill", `未找到 ${scriptPath}`);
-    return ok("quark_skill", "夸克 skill", "skill 目录和上传脚本存在");
+  private async checkBaiduStorage(): Promise<DiagnosticItem> {
+    try {
+      const result = await this.baiduStorage.probe();
+      return result.ok
+        ? ok("bdpan", "百度网盘 bdpan", "bdpan 已登录且可用")
+        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}`);
+    } catch (error) {
+      return fail("bdpan", "百度网盘 bdpan", `bdpan 探测失败：${shortError(error)}`);
+    }
+  }
+
+  private async checkQuarkStorage(): Promise<DiagnosticItem> {
+    try {
+      const result = await this.quarkStorage.probe();
+      return result.ok
+        ? ok("quark_skill", "夸克 skill", "夸克 skill 已登录且可用")
+        : fail("quark_skill", "夸克 skill", `夸克 skill 不可用：${shortError(result.message)}`);
+    } catch (error) {
+      return fail("quark_skill", "夸克 skill", `夸克 skill 探测失败：${shortError(error)}`);
+    }
   }
 
   private checkOldCoverSource(): DiagnosticItem {
