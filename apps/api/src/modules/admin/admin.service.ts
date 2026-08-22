@@ -481,6 +481,8 @@ export class AdminService {
       }
       taskResult.wdbzk = { synced: links.filter((item) => !item.wdbzkResourceId).length };
 
+      await this.assertWallpapersCanPublish([id]);
+
       if (wallpaper.autoPublish) {
         await this.tasks.update(taskId, { progress: 84, message: "正在发布到腾讯频道" });
         try {
@@ -694,9 +696,25 @@ export class AdminService {
       },
       take: 5,
     });
-    if (!blocked.length) return;
-    const names = blocked.map((item) => item.title).join("、");
-    throw new BadRequestException(`存在未通过 AI 审核的壁纸，禁止上架或发帖：${names}`);
+    if (blocked.length) {
+      const names = blocked.map((item) => item.title).join("、");
+      throw new BadRequestException(`存在未通过 AI 审核的壁纸，禁止上架或发帖：${names}`);
+    }
+    const missingDownloads = await this.prisma.wallpaper.findMany({
+      where: {
+        id: { in: uniqueIds },
+        OR: [
+          { storageLinks: { none: { isActive: true } } },
+          { shortLinks: { none: { storageLink: { isActive: true } } } },
+        ],
+      },
+      select: { title: true },
+      take: 5,
+    });
+    if (missingDownloads.length) {
+      const names = missingDownloads.map((item) => item.title).join("、");
+      throw new BadRequestException(`存在没有可用网盘短链的壁纸，禁止上架或发帖：${names}`);
+    }
   }
 
   private async checkDatabase(): Promise<DiagnosticItem> {

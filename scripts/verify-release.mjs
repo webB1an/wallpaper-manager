@@ -75,6 +75,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "assertChannelMed
 requireContains("apps/api/src/modules/admin/admin.service.ts", "频道发帖素材不完整");
 requireContains("apps/api/src/modules/admin/admin.service.ts", 'BadRequestException("未配置腾讯频道账号")');
 requireContains("apps/admin/src/main.tsx", "uploadErrorMessage");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "存在没有可用网盘短链");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { isActive: true }");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 
