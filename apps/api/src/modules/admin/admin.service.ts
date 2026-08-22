@@ -120,6 +120,10 @@ export class AdminService {
 
   async updateSettings(input: Partial<SystemSettings>) {
     const current = await this.getSettings();
+    if (input.defaultAutoPublish === true) {
+      const defaultAccount = await this.channel.getDefaultAccount();
+      if (!defaultAccount) throw new BadRequestException("未配置默认腾讯频道账号，不能开启默认自动发帖");
+    }
     const value: SystemSettings = {
       ...current,
       ...(typeof input.defaultAutoProcess === "boolean" ? { defaultAutoProcess: input.defaultAutoProcess } : {}),

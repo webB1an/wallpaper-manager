@@ -899,8 +899,19 @@ function Uploader() {
 function Settings() {
   const [form] = Form.useForm<SystemSettings>();
   const [loading, setLoading] = useState(false);
+  const [defaultChannelReady, setDefaultChannelReady] = useState(false);
   useEffect(() => {
-    request<SystemSettings>("/api/admin/settings").then((settings) => form.setFieldsValue(settings));
+    Promise.all([
+      request<SystemSettings>("/api/admin/settings"),
+      request<ChannelAccount[]>("/api/admin/channels"),
+    ]).then(([settings, accounts]) => {
+      const hasDefaultChannel = accounts.some((account) => account.isDefault);
+      setDefaultChannelReady(hasDefaultChannel);
+      form.setFieldsValue({
+        ...settings,
+        defaultAutoPublish: settings.defaultAutoPublish && hasDefaultChannel,
+      });
+    });
   }, [form]);
   return (
     <section>
@@ -910,6 +921,10 @@ function Settings() {
         layout="vertical"
         className="form-grid"
         onFinish={async (values) => {
+          if (values.defaultAutoPublish && !defaultChannelReady) {
+            message.warning("先配置默认腾讯频道账号，再开启默认自动发帖");
+            return;
+          }
           setLoading(true);
           try {
             await request("/api/admin/settings", { method: "PATCH", body: JSON.stringify(values) });
@@ -923,7 +938,8 @@ function Settings() {
           <Switch />
         </Form.Item>
         <Form.Item label="默认上传后自动发腾讯频道" name="defaultAutoPublish" valuePropName="checked">
-          <Switch />
+          <Switch disabled={!defaultChannelReady} />
+          {!defaultChannelReady ? <span className="form-hint">未配置默认腾讯频道账号</span> : null}
         </Form.Item>
         <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
       </Form>

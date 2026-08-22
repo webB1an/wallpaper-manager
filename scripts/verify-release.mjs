@@ -80,6 +80,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { i
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");
 requireContains("apps/admin/src/main.tsx", "defaultChannelReady");
 requireContains("apps/admin/src/main.tsx", "未配置默认频道账号");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认腾讯频道账号，不能开启默认自动发帖");
+requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
