@@ -38,7 +38,7 @@ export interface WallpaperCard {
 
 export interface WallpaperDetail extends WallpaperCard {
   fileSize: number;
-  shortLinks: Array<{ provider: string; label: string; url: string }>;
+  shortLinks: Array<{ provider: string; label: string; url: string; passcode?: string }>;
   related: WallpaperCard[];
 }
 

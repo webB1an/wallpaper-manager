@@ -5,7 +5,7 @@ const HISTORY_KEY = "wallpaper_download_history";
 Page({
   data: {
     item: null as WallpaperDetail | null,
-    primaryLink: null as { provider: string; label: string; url: string } | null,
+    primaryLink: null as { provider: string; label: string; url: string; passcode?: string } | null,
     primaryUrl: "",
     sizeText: "",
     typeText: "",

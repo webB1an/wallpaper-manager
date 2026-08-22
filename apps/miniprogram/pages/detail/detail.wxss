@@ -200,6 +200,17 @@
   white-space: nowrap;
 }
 
+.download-passcode {
+  display: inline-block;
+  margin-top: 10rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 10rpx;
+  color: #25465a;
+  background: #edf4f0;
+  font-size: 21rpx;
+  font-weight: 760;
+}
+
 .download-button {
   height: 70rpx;
   padding: 0;

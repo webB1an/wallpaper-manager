@@ -37,6 +37,7 @@
           <view>
             <text class="download-label">{{item.label}}</text>
             <text class="download-url">{{item.url}}</text>
+            <text wx:if="{{item.passcode}}" class="download-passcode">提取码 {{item.passcode}}</text>
           </view>
           <button class="download-button" data-url="{{item.url}}" data-label="{{item.label}}" bindtap="copyLink">复制</button>
         </view>

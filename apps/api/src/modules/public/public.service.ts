@@ -73,6 +73,7 @@ export class PublicService {
           provider: link.provider,
           label: link.provider === StorageProvider.quark ? "夸克下载" : "百度备用",
           url: shortUrl(this.config, link.code),
+          passcode: link.storageLink.passcode || "",
         })),
       related,
     };

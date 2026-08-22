@@ -63,6 +63,7 @@ if (project.setting?.urlCheck !== true) fail("project.config.json setting.urlChe
 
 requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall-api.wdbzk.com/api"');
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
+requireContains("apps/miniprogram/pages/detail/detail.wxml", "download-passcode");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "openDetail");
 requireContains("apps/miniprogram/pages/index/index.wxml", "hero-stack");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigins");

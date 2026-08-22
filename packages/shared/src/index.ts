@@ -38,6 +38,7 @@ export interface WallpaperDetail extends WallpaperSummary {
     provider: "quark" | "baidu";
     label: string;
     url: string;
+    passcode?: string;
   }>;
   fileSize?: number;
 }
