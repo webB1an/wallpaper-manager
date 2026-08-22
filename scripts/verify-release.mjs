@@ -109,6 +109,8 @@ requireContains("apps/admin/src/main.tsx", "命令已复制");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
+requireContains("apps/api/src/modules/public/public.service.ts", "publicCoverUrl");
+requireContains("apps/api/src/modules/public/public.service.ts", "FALLBACK_COVER_URL");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');

@@ -60,7 +60,7 @@ export class PublicService {
       id: item.id,
       title: item.title,
       type: item.type,
-      coverUrl: item.coverUrl,
+      coverUrl: publicCoverUrl(item.coverUrl),
       tags: tagNames,
       viewCount: item.viewCount + 1,
       downloadCount: item.downloadCount,
@@ -150,6 +150,8 @@ export class PublicService {
   }
 }
 
+const FALLBACK_COVER_URL = "https://wallpaper.wdbzk.com/covers/%E6%B2%BB%E6%84%88__Lily%20On%20The%20Hill%20(%E4%B8%98%E3%81%AE%E4%B8%8A%E3%81%AE%E3%83%A6%E3%83%AA)%20-%20Lily%20Watching%20the%20Clouds%20-%20%5B4K%5D..jpg";
+
 function wallpaperCard(item: {
   id: string;
   title: string;
@@ -164,7 +166,7 @@ function wallpaperCard(item: {
     id: item.id,
     title: item.title,
     type: item.type,
-    coverUrl: item.coverUrl,
+    coverUrl: publicCoverUrl(item.coverUrl),
     tags: item.tags.map(({ tag }) => tag.name),
     viewCount: item.viewCount,
     downloadCount: item.downloadCount,
@@ -188,6 +190,10 @@ function optionalWallpaperType(value: string | undefined) {
 function cleanSearchText(value: string | undefined) {
   const text = String(value || "").trim();
   return text.slice(0, 80);
+}
+
+function publicCoverUrl(value: string | null | undefined) {
+  return value?.trim() || FALLBACK_COVER_URL;
 }
 
 function assertRedirectUrl(value: string) {
