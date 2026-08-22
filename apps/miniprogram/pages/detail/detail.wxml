@@ -25,4 +25,8 @@
     </view>
   </view>
 </view>
-<view wx:else class="empty">加载中...</view>
+<view wx:elif="{{error}}" class="empty detail-empty">
+  <text>{{error}}</text>
+  <button class="retry-button" bindtap="retry">重试</button>
+</view>
+<view wx:else class="empty detail-empty">加载中...</view>

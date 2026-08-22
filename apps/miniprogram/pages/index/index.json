@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "发现壁纸"
+  "navigationBarTitleText": "发现壁纸",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }

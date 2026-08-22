@@ -9,7 +9,8 @@ Page({
     tag: "",
     type: "",
     sort: "latest",
-    loading: false
+    loading: false,
+    error: ""
   },
 
   onLoad(options?: { tag?: string; type?: string }) {
@@ -57,7 +58,7 @@ Page({
   },
 
   async load(append = false) {
-    this.setData({ loading: true });
+    this.setData({ loading: true, error: "" });
     try {
       const data = await request<{ list: WallpaperCard[]; total: number }>("/wallpapers", {
         page: this.data.page,
@@ -71,9 +72,18 @@ Page({
         items: append ? [...this.data.items, ...data.list] : data.list,
         total: data.total
       });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "加载失败";
+      this.setData({ error: message });
+      wx.showToast({ title: "加载失败", icon: "none" });
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  retry() {
+    this.setData({ page: 1, items: [] });
+    this.load();
   },
 
   openDetail(event: WechatMiniprogram.TouchEvent) {

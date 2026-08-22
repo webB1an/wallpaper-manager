@@ -28,5 +28,10 @@
       </view>
     </block>
   </view>
-  <view wx:if="{{tags.length === 0}}" class="empty">暂无分类</view>
+  <view wx:if="{{!loading && error}}" class="empty">
+    <text>{{error}}</text>
+    <button class="retry-button" bindtap="retry">重试</button>
+  </view>
+  <view wx:elif="{{!loading && tags.length === 0}}" class="empty">暂无分类</view>
+  <view wx:if="{{loading}}" class="empty">加载中...</view>
 </view>
