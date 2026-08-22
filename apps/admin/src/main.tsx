@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
+import { Alert, Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadProps } from "antd";
 import { Activity, CloudUpload, GalleryVerticalEnd, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
@@ -258,7 +258,11 @@ function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
   useEffect(() => { void load(); }, []);
 
   const issueCount = overview
-    ? overview.ai.unreviewed + overview.storage.missingActiveLinks + overview.storage.missingShortLinks + overview.tasks.failedToday
+    ? overview.ai.unreviewed
+      + overview.storage.missingActiveLinks
+      + overview.storage.missingShortLinks
+      + overview.tasks.failedToday
+      + (overview.channelAccounts.defaultConfigured ? 0 : 1)
     : 0;
 
   return (
@@ -270,6 +274,16 @@ function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
         <Button onClick={() => onNavigate("library")}>查看资源库</Button>
         <Button onClick={() => onNavigate("tasks")}>任务队列</Button>
       </Space>
+      {overview && !overview.channelAccounts.defaultConfigured && (
+        <Alert
+          className="page-alert"
+          type="warning"
+          showIcon
+          message="腾讯频道默认账号未配置"
+          description="上传后自动发帖和资源库手动发帖会停在账号选择前。"
+          action={<Button size="small" type="primary" onClick={() => onNavigate("channels")}>去配置</Button>}
+        />
+      )}
       <div className="stat-grid">
         <Statistic title="资源总数" value={overview?.wallpapers.total ?? "--"} />
         <Statistic title="已上架" value={overview?.wallpapers.published ?? "--"} />
@@ -928,6 +942,7 @@ function OldImport() {
 
 function Channels() {
   const [items, setItems] = useState<ChannelAccount[]>([]);
+  const [activeTab, setActiveTab] = useState("accounts");
   const [guildOptions, setGuildOptions] = useState<TencentGuildOption[]>([]);
   const [channelOptions, setChannelOptions] = useState<TencentChannelOption[]>([]);
   const [loadingGuilds, setLoadingGuilds] = useState(false);
@@ -986,11 +1001,22 @@ function Channels() {
   return (
     <section>
       <Header title="腾讯频道" subtitle="支持多个 Token 账号，保存后上传批次可以选择默认账号自动发帖。" />
-      <Tabs items={[
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {
           key: "accounts",
           label: "账号列表",
-          children: <Table rowKey="id" dataSource={items} columns={[
+          children: <>
+            {!items.length && (
+              <Alert
+                className="page-alert"
+                type="warning"
+                showIcon
+                message="还没有腾讯频道账号"
+                description="保存账号并设为默认后，批量上传和资源库发帖才可以选择目标频道。"
+                action={<Button size="small" type="primary" onClick={() => setActiveTab("new")}>新增账号</Button>}
+              />
+            )}
+            <Table rowKey="id" dataSource={items} columns={[
             { title: "名称", dataIndex: "label" },
             { title: "Token", dataIndex: "tokenTail", render: (tail) => `******${tail}` },
             { title: "频道", dataIndex: "guildName" },
@@ -1012,7 +1038,8 @@ function Channels() {
                 </Popconfirm>
               </Space>,
             },
-          ]} />,
+          ]} />
+          </>,
         },
         {
           key: "new",
@@ -1021,6 +1048,7 @@ function Channels() {
             await request("/api/admin/channels", { method: "POST", body: JSON.stringify(values) });
             form.resetFields();
             await load();
+            setActiveTab("accounts");
             message.success("频道账号已保存");
           }}>
             <Form.Item label="账号名称" name="label" rules={[{ required: true }]}><Input /></Form.Item>

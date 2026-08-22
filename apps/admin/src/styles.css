@@ -97,6 +97,10 @@ h1 {
   margin-bottom: 18px;
 }
 
+.page-alert {
+  margin-bottom: 18px;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
