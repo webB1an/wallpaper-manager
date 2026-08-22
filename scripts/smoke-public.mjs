@@ -1,13 +1,31 @@
 const apiOrigin = (process.env.PUBLIC_API_ORIGIN || "https://wall-api.wdbzk.com").replace(/\/$/, "");
 const shortOrigin = (process.env.SHORT_LINK_ORIGIN || "https://r.wdbzk.com").replace(/\/$/, "");
+const requestRetries = Number(process.env.SMOKE_REQUEST_RETRIES || 12);
+const retryDelayMs = Number(process.env.SMOKE_RETRY_DELAY_MS || 5000);
 
 async function get(path) {
-  const response = await fetch(`${apiOrigin}${path}`);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.code !== 200) {
-    throw new Error(`${path} failed with ${response.status}: ${body.message || body.error || "invalid response"}`);
+  let lastError;
+  for (let attempt = 1; attempt <= requestRetries; attempt += 1) {
+    try {
+      const response = await fetch(`${apiOrigin}${path}`);
+      const body = await response.json().catch(() => ({}));
+      if (response.ok && body.code === 200) {
+        return body.data;
+      }
+      lastError = new Error(`${path} failed with ${response.status}: ${body.message || body.error || "invalid response"}`);
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < requestRetries) {
+      await sleep(retryDelayMs);
+    }
   }
-  return body.data;
+  throw lastError;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function assert(condition, message) {

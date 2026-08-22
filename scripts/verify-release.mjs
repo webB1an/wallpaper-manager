@@ -147,6 +147,8 @@ requireContains("scripts/smoke-admin.mjs", "diagnostics");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
 requireContains("scripts/smoke-public.mjs", "health endpoint must return ok");
 requireContains("scripts/smoke-public.mjs", "short link must be served from");
+requireContains("scripts/smoke-public.mjs", "SMOKE_REQUEST_RETRIES");
+requireContains("scripts/smoke-public.mjs", "SMOKE_RETRY_DELAY_MS");
 requireContains("scripts/production-readiness.mjs", "Action required");
 requireContains("scripts/production-readiness.mjs", "bdpan");
 requireContains("scripts/production-readiness.mjs", "quark_skill");
