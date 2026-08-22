@@ -1,5 +1,11 @@
 <view class="detail-page" wx:if="{{item}}">
-  <image class="detail-cover" src="{{item.coverUrl}}" mode="widthFix" />
+  <view class="detail-visual">
+    <image class="detail-cover" src="{{item.coverUrl}}" mode="aspectFill" />
+    <view class="detail-visual-meta">
+      <text>{{typeText}}</text>
+      <text>{{item.downloadCount}} 次下载</text>
+    </view>
+  </view>
   <view class="detail-panel">
     <text class="detail-title">{{item.title}}</text>
     <view class="detail-meta">
@@ -13,7 +19,19 @@
       </block>
     </view>
     <button class="share-button" open-type="share">分享壁纸</button>
+    <view class="primary-download">
+      <view>
+        <text>原图短链</text>
+        <text wx:if="{{primaryUrl}}">{{primaryUrl}}</text>
+        <text wx:else>暂无可用短链</text>
+      </view>
+      <button bindtap="copyPrimaryLink">复制主链</button>
+    </view>
     <view class="download-list">
+      <view class="download-heading">
+        <text>可用网盘</text>
+        <text>复制后到浏览器或网盘打开</text>
+      </view>
       <block wx:for="{{item.shortLinks}}" wx:key="url">
         <view class="download-card">
           <view>

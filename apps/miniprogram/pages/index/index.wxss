@@ -4,6 +4,57 @@
   font-weight: 700;
 }
 
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 210rpx;
+  min-height: 286rpx;
+  gap: 18rpx;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-stack {
+  position: relative;
+  z-index: 1;
+  height: 232rpx;
+  align-self: center;
+}
+
+.hero-shot {
+  position: absolute;
+  width: 152rpx;
+  height: 196rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: 16rpx;
+  background: #263840;
+  box-shadow: 0 18rpx 36rpx rgba(0, 0, 0, 0.24);
+}
+
+.shot-0 {
+  z-index: 3;
+  top: 12rpx;
+  right: 48rpx;
+  transform: rotate(-7deg);
+}
+
+.shot-1 {
+  z-index: 2;
+  top: 34rpx;
+  right: 0;
+  transform: rotate(8deg);
+}
+
+.shot-2 {
+  z-index: 1;
+  top: 0;
+  right: 94rpx;
+  opacity: 0.78;
+  transform: rotate(-14deg);
+}
+
 .hero-meter {
   display: inline-flex;
   align-items: baseline;
@@ -147,7 +198,7 @@
 
 .wall-info > text {
   display: block;
-  height: 72rpx;
+  height: 68rpx;
   overflow: hidden;
   font-size: 26rpx;
   font-weight: 700;
@@ -169,4 +220,26 @@
   margin-top: 14rpx;
   color: #8a949b;
   font-size: 21rpx;
+}
+
+.card-tags {
+  display: flex;
+  gap: 8rpx;
+  min-height: 38rpx;
+  margin-top: 12rpx;
+  overflow: hidden;
+}
+
+.card-tags text {
+  max-width: 132rpx;
+  height: 34rpx;
+  padding: 0 10rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  color: #66717b;
+  background: #f0f3ee;
+  font-size: 20rpx;
+  line-height: 34rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

@@ -1,11 +1,18 @@
 <view class="page">
   <view class="hero">
-    <text class="hero-kicker">WDBZK Gallery</text>
-    <text class="hero-title">今日灵感墙</text>
-    <text class="hero-subtitle">精选动静态壁纸，短链直达原始资源</text>
-    <view class="hero-meter">
-      <text>{{total}}</text>
-      <text>已上架资源</text>
+    <view class="hero-copy">
+      <text class="hero-kicker">WDBZK Gallery</text>
+      <text class="hero-title">今日灵感墙</text>
+      <text class="hero-subtitle">精选动静态壁纸，短链直达原始资源</text>
+      <view class="hero-meter">
+        <text>{{total}}</text>
+        <text>已上架资源</text>
+      </view>
+    </view>
+    <view wx:if="{{topCovers.length}}" class="hero-stack">
+      <block wx:for="{{topCovers}}" wx:key="id">
+        <image class="hero-shot shot-{{index}}" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+      </block>
     </view>
   </view>
 
@@ -47,6 +54,11 @@
             <text wx:elif="{{item.type === 'desktop'}}" class="pill">电脑</text>
             <text wx:else class="pill">其他</text>
             <text class="count">{{item.downloadCount}} 次下载</text>
+          </view>
+          <view class="card-tags" wx:if="{{item.tags.length}}">
+            <block wx:for="{{item.tags}}" wx:for-item="tagName" wx:key="*this">
+              <text wx:if="{{index < 2}}">#{{tagName}}</text>
+            </block>
           </view>
         </view>
       </view>

@@ -3,6 +3,7 @@ import { request, WallpaperCard } from "../../utils/api";
 Page({
   data: {
     items: [] as WallpaperCard[],
+    topCovers: [] as WallpaperCard[],
     total: 0,
     page: 1,
     keyword: "",
@@ -70,6 +71,7 @@ Page({
       });
       this.setData({
         items: append ? [...this.data.items, ...data.list] : data.list,
+        topCovers: append ? this.data.topCovers : data.list.slice(0, 3),
         total: data.total
       });
     } catch (error) {
