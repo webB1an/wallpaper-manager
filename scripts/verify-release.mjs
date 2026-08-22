@@ -70,6 +70,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigi
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkQuarkStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorage");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "quarkLoginCommand");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "CODEX_ENV=1 AI_AGENT=codex");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "primaryProvider");
 requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "quarkAgentEnv");
 requireContains("apps/api/src/modules/storage/quark-storage.service.ts", 'CODEX_ENV: "1"');

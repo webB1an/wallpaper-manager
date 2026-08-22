@@ -813,7 +813,7 @@ export class AdminService {
       const result = await this.baiduStorage.probe();
       return result.ok
         ? ok("bdpan", "百度网盘 bdpan", "bdpan 已登录且可用")
-        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}`);
+        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}；请在服务器执行 ${this.baiduLoginCommand()}`);
     } catch (error) {
       return fail("bdpan", "百度网盘 bdpan", `bdpan 探测失败：${shortError(error)}`);
     }
@@ -824,7 +824,7 @@ export class AdminService {
       const result = await this.quarkStorage.probe();
       return result.ok
         ? ok("quark_skill", "夸克 skill", "夸克 skill 已登录且可用")
-        : fail("quark_skill", "夸克 skill", `夸克 skill 不可用：${shortError(result.message)}`);
+        : fail("quark_skill", "夸克 skill", `夸克 skill 不可用：${shortError(result.message)}；请在服务器执行 ${this.quarkLoginCommand()}`);
     } catch (error) {
       return fail("quark_skill", "夸克 skill", `夸克 skill 探测失败：${shortError(error)}`);
     }
@@ -880,6 +880,15 @@ export class AdminService {
     if (count > 0 && defaultCount > 0) return ok("channel_accounts", "腾讯频道账号", `已配置 ${count} 个频道账号，默认账号已设置`);
     if (count > 0) return warn("channel_accounts", "腾讯频道账号", `已配置 ${count} 个频道账号，但未设置默认账号`);
     return warn("channel_accounts", "腾讯频道账号", "尚未在后台配置频道账号");
+  }
+
+  private baiduLoginCommand() {
+    return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login`;
+  }
+
+  private quarkLoginCommand() {
+    const skillDir = this.config.get<string>("QUARK_SKILL_DIR")?.trim() || "/www/server/quarkclouddrive-1.0.14";
+    return `cd ${quoteShell(skillDir)} && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login`;
   }
 
   private assertLoginAllowed(key: string) {
@@ -983,4 +992,8 @@ function fail(key: string, label: string, message: string): DiagnosticItem {
 
 function shortError(error: unknown): string {
   return String(error instanceof Error ? error.message : error).replace(/\s+/g, " ").slice(0, 240);
+}
+
+function quoteShell(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }
