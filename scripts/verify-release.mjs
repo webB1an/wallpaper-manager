@@ -67,6 +67,8 @@ requireFile("apps/miniprogram/package.json");
 requireFile("apps/miniprogram/tsconfig.json");
 requireContains("apps/miniprogram/package.json", "typecheck");
 requireContains("apps/miniprogram/tsconfig.json", "miniprogram-api-typings");
+requireContains("apps/miniprogram/app.ts", "showShareMenu");
+requireContains("apps/miniprogram/app.ts", "shareTimeline");
 requireContains("apps/miniprogram/sitemap.json", "pages/detail/detail");
 requireContains("apps/miniprogram/sitemap.json", "disallow");
 requireContains("apps/miniprogram/pages/category/category.json", "enablePullDownRefresh");
