@@ -805,8 +805,12 @@ export class AdminService {
   }
 
   private async checkChannelAccounts(): Promise<DiagnosticItem> {
-    const count = await this.prisma.channelAccount.count();
-    if (count > 0) return ok("channel_accounts", "腾讯频道账号", `已配置 ${count} 个频道账号`);
+    const [count, defaultCount] = await Promise.all([
+      this.prisma.channelAccount.count(),
+      this.prisma.channelAccount.count({ where: { isDefault: true } }),
+    ]);
+    if (count > 0 && defaultCount > 0) return ok("channel_accounts", "腾讯频道账号", `已配置 ${count} 个频道账号，默认账号已设置`);
+    if (count > 0) return warn("channel_accounts", "腾讯频道账号", `已配置 ${count} 个频道账号，但未设置默认账号`);
     return warn("channel_accounts", "腾讯频道账号", "尚未在后台配置频道账号");
   }
 

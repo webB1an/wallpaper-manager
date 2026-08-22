@@ -70,20 +70,33 @@ export class ChannelService {
     channelName?: string;
     isDefault?: boolean;
   }) {
+    const label = input.label?.trim();
+    const token = input.token?.trim();
+    const guildId = input.guildId?.trim();
+    const guildName = input.guildName?.trim();
+    const channelId = input.channelId?.trim();
+    const channelName = input.channelName?.trim();
+    if (!label) throw new BadRequestException("账号名称不能为空");
+    if (!token) throw new BadRequestException("Token 不能为空");
+    if (!guildId) throw new BadRequestException("频道 ID 不能为空");
+    if (!channelId) throw new BadRequestException("版块 ID 不能为空");
+
     const secret = this.secret();
-    if (input.isDefault) {
+    const accountCount = await this.prisma.channelAccount.count();
+    const shouldBeDefault = Boolean(input.isDefault) || accountCount === 0;
+    if (shouldBeDefault) {
       await this.prisma.channelAccount.updateMany({ data: { isDefault: false } });
     }
     return this.prisma.channelAccount.create({
       data: {
-        label: input.label,
-        tokenCipher: encryptSecret(input.token, secret),
-        tokenTail: input.token.slice(-6),
-        guildId: input.guildId,
-        guildName: input.guildName,
-        channelId: input.channelId,
-        channelName: input.channelName,
-        isDefault: Boolean(input.isDefault),
+        label,
+        tokenCipher: encryptSecret(token, secret),
+        tokenTail: token.slice(-6),
+        guildId,
+        guildName,
+        channelId,
+        channelName,
+        isDefault: shouldBeDefault,
       },
       select: PUBLIC_CHANNEL_ACCOUNT_SELECT,
     });

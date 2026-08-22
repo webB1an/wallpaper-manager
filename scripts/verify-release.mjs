@@ -69,6 +69,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigi
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/channel/channel.service.ts", "PUBLIC_CHANNEL_ACCOUNT_SELECT");
 requireContains("apps/api/src/modules/channel/channel.service.ts", "select: PUBLIC_CHANNEL_ACCOUNT_SELECT");
+requireContains("apps/api/src/modules/channel/channel.service.ts", "accountCount === 0");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "默认账号已设置");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",
