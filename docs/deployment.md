@@ -173,3 +173,14 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 - 夸克分享使用公开链接和 `expired-type=1`，按夸克 skill 文档为永久有效。
 - `bdpan share` 当前不支持调用方指定提取码；系统会解析百度返回的随机提取码。若返回提取码，小程序短链跳转时会自动拼接 `pwd`。
+
+## 11. 微信小程序发布
+
+小程序源码在 `apps/miniprogram`，当前 `project.config.json` 的 `appid` 按需求留空。准备发布时：
+
+1. 在微信公众平台创建小程序，拿到 AppID 后填入 `apps/miniprogram/project.config.json`。
+2. 在“小程序后台 > 开发管理 > 开发设置 > 服务器域名”添加 request 合法域名：`https://wall-api.wdbzk.com`。
+3. 用微信开发者工具打开 `apps/miniprogram`，确认首页、分类、详情、我的四个页面都能加载线上数据。
+4. 详情页复制主短链后，到“我的”页确认最近复制记录存在，并可点回详情。
+5. 上传体验版前，确认线上管理端“上线诊断”中 DeepSeek、panapi、夸克 skill、bdpan、腾讯频道 CLI 均正常。
+6. 发布正式版前，至少抽查一个静态壁纸和一个动态壁纸：静态资源能展示封面和短链，动态资源只展示缩略图和短链，不在小程序内播放原视频。

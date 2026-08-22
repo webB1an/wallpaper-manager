@@ -106,6 +106,7 @@ function saveHistory(item: WallpaperDetail | null, url: string, label: string) {
   const previous = readHistory();
   const next = [
     {
+      id: item.id,
       title: item.title,
       coverUrl: item.coverUrl,
       label,
@@ -117,7 +118,7 @@ function saveHistory(item: WallpaperDetail | null, url: string, label: string) {
   wx.setStorageSync(HISTORY_KEY, next);
 }
 
-function readHistory(): Array<{ title: string; coverUrl: string; label: string; url: string; copiedAt: number }> {
+function readHistory(): Array<{ id?: string; title: string; coverUrl: string; label: string; url: string; copiedAt: number }> {
   const value = wx.getStorageSync(HISTORY_KEY);
   return Array.isArray(value) ? value : [];
 }

@@ -24,6 +24,7 @@
   gap: 16rpx;
   align-items: center;
   padding: 16rpx;
+  border: 1rpx solid rgba(37, 70, 90, 0.08);
   border-radius: 14rpx;
   background: #fff;
   box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
@@ -67,6 +68,24 @@
   font-size: 22rpx;
 }
 
+.history-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10rpx;
+  margin-top: 8rpx;
+}
+
+.history-meta-row .history-meta {
+  margin-top: 0;
+}
+
+.history-time {
+  flex-shrink: 0;
+  color: #8a949b;
+  font-size: 21rpx;
+}
+
 .history-card button {
   height: 64rpx;
   padding: 0;
@@ -75,4 +94,32 @@
   background: #25465a;
   font-size: 24rpx;
   line-height: 64rpx;
+}
+
+.history-card button::after {
+  border: 0;
+}
+
+.empty-state {
+  margin-top: 10rpx;
+  padding: 64rpx 36rpx;
+  border: 2rpx dashed #d6dfd8;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.58);
+  text-align: center;
+}
+
+.empty-state text:first-child {
+  display: block;
+  color: #111820;
+  font-size: 30rpx;
+  font-weight: 820;
+}
+
+.empty-state text:last-child {
+  display: block;
+  margin-top: 12rpx;
+  color: #6e7881;
+  font-size: 24rpx;
+  line-height: 1.6;
 }

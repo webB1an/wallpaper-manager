@@ -11,19 +11,25 @@
 
   <view class="history-list">
     <block wx:for="{{records}}" wx:key="url">
-      <view class="history-card">
+      <view class="history-card" data-id="{{item.id}}" bindtap="openDetail">
         <image src="{{item.coverUrl}}" mode="aspectFill" />
         <view class="history-main">
           <text class="history-title">{{item.title}}</text>
           <text class="history-url">{{item.url}}</text>
-          <text class="history-meta">{{item.label}}</text>
+          <view class="history-meta-row">
+            <text class="history-meta">{{item.label}}</text>
+            <text class="history-time">{{item.copiedAtText}}</text>
+          </view>
         </view>
-        <button data-url="{{item.url}}" bindtap="copyLink">复制</button>
+        <button data-url="{{item.url}}" catchtap="copyLink">复制</button>
       </view>
     </block>
   </view>
 
-  <view wx:if="{{records.length === 0}}" class="empty">暂无复制记录</view>
+  <view wx:if="{{records.length === 0}}" class="empty-state">
+    <text>还没有复制记录</text>
+    <text>在壁纸详情页复制原图短链后，会自动保存在这里。</text>
+  </view>
 
   <view class="panel">
     <view class="row">
