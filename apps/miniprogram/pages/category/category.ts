@@ -19,6 +19,10 @@ Page({
     this.loadFacets();
   },
 
+  onPullDownRefresh() {
+    this.loadFacets().finally(() => wx.stopPullDownRefresh());
+  },
+
   async loadFacets() {
     this.setData({ loading: true, error: "" });
     try {

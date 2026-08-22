@@ -1,6 +1,14 @@
 {
   "rules": [
     {
+      "action": "disallow",
+      "page": "pages/detail/detail"
+    },
+    {
+      "action": "disallow",
+      "page": "pages/mine/mine"
+    },
+    {
       "action": "allow",
       "page": "*"
     }
