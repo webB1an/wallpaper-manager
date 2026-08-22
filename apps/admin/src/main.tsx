@@ -831,14 +831,21 @@ function StorageLinkEditor({ wallpaper, reload }: { wallpaper: Wallpaper; reload
 function Uploader() {
   const [autoProcess, setAutoProcess] = useState(true);
   const [autoPublish, setAutoPublish] = useState(false);
+  const [defaultChannelReady, setDefaultChannelReady] = useState(false);
   useEffect(() => {
-    request<SystemSettings>("/api/admin/settings")
-      .then((settings) => {
+    Promise.all([
+      request<SystemSettings>("/api/admin/settings"),
+      request<ChannelAccount[]>("/api/admin/channels"),
+    ])
+      .then(([settings, accounts]) => {
+        const hasDefaultChannel = accounts.some((account) => account.isDefault);
+        setDefaultChannelReady(hasDefaultChannel);
         setAutoProcess(settings.defaultAutoProcess);
-        setAutoPublish(settings.defaultAutoPublish);
+        setAutoPublish(settings.defaultAutoPublish && hasDefaultChannel);
       })
       .catch(() => undefined);
   }, []);
+  const autoPublishDisabled = !autoProcess || !defaultChannelReady;
   const props: UploadProps = {
     name: "files",
     multiple: true,
@@ -863,11 +870,22 @@ function Uploader() {
       <Header title="批量上传" subtitle="拖拽上传静态图或动态壁纸，上传后可批量 AI 识别、同步网盘与发帖。" />
       <div className="upload-options">
         <span>上传后自动处理，本次上传可临时覆盖系统默认值</span>
-        <Switch checked={autoProcess} onChange={setAutoProcess} />
+        <Switch
+          checked={autoProcess}
+          onChange={(checked) => {
+            setAutoProcess(checked);
+            if (!checked) setAutoPublish(false);
+          }}
+        />
       </div>
       <div className="upload-options">
         <span>处理成功后自动发腾讯频道</span>
-        <Switch checked={autoPublish} onChange={setAutoPublish} disabled={!autoProcess} />
+        <Switch
+          checked={autoPublish}
+          onChange={setAutoPublish}
+          disabled={autoPublishDisabled}
+        />
+        {!defaultChannelReady ? <Tag color="gold">未配置默认频道账号</Tag> : null}
       </div>
       <Upload.Dragger {...props} className="upload-dragger">
         <UploadCloud size={42} />

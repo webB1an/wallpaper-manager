@@ -78,6 +78,8 @@ requireContains("apps/admin/src/main.tsx", "uploadErrorMessage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "存在没有可用网盘短链");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { isActive: true }");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");
+requireContains("apps/admin/src/main.tsx", "defaultChannelReady");
+requireContains("apps/admin/src/main.tsx", "未配置默认频道账号");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
