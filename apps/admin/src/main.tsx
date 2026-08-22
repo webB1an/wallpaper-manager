@@ -132,6 +132,7 @@ type AdminOverview = {
     missingBaidu: number;
     missingActiveLinks: number;
     missingShortLinks: number;
+    unpublishedActiveShortLinks: number;
   };
   channelAccounts: {
     total: number;
@@ -281,6 +282,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
     ? overview.ai.unreviewed
       + overview.storage.missingActiveLinks
       + overview.storage.missingShortLinks
+      + overview.storage.unpublishedActiveShortLinks
       + overview.storage.missingQuark
       + overview.storage.missingBaidu
       + overview.tasks.failedToday
@@ -341,6 +343,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
           <IssueRow label="AI 已拦截" value={overview?.ai.blocked ?? 0} danger={Boolean(overview?.ai.blocked)} />
           <IssueRow label="缺活跃网盘链接" value={overview?.storage.missingActiveLinks ?? 0} danger={Boolean(overview?.storage.missingActiveLinks)} onClick={() => onOpenLibrary({ storageFilter: "missing_active" })} />
           <IssueRow label="缺短链" value={overview?.storage.missingShortLinks ?? 0} danger={Boolean(overview?.storage.missingShortLinks)} onClick={() => onOpenLibrary({ storageFilter: "missing_short" })} />
+          <IssueRow label="下架活跃短链" value={overview?.storage.unpublishedActiveShortLinks ?? 0} danger={Boolean(overview?.storage.unpublishedActiveShortLinks)} onClick={() => onOpenLibrary({ storageFilter: "unpublished_active_short" })} />
         </div>
         <div className="ops-panel">
           <h2>外部服务</h2>
@@ -529,6 +532,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             { value: "missing_baidu", label: "缺百度" },
             { value: "missing_active", label: "缺活跃链接" },
             { value: "missing_short", label: "缺短链" },
+            { value: "unpublished_active_short", label: "下架活跃短链" },
           ]}
           style={{ width: 160 }}
         />
@@ -1502,6 +1506,7 @@ function storageFilterText(value: string) {
     missing_baidu: "缺百度",
     missing_active: "缺活跃链接",
     missing_short: "缺短链",
+    unpublished_active_short: "下架活跃短链",
   };
   return map[value] || value;
 }

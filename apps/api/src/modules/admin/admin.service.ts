@@ -36,7 +36,7 @@ type DiagnosticItem = {
 };
 
 type AiReviewFilter = "unreviewed" | "safe" | "blocked";
-type StorageFilter = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short";
+type StorageFilter = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short" | "unpublished_active_short";
 
 const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
@@ -159,6 +159,7 @@ export class AdminService {
     checks.push(this.checkDeepSeekConfig());
     checks.push(await this.checkTencentCli());
     checks.push(await this.checkChannelAccounts());
+    checks.push(await this.checkUnpublishedActiveShortLinks());
 
     return checks;
   }
@@ -176,6 +177,7 @@ export class AdminService {
       missingBaidu,
       missingActiveLinks,
       missingShortLinks,
+      unpublishedActiveShortLinks,
       channelAccounts,
       defaultChannelAccounts,
       tagTotal,
@@ -204,6 +206,12 @@ export class AdminService {
         where: {
           status: WallpaperStatus.published,
           shortLinks: { none: {} },
+        },
+      }),
+      this.prisma.wallpaper.count({
+        where: {
+          status: { not: WallpaperStatus.published },
+          shortLinks: { some: { storageLink: { isActive: true } } },
         },
       }),
       this.prisma.channelAccount.count(),
@@ -247,6 +255,7 @@ export class AdminService {
         missingBaidu,
         missingActiveLinks,
         missingShortLinks,
+        unpublishedActiveShortLinks,
       },
       channelAccounts: {
         total: channelAccounts,
@@ -883,6 +892,19 @@ export class AdminService {
     return warn("channel_accounts", "腾讯频道账号", "尚未在后台配置频道账号");
   }
 
+  private async checkUnpublishedActiveShortLinks(): Promise<DiagnosticItem> {
+    const count = await this.prisma.wallpaper.count({
+      where: {
+        status: { not: WallpaperStatus.published },
+        shortLinks: { some: { storageLink: { isActive: true } } },
+      },
+    });
+    if (!count) {
+      return ok("unpublished_active_short_links", "下架短链", "非上架资源没有活跃短链遗留");
+    }
+    return warn("unpublished_active_short_links", "下架短链", `存在 ${count} 个非上架资源仍有关联活跃短链，公开跳转已拦截，可在资源库筛选后清理链接状态`);
+  }
+
   private baiduLoginCommand() {
     return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login`;
   }
@@ -976,6 +998,12 @@ function storageWhere(value?: StorageFilter): Prisma.WallpaperWhereInput {
   if (value === "missing_baidu") return { storageLinks: { none: { provider: StorageProvider.baidu, isActive: true } } };
   if (value === "missing_active") return { storageLinks: { none: { isActive: true } } };
   if (value === "missing_short") return { shortLinks: { none: {} } };
+  if (value === "unpublished_active_short") {
+    return {
+      status: { not: WallpaperStatus.published },
+      shortLinks: { some: { storageLink: { isActive: true } } },
+    };
+  }
   return {};
 }
 
