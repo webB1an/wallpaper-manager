@@ -142,6 +142,17 @@ npm run package:release
 
 首次部署、换服务器、重装 `bdpan` 或夸克 skill 后，都需要在服务器上完成一次授权。授权完成前，管理端“上线诊断”会把对应命令展示出来，并提供“复制命令”按钮。
 
+也可以在服务器项目目录使用统一授权助手：
+
+```bash
+cd /www/wwwroot/wallpaper-manager
+npm run auth:storage -- baidu-url
+npm run auth:storage -- baidu-code <授权码>
+npm run auth:storage -- baidu-whoami
+npm run auth:storage -- quark-login
+npm run auth:storage -- quark-whoami
+```
+
 百度网盘登录：
 
 ```bash

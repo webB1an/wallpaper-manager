@@ -46,3 +46,11 @@ On the server, run this when you want the remaining launch work as copyable acti
 ```bash
 npm run readiness:production
 ```
+
+For storage login on the server, use:
+
+```bash
+npm run auth:storage -- baidu-url
+npm run auth:storage -- baidu-code <code>
+npm run auth:storage -- quark-login
+```

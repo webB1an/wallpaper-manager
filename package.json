@@ -14,6 +14,7 @@
     "prisma:generate": "npm run prisma:generate -w apps/api",
     "prisma:migrate": "npm run prisma:migrate -w apps/api",
     "prisma:deploy": "npm run prisma:deploy -w apps/api",
+    "auth:storage": "node scripts/storage-auth.mjs",
     "package:release": "powershell -ExecutionPolicy Bypass -File deploy/package-release.ps1",
     "readiness:production": "node scripts/production-readiness.mjs",
     "readiness:production:strict": "node scripts/production-readiness.mjs --strict",
