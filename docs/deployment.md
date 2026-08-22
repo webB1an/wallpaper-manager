@@ -144,7 +144,13 @@ npm run package:release
 百度网盘登录：
 
 ```bash
-'/root/.local/bin/bdpan' login
+'/root/.local/bin/bdpan' login --accept-disclaimer --get-auth-url
+```
+
+打开命令输出的授权链接，百度页面完成授权后会给一段授权码。把授权码回填到服务器：
+
+```bash
+'/root/.local/bin/bdpan' login --accept-disclaimer --set-code <授权码>
 ```
 
 如果 `BDPAN_PATH` 配置为其他路径，以诊断页展示的命令为准。登录后验证：

@@ -83,6 +83,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配�
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkQuarkStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "quarkLoginCommand");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "--get-auth-url");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "--set-code <授权码>");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "command?: string");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "CODEX_ENV=1 AI_AGENT=codex");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "primaryProvider");
@@ -161,6 +163,8 @@ requireContains("docs/deployment.md", "r.wdbzk.com");
 requireContains("docs/deployment.md", "网盘授权");
 requireContains("docs/deployment.md", "腾讯频道配置");
 requireContains("docs/deployment.md", "发布前验收清单");
+requireContains("docs/deployment.md", "bdpan' login --accept-disclaimer --get-auth-url");
+requireContains("docs/deployment.md", "bdpan' login --accept-disclaimer --set-code <授权码>");
 requireContains("docs/deployment.md", "CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login");
 requireContains("README.md", "storage authorization commands");
 

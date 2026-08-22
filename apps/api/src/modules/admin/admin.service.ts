@@ -847,9 +847,9 @@ export class AdminService {
       const result = await this.baiduStorage.probe();
       return result.ok
         ? ok("bdpan", "百度网盘 bdpan", "bdpan 已登录且可用")
-        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}`, this.baiduLoginCommand());
+        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}。复制命令获取授权链接，打开授权后在服务器执行 ${this.baiduSetCodeCommand()}`, this.baiduLoginCommand());
     } catch (error) {
-      return fail("bdpan", "百度网盘 bdpan", `bdpan 探测失败：${shortError(error)}`);
+      return fail("bdpan", "百度网盘 bdpan", `bdpan 探测失败：${shortError(error)}。可复制命令重新获取授权链接`, this.baiduLoginCommand());
     }
   }
 
@@ -930,7 +930,11 @@ export class AdminService {
   }
 
   private baiduLoginCommand() {
-    return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login`;
+    return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login --accept-disclaimer --get-auth-url`;
+  }
+
+  private baiduSetCodeCommand() {
+    return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login --accept-disclaimer --set-code <授权码>`;
   }
 
   private quarkLoginCommand() {
