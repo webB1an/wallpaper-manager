@@ -509,12 +509,12 @@ export class AdminService {
 
   async publishWallpaperToChannel(id: string) {
     const account = await this.channel.getDefaultAccount();
-    if (!account) throw new Error("未配置腾讯频道账号");
+    if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpaper = await this.prisma.wallpaper.findUnique({
       where: { id },
       include: { tags: { include: { tag: true } } },
     });
-    if (!wallpaper) throw new Error("壁纸不存在");
+    if (!wallpaper) throw new BadRequestException("壁纸不存在");
     await this.assertWallpapersCanPublish([id]);
     const content = buildChannelContent(wallpaper.title, wallpaper.tags.map(({ tag }) => tag.name));
     const absoluteAsset = wallpaper.assetPath ? join(process.cwd(), "storage", "public", wallpaper.assetPath) : undefined;
@@ -540,21 +540,21 @@ export class AdminService {
     const account = accountId
       ? await this.prisma.channelAccount.findUnique({ where: { id: accountId } })
       : await this.channel.getDefaultAccount();
-    if (!account) throw new Error("未配置腾讯频道账号");
+    if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpapers = await this.prisma.wallpaper.findMany({
       where: { id: { in: uniqueIds } },
       include: { tags: { include: { tag: true } } },
       orderBy: [{ sortOrder: "desc" }, { createdAt: "desc" }],
     });
-    if (!wallpapers.length) throw new Error("没有可发布的壁纸");
-    if (wallpapers.length !== uniqueIds.length) throw new Error("存在未找到的壁纸，无法发布到频道");
+    if (!wallpapers.length) throw new BadRequestException("没有可发布的壁纸");
+    if (wallpapers.length !== uniqueIds.length) throw new BadRequestException("存在未找到的壁纸，无法发布到频道");
     await this.assertWallpapersCanPublish(wallpapers.map((item) => item.id));
     const liveItems = wallpapers.filter((item) => item.mimeType?.startsWith("video/") || item.type === WallpaperType.live);
     if (liveItems.length > 1 || (liveItems.length === 1 && wallpapers.length > 1)) {
-      throw new Error("动态壁纸一次只能发布 1 个，不能和静态图混发");
+      throw new BadRequestException("动态壁纸一次只能发布 1 个，不能和静态图混发");
     }
     if (!liveItems.length && wallpapers.length > 18) {
-      throw new Error("静态壁纸一次最多发布 18 张图");
+      throw new BadRequestException("静态壁纸一次最多发布 18 张图");
     }
     assertChannelMediaReady(wallpapers.map((item) => ({
       title: item.title,
