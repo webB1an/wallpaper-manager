@@ -457,6 +457,11 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
     aiReview ? { key: "aiReview", label: "AI审核", value: aiReviewText(aiReview), clear: () => { setAiReview(""); setSelectedRowKeys([]); void load(1, status, typeFilter, "", storageFilter); } } : undefined,
     storageFilter ? { key: "storage", label: "网盘", value: storageFilterText(storageFilter), clear: () => { setStorageFilter(""); setSelectedRowKeys([]); void load(1, status, typeFilter, aiReview, ""); } } : undefined,
   ].filter(Boolean) as Array<{ key: string; label: string; value: string; clear: () => void }>;
+  const publishIdSet = new Set(publishTargetIds.map(String));
+  const publishSelected = data.list.filter((row) => publishIdSet.has(row.id));
+  const publishLiveCount = publishSelected.filter((row) => row.type === "live" || row.mimeType?.startsWith("video/")).length;
+  const publishStaticCount = publishSelected.length - publishLiveCount;
+  const publishIssue = getChannelPublishIssue(publishTargetIds, data.list);
 
   return (
     <section>
@@ -683,7 +688,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         title="发到腾讯频道"
         open={publishTargetIds.length > 0}
         confirmLoading={publishing}
-        okButtonProps={{ disabled: !channelAccounts.length }}
+        okButtonProps={{ disabled: !channelAccounts.length || Boolean(publishIssue) }}
         onCancel={() => {
           setPublishTargetIds([]);
           publishForm.resetFields();
@@ -704,6 +709,26 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           }
         }}
       >
+        <div className="publish-summary">
+          <div>
+            <span>选中资源</span>
+            <strong>{publishTargetIds.length}</strong>
+          </div>
+          <div>
+            <span>静态图片</span>
+            <strong>{publishStaticCount}</strong>
+          </div>
+          <div>
+            <span>动态壁纸</span>
+            <strong>{publishLiveCount}</strong>
+          </div>
+          <div>
+            <span>频道账号</span>
+            <strong>{channelLoading ? "读取中" : channelAccounts.length ? `${channelAccounts.length} 个` : "未配置"}</strong>
+          </div>
+        </div>
+        {publishIssue ? <Alert className="modal-alert" type="warning" showIcon message={publishIssue} /> : null}
+        {!channelLoading && !channelAccounts.length ? <Alert className="modal-alert" type="warning" showIcon message="还没有配置频道账号，请先在频道配置中新增账号。" /> : null}
         <Form form={publishForm} layout="vertical">
           <Form.Item label="本次发布资源">
             <Tag color="blue">{publishTargetIds.length} 个</Tag>
