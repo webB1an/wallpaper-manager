@@ -196,25 +196,42 @@ function Login({ onLogin }: { onLogin: () => void }) {
 function Library() {
   const [data, setData] = useState<{ list: Wallpaper[]; total: number }>({ list: [], total: 0 });
   const [keyword, setKeyword] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [loading, setLoading] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [editing, setEditing] = useState<Wallpaper | null>(null);
+  const [bulkEditing, setBulkEditing] = useState(false);
   const [form] = Form.useForm();
+  const [bulkForm] = Form.useForm<{ status?: string; tags?: string }>();
   const [publishForm] = Form.useForm<{ accountId?: string }>();
   const [publishTargetIds, setPublishTargetIds] = useState<React.Key[]>([]);
   const [channelAccounts, setChannelAccounts] = useState<ChannelAccount[]>([]);
   const [channelLoading, setChannelLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  const load = async () => {
+  const load = async (nextPage = page, nextStatus = status) => {
     setLoading(true);
     try {
-      setData(await request(`/api/admin/wallpapers?pageSize=50&keyword=${encodeURIComponent(keyword)}`));
+      const query = new URLSearchParams({
+        page: String(nextPage),
+        pageSize: String(pageSize),
+        keyword,
+        status: nextStatus,
+      });
+      setData(await request<{ list: Wallpaper[]; total: number }>(`/api/admin/wallpapers?${query.toString()}`));
+      setPage(nextPage);
     } finally {
       setLoading(false);
     }
   };
   useEffect(() => { void load(); }, []);
+
+  const reloadFromFirstPage = () => {
+    setSelectedRowKeys([]);
+    void load(1);
+  };
 
   const openChannelPublish = async (ids: React.Key[]) => {
     if (!ids.length) {
@@ -237,9 +254,29 @@ function Library() {
     <section>
       <Header title="资源库" subtitle="审核、编辑、排序、上下架与查看网盘同步状态。" />
       <Space className="toolbar">
-        <Input prefix={<Search size={16} />} placeholder="搜索标题" value={keyword} onChange={(event) => setKeyword(event.target.value)} onPressEnter={load} />
-        <Button onClick={load}>搜索</Button>
+        <Input prefix={<Search size={16} />} placeholder="搜索标题" value={keyword} onChange={(event) => setKeyword(event.target.value)} onPressEnter={reloadFromFirstPage} />
+        <Select
+          allowClear
+          placeholder="全部状态"
+          value={status || undefined}
+          onChange={(value) => {
+            const nextStatus = value || "";
+            setStatus(nextStatus);
+            setSelectedRowKeys([]);
+            void load(1, nextStatus);
+          }}
+          options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: value }))}
+          style={{ width: 170 }}
+        />
+        <Button onClick={reloadFromFirstPage}>搜索</Button>
         <Button type="primary" onClick={() => processBatch(selectedRowKeys, load)}>批量处理</Button>
+        <Button onClick={() => {
+          if (!selectedRowKeys.length) {
+            message.warning("先选择资源");
+            return;
+          }
+          setBulkEditing(true);
+        }}>批量编辑</Button>
         <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
         <Button type="primary" ghost onClick={() => openChannelPublish(selectedRowKeys)}>发到频道</Button>
@@ -249,7 +286,12 @@ function Library() {
         loading={loading}
         dataSource={data.list}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
-        pagination={{ total: data.total, pageSize: 50 }}
+        pagination={{ total: data.total, pageSize, current: page, showSizeChanger: false }}
+        onChange={(pagination) => {
+          const nextPage = Number(pagination.current || 1);
+          setSelectedRowKeys([]);
+          void load(nextPage);
+        }}
         columns={[
         {
           title: "封面",
@@ -313,6 +355,39 @@ function Library() {
           <Form.Item label="标签" name="tags"><Input placeholder="多个标签用逗号分隔" /></Form.Item>
         </Form>
         {editing && <StorageLinkEditor wallpaper={editing} reload={load} />}
+      </Modal>
+      <Modal
+        title="批量编辑"
+        open={bulkEditing}
+        onCancel={() => {
+          setBulkEditing(false);
+          bulkForm.resetFields();
+        }}
+        onOk={async () => {
+          const values = await bulkForm.validateFields();
+          const data: { status?: string; tags?: string[] } = {};
+          if (values.status) data.status = values.status;
+          if (values.tags !== undefined) data.tags = splitTags(values.tags);
+          if (!data.status && data.tags === undefined) {
+            message.warning("请选择要修改的内容");
+            return;
+          }
+          await bulkPatch(selectedRowKeys, data, load);
+          setBulkEditing(false);
+          bulkForm.resetFields();
+        }}
+      >
+        <Form form={bulkForm} layout="vertical">
+          <Form.Item label="已选择资源">
+            <Tag color="blue">{selectedRowKeys.length} 个</Tag>
+          </Form.Item>
+          <Form.Item label="状态" name="status">
+            <Select allowClear options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: value }))} />
+          </Form.Item>
+          <Form.Item label="标签" name="tags">
+            <Input placeholder="留空不修改；多个标签用逗号分隔，填写后会替换所选资源标签" />
+          </Form.Item>
+        </Form>
       </Modal>
       <Modal
         title="发到腾讯频道"
