@@ -59,6 +59,24 @@ Page({
     if (!id || id === this.data.id) return;
     this.setData({ id, item: null, sizeText: "", typeText: "" });
     this.loadDetail(id);
+  },
+
+  onShareAppMessage() {
+    const item = this.data.item;
+    return {
+      title: item ? `${item.title}｜WDBZK壁纸库` : "WDBZK壁纸库",
+      path: item ? `/pages/detail/detail?id=${item.id}` : "/pages/index/index",
+      imageUrl: item?.coverUrl || ""
+    };
+  },
+
+  onShareTimeline() {
+    const item = this.data.item;
+    return {
+      title: item ? `${item.title}｜WDBZK壁纸库` : "WDBZK壁纸库",
+      query: item ? `id=${item.id}` : "",
+      imageUrl: item?.coverUrl || ""
+    };
   }
 });
 

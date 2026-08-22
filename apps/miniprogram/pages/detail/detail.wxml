@@ -12,6 +12,7 @@
         <text class="tag">{{item}}</text>
       </block>
     </view>
+    <button class="share-button" open-type="share">分享壁纸</button>
     <view class="download-list">
       <block wx:for="{{item.shortLinks}}" wx:key="url">
         <view class="download-card">

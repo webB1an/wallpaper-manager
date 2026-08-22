@@ -49,5 +49,18 @@ Page({
   openType(event: WechatMiniprogram.TouchEvent) {
     const type = String(event.currentTarget.dataset.type || "");
     wx.navigateTo({ url: `/pages/index/index?type=${encodeURIComponent(type)}` });
+  },
+
+  onShareAppMessage() {
+    return {
+      title: "按风格探索壁纸｜WDBZK",
+      path: "/pages/category/category"
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: "按风格探索壁纸｜WDBZK"
+    };
   }
 });

@@ -88,6 +88,21 @@ Page({
 
   openDetail(event: WechatMiniprogram.TouchEvent) {
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
+  },
+
+  onShareAppMessage() {
+    return {
+      title: shareTitle(this.data.tag, this.data.type),
+      path: sharePath(this.data.tag, this.data.type)
+    };
+  },
+
+  onShareTimeline() {
+    const query = shareQuery(this.data.tag, this.data.type);
+    return {
+      title: shareTitle(this.data.tag, this.data.type),
+      query
+    };
   }
 });
 
@@ -99,4 +114,22 @@ function formatTypeTitle(value: string) {
     desktop: "电脑壁纸"
   };
   return map[value] || "壁纸库";
+}
+
+function shareTitle(tag: string, type: string) {
+  if (tag) return `#${tag} 壁纸合集｜WDBZK`;
+  if (type) return `${formatTypeTitle(type)}｜WDBZK`;
+  return "今日灵感墙｜WDBZK壁纸库";
+}
+
+function sharePath(tag: string, type: string) {
+  const query = shareQuery(tag, type);
+  return query ? `/pages/index/index?${query}` : "/pages/index/index";
+}
+
+function shareQuery(tag: string, type: string) {
+  const query: string[] = [];
+  if (tag) query.push(`tag=${encodeURIComponent(tag)}`);
+  if (type) query.push(`type=${encodeURIComponent(type)}`);
+  return query.join("&");
 }

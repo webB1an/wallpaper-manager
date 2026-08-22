@@ -37,6 +37,23 @@
   margin-top: 24rpx;
 }
 
+.share-button {
+  width: 100%;
+  height: 76rpx;
+  margin: 22rpx 0 0;
+  padding: 0;
+  border-radius: 14rpx;
+  color: #fff;
+  background: #25465a;
+  font-size: 27rpx;
+  font-weight: 780;
+  line-height: 76rpx;
+}
+
+.share-button::after {
+  border: 0;
+}
+
 .download-list {
   display: grid;
   gap: 16rpx;
