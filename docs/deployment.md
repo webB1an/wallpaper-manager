@@ -155,7 +155,7 @@ npm run package:release
 npm run import:old-covers -w apps/api -- --limit=100
 ```
 
-后台也提供“老封面迁移”页面。迁移只复制封面并按旧资源名规则匹配网盘链接；分类、tag 和审核全部重新由 AI 识别。部署在旧站同一台服务器时，配置 `OLD_WALLPAPER_ROOT=/www/wwwroot/wallpaper.wdbzk.com` 后会优先从本地 `covers` 目录复制封面，找不到本地目录时才回退到公网下载。
+后台也提供“老封面迁移”页面。迁移只复制封面，并按旧站同款归一化规则做唯一精确匹配；没有唯一匹配的资源会保留为待复核，避免把封面和网盘链接错配。分类、tag 和审核全部重新由 AI 识别。部署在旧站同一台服务器时，配置 `OLD_WALLPAPER_ROOT=/www/wwwroot/wallpaper.wdbzk.com` 后会优先从本地 `covers` 目录复制封面，找不到本地目录时才回退到公网下载。
 
 ## 9. 上线后检查
 

@@ -5,7 +5,7 @@ import { createWriteStream, existsSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pipeline } from "node:stream/promises";
-import { candidateTitleFromCoverFile, legacyResourceMatchKey, matchConfidence } from "../../common/match";
+import { candidateTitleFromCoverFile, legacyResourceMatchKey } from "../../common/match";
 import { publicAssetUrl } from "../../common/public-url";
 import { AiService } from "../ai/ai.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -61,7 +61,7 @@ export class OldCoverImportService {
           oldResourceName: match?.resource.name,
           oldResourceLink: match?.resource.link,
           confidence: match?.confidence || 0,
-          status: match && match.confidence >= 0.92 ? "matched" : "needs_review",
+          status: match ? "matched" : "needs_review",
           message: match ? undefined : "未匹配到网盘资源",
         },
         create: {
@@ -73,11 +73,11 @@ export class OldCoverImportService {
           oldResourceName: match?.resource.name,
           oldResourceLink: match?.resource.link,
           confidence: match?.confidence || 0,
-          status: match && match.confidence >= 0.92 ? "matched" : "needs_review",
+          status: match ? "matched" : "needs_review",
           message: match ? undefined : "未匹配到网盘资源",
         },
       });
-      if (match && match.confidence >= 0.92 && coverPath) {
+      if (match && coverPath) {
         await this.createWallpaperFromImport(coverFileName, candidateTitle, coverPath, match.resource, match.confidence);
         imported += 1;
       } else {
@@ -217,12 +217,7 @@ export class OldCoverImportService {
     const key = legacyResourceMatchKey(coverFileName);
     const exact = indexed.byKey.get(key);
     if (exact) return { resource: exact, confidence: 1 };
-    let best: { resource: WdbzkResource; confidence: number } | undefined;
-    for (const resource of indexed.resources) {
-      const confidence = matchConfidence(coverFileName, resource.name);
-      if (!best || confidence > best.confidence) best = { resource, confidence };
-    }
-    return best && best.confidence >= 0.75 ? best : undefined;
+    return undefined;
   }
 
   private async copyCover(coverFileName: string): Promise<string> {
@@ -311,9 +306,16 @@ export class OldCoverImportService {
 
 function indexResources(resources: WdbzkResource[]) {
   const byKey = new Map<string, WdbzkResource>();
+  const duplicates = new Set<string>();
   for (const resource of resources) {
     const key = legacyResourceMatchKey(resource.name);
-    if (key && !byKey.has(key)) byKey.set(key, resource);
+    if (!key || duplicates.has(key)) continue;
+    if (byKey.has(key)) {
+      byKey.delete(key);
+      duplicates.add(key);
+      continue;
+    }
+    byKey.set(key, resource);
   }
   return { resources, byKey };
 }
