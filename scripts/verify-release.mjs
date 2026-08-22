@@ -66,9 +66,11 @@ if (!wechatDomains.request?.includes("https://wall-api.wdbzk.com")) fail("wechat
 if (!wechatDomains.downloadFile?.includes("https://wall-api.wdbzk.com")) fail("wechat downloadFile domain must include wall-api.wdbzk.com");
 if (wechatDomains.request?.includes("https://r.wdbzk.com")) fail("r.wdbzk.com should not be configured as a mini program request domain while it is copied as text only");
 if (!rootPackage.workspaces?.includes("apps/miniprogram")) fail("root package workspaces must include apps/miniprogram");
+if (rootPackage.scripts?.["smoke:public"] !== "node scripts/smoke-public.mjs") fail("root package must expose smoke:public");
 
 requireFile("apps/miniprogram/package.json");
 requireFile("apps/miniprogram/tsconfig.json");
+requireFile("scripts/smoke-public.mjs");
 requireContains("apps/miniprogram/package.json", "typecheck");
 requireContains("apps/miniprogram/tsconfig.json", "miniprogram-api-typings");
 requireContains("apps/miniprogram/app.ts", "showShareMenu");
@@ -127,6 +129,8 @@ requireContains("apps/api/src/modules/public/public.service.ts", "compareShortLi
 requireContains("apps/api/src/modules/public/public.service.ts", "storageLink.isPrimary");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
 requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper.status !== WallpaperStatus.published");
+requireContains("scripts/smoke-public.mjs", "checkedListItems");
+requireContains("scripts/smoke-public.mjs", "short link must be served from");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkUnpublishedActiveShortLinks");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "unpublished_active_short");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "unpublished_active_short");
@@ -171,6 +175,7 @@ requireContains("docs/deployment.md", "不要勾选“不校验合法域名”")
 requireContains("docs/deployment.md", "网盘授权");
 requireContains("docs/deployment.md", "腾讯频道配置");
 requireContains("docs/deployment.md", "发布前验收清单");
+requireContains("docs/deployment.md", "npm run smoke:public");
 requireContains("docs/deployment.md", "bdpan' login --accept-disclaimer --get-auth-url");
 requireContains("docs/deployment.md", "bdpan' login --accept-disclaimer --set-code <授权码>");
 requireContains("docs/deployment.md", "CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login");

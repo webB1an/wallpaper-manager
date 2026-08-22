@@ -209,6 +209,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 - 先打开管理端“上线诊断”，确认公开域名、数据库、Redis、ffmpeg、bdpan、夸克 skill、旧站封面目录、DeepSeek、panapi、腾讯频道 CLI 和频道账号状态。
 - 对诊断失败项，优先使用页面右侧“复制命令”按钮，把命令粘贴到宝塔终端执行。
+- 在本地或服务器执行 `npm run smoke:public`，确认公开列表、详情、封面域名、短链域名和分类聚合都可用。
 - `DEEPSEEK_API_KEY` 必须配置后才能自动上架；未配置时 AI 审核会保护性失败，资源不会自动发布。
 - 管理端登录连续失败 5 次会锁定 10 分钟；仍建议宝塔站点只开放 HTTPS，并妥善保存后台密码。
 - 管理端新增至少一个腾讯频道账号，并设为默认账号。
@@ -223,6 +224,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 - GitHub Actions 最新 `main` 部署成功。
 - `https://wall-api.wdbzk.com/health` 返回 `{"code":200}`。
+- `npm run smoke:public` 返回 `"ok": true`。
 - PM2 中 `wallpaper-api` 为 `online`。
 - 管理端“上线诊断”中数据库、Redis、ffmpeg、DeepSeek、panapi、bdpan、夸克 skill、腾讯频道 CLI 都为正常。
 - 管理端至少存在一个默认腾讯频道账号。
