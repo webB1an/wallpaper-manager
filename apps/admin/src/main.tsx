@@ -516,6 +516,7 @@ function Uploader() {
   const props: UploadProps = {
     name: "files",
     multiple: true,
+    accept: "image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/quicktime,video/webm",
     action: `${API}/api/admin/uploads`,
     headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
     data: { autoProcess: String(autoProcess), autoPublish: String(autoPublish) },
@@ -538,7 +539,7 @@ function Uploader() {
       <Upload.Dragger {...props} className="upload-dragger">
         <UploadCloud size={42} />
         <h2>拖拽壁纸文件到这里</h2>
-        <p>支持批量图片和视频；自动处理会进入 AI 审核、网盘同步、wdbzk 入库队列。</p>
+        <p>支持 JPG、PNG、WebP、GIF、AVIF、MP4、MOV、WebM；默认单文件上限 300MB。</p>
       </Upload.Dragger>
     </section>
   );
