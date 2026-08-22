@@ -91,7 +91,7 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Get("wallpapers")
-  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus }) {
+  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: "unreviewed" | "safe" | "blocked" }) {
     return { code: 200, data: await this.admin.listWallpapers(query) };
   }
 

@@ -9,7 +9,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
-import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { Prisma, StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { AiService } from "../ai/ai.service";
@@ -31,6 +31,8 @@ type DiagnosticItem = {
   status: "ok" | "warn" | "fail";
   message: string;
 };
+
+type AiReviewFilter = "unreviewed" | "safe" | "blocked";
 
 const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
@@ -193,12 +195,13 @@ export class AdminService {
     return analysis;
   }
 
-  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus }) {
+  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; aiReview?: AiReviewFilter }) {
     const page = Math.max(1, Number(query.page || 1));
     const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
-    const where = {
+    const where: Prisma.WallpaperWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.keyword ? { title: { contains: query.keyword } } : {}),
+      ...aiReviewWhere(query.aiReview),
     };
     const [list, total] = await Promise.all([
       this.prisma.wallpaper.findMany({
@@ -728,6 +731,13 @@ function buildChannelContent(title: string, tags: string[]): string {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function aiReviewWhere(value?: AiReviewFilter): Prisma.WallpaperWhereInput {
+  if (value === "unreviewed") return { aiAnalysis: null };
+  if (value === "safe") return { aiAnalysis: { safe: true } };
+  if (value === "blocked") return { aiAnalysis: { safe: false } };
+  return {};
 }
 
 function ok(key: string, label: string, message: string): DiagnosticItem {

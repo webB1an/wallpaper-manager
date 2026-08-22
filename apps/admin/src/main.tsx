@@ -211,6 +211,7 @@ function Library() {
   const [data, setData] = useState<{ list: Wallpaper[]; total: number }>({ list: [], total: 0 });
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
+  const [aiReview, setAiReview] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [loading, setLoading] = useState(false);
@@ -225,7 +226,7 @@ function Library() {
   const [channelLoading, setChannelLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
-  const load = async (nextPage = page, nextStatus = status) => {
+  const load = async (nextPage = page, nextStatus = status, nextAiReview = aiReview) => {
     setLoading(true);
     try {
       const query = new URLSearchParams({
@@ -233,6 +234,7 @@ function Library() {
         pageSize: String(pageSize),
         keyword,
         status: nextStatus,
+        aiReview: nextAiReview,
       });
       setData(await request<{ list: Wallpaper[]; total: number }>(`/api/admin/wallpapers?${query.toString()}`));
       setPage(nextPage);
@@ -286,6 +288,23 @@ function Library() {
           }}
           options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: value }))}
           style={{ width: 170 }}
+        />
+        <Select
+          allowClear
+          placeholder="AI审核"
+          value={aiReview || undefined}
+          onChange={(value) => {
+            const nextAiReview = value || "";
+            setAiReview(nextAiReview);
+            setSelectedRowKeys([]);
+            void load(1, status, nextAiReview);
+          }}
+          options={[
+            { value: "unreviewed", label: "未识别" },
+            { value: "safe", label: "通过" },
+            { value: "blocked", label: "已拦截" },
+          ]}
+          style={{ width: 150 }}
         />
         <Button onClick={reloadFromFirstPage}>搜索</Button>
         <Button type="primary" onClick={() => processBatch(selectedRowKeys, load)}>批量处理</Button>
