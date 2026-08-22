@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -88,14 +88,14 @@ export class ChannelService {
 
   async setDefaultAccount(id: string) {
     const account = await this.prisma.channelAccount.findUnique({ where: { id } });
-    if (!account) throw new Error("腾讯频道账号不存在");
+    if (!account) throw new NotFoundException("腾讯频道账号不存在");
     await this.prisma.channelAccount.updateMany({ data: { isDefault: false } });
     return this.prisma.channelAccount.update({ where: { id }, data: { isDefault: true } });
   }
 
   async deleteAccount(id: string) {
     const account = await this.prisma.channelAccount.findUnique({ where: { id } });
-    if (!account) throw new Error("腾讯频道账号不存在");
+    if (!account) throw new NotFoundException("腾讯频道账号不存在");
     await this.prisma.channelAccount.delete({ where: { id } });
     if (account.isDefault) {
       const next = await this.prisma.channelAccount.findFirst({ orderBy: { createdAt: "desc" } });
@@ -107,20 +107,20 @@ export class ChannelService {
   async discoverGuilds(token: string): Promise<TencentGuildOption[]> {
     const data = await this.runAuthenticatedQuery(token, ["manage", "get-my-join-guild-info", "--json"]);
     const guilds = normalizeGuilds(data);
-    if (!guilds.length) throw new Error("当前 Token 没有返回可用频道");
+    if (!guilds.length) throw new BadRequestException("当前 Token 没有返回可用频道");
     return guilds;
   }
 
   async discoverChannels(token: string, guildId: string): Promise<TencentChannelOption[]> {
     const data = await this.runAuthenticatedQuery(token, ["manage", "get-guild-channel-list", "--guild-id", guildId, "--json"]);
     const channels = normalizeChannels(data);
-    if (!channels.length) throw new Error("该频道没有返回可用版块");
+    if (!channels.length) throw new BadRequestException("该频道没有返回可用版块");
     return channels;
   }
 
   async publish(input: PublishInput) {
     const account = await this.prisma.channelAccount.findUnique({ where: { id: input.accountId } });
-    if (!account) throw new Error("腾讯频道账号不存在");
+    if (!account) throw new NotFoundException("腾讯频道账号不存在");
     const token = decryptSecret(account.tokenCipher, this.secret());
     return this.runPublish({
       token,
