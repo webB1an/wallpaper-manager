@@ -22,6 +22,8 @@ function assertShortUrl(value, label) {
   assert(typeof value === "string" && value.startsWith(`${shortOrigin}/`), `${label} short link must be served from ${shortOrigin}`);
 }
 
+const health = await get("/health");
+assert(health.ok === true, "health endpoint must return ok");
 const list = await get("/api/wallpapers?page=1&pageSize=3");
 assert(Array.isArray(list.list), "wallpaper list must be an array");
 assert(list.list.length > 0, "wallpaper list must not be empty");
@@ -48,6 +50,7 @@ console.log(JSON.stringify({
   ok: true,
   apiOrigin,
   shortOrigin,
+  health: health.ok,
   checkedListItems: list.list.length,
   detailId: detail.id,
   shortLinks: detail.shortLinks.length,

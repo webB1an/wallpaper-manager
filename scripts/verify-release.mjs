@@ -139,6 +139,7 @@ requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/overview");
 requireContains("scripts/smoke-admin.mjs", "diagnostics");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
+requireContains("scripts/smoke-public.mjs", "health endpoint must return ok");
 requireContains("scripts/smoke-public.mjs", "short link must be served from");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkUnpublishedActiveShortLinks");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "unpublished_active_short");
