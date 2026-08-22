@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { StorageProvider, WallpaperStatus } from "@prisma/client";
+import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { shortUrl } from "../../common/public-url";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -12,13 +12,16 @@ export class PublicService {
   ) {}
 
   async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; sort?: string }) {
-    const page = Math.max(1, Number(query.page || 1));
-    const pageSize = Math.min(50, Math.max(1, Number(query.pageSize || 20)));
+    const page = positiveInt(query.page, 1, "页码");
+    const pageSize = positiveInt(query.pageSize, 20, "每页数量", 50);
+    const type = optionalWallpaperType(query.type);
+    const keyword = cleanSearchText(query.keyword);
+    const tag = cleanSearchText(query.tag);
     const where = {
       status: WallpaperStatus.published,
-      ...(query.keyword ? { title: { contains: query.keyword } } : {}),
-      ...(query.type ? { type: query.type as never } : {}),
-      ...(query.tag ? { tags: { some: { tag: { name: query.tag } } } } : {}),
+      ...(keyword ? { title: { contains: keyword } } : {}),
+      ...(type ? { type } : {}),
+      ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
     };
     const orderBy = query.sort === "hot"
       ? [{ downloadCount: "desc" as const }, { viewCount: "desc" as const }]
@@ -166,4 +169,22 @@ function wallpaperCard(item: {
     downloadCount: item.downloadCount,
     createdAt: item.createdAt,
   };
+}
+
+function positiveInt(value: string | number | undefined, fallback: number, label: string, max?: number) {
+  if (value === undefined || value === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) throw new BadRequestException(`${label}不正确`);
+  return max ? Math.min(max, parsed) : parsed;
+}
+
+function optionalWallpaperType(value: string | undefined) {
+  if (!value) return undefined;
+  if (Object.values(WallpaperType).includes(value as WallpaperType)) return value as WallpaperType;
+  throw new BadRequestException("壁纸类型不正确");
+}
+
+function cleanSearchText(value: string | undefined) {
+  const text = String(value || "").trim();
+  return text.slice(0, 80);
 }
