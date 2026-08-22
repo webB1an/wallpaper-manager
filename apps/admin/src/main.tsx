@@ -200,6 +200,11 @@ function Library() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [editing, setEditing] = useState<Wallpaper | null>(null);
   const [form] = Form.useForm();
+  const [publishForm] = Form.useForm<{ accountId?: string }>();
+  const [publishTargetIds, setPublishTargetIds] = useState<React.Key[]>([]);
+  const [channelAccounts, setChannelAccounts] = useState<ChannelAccount[]>([]);
+  const [channelLoading, setChannelLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -211,6 +216,23 @@ function Library() {
   };
   useEffect(() => { void load(); }, []);
 
+  const openChannelPublish = async (ids: React.Key[]) => {
+    if (!ids.length) {
+      message.warning("先选择资源");
+      return;
+    }
+    setPublishTargetIds(ids);
+    setChannelLoading(true);
+    try {
+      const accounts = await request<ChannelAccount[]>("/api/admin/channels");
+      setChannelAccounts(accounts);
+      const preferred = accounts.find((item) => item.isDefault) || accounts[0];
+      publishForm.setFieldsValue({ accountId: preferred?.id });
+    } finally {
+      setChannelLoading(false);
+    }
+  };
+
   return (
     <section>
       <Header title="资源库" subtitle="审核、编辑、排序、上下架与查看网盘同步状态。" />
@@ -220,7 +242,7 @@ function Library() {
         <Button type="primary" onClick={() => processBatch(selectedRowKeys, load)}>批量处理</Button>
         <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
-        <Button type="primary" ghost onClick={() => publishBatch(selectedRowKeys)}>发到频道</Button>
+        <Button type="primary" ghost onClick={() => openChannelPublish(selectedRowKeys)}>发到频道</Button>
       </Space>
       <Table
         rowKey="id"
@@ -262,6 +284,7 @@ function Library() {
             }}>编辑</Button>
             <Button size="small" onClick={() => analyze(row.id, load)}>AI识别</Button>
             <Button size="small" type="primary" onClick={() => processWallpaper(row.id, load)}>一键处理</Button>
+            <Button size="small" onClick={() => openChannelPublish([row.id])}>发频道</Button>
             <Button size="small" onClick={() => patch(row.id, { status: "published" }, load)}>上架</Button>
             <Button size="small" danger onClick={() => patch(row.id, { status: "archived" }, load)}>下架</Button>
           </Space>,
@@ -290,6 +313,47 @@ function Library() {
           <Form.Item label="标签" name="tags"><Input placeholder="多个标签用逗号分隔" /></Form.Item>
         </Form>
         {editing && <StorageLinkEditor wallpaper={editing} reload={load} />}
+      </Modal>
+      <Modal
+        title="发到腾讯频道"
+        open={publishTargetIds.length > 0}
+        confirmLoading={publishing}
+        okButtonProps={{ disabled: !channelAccounts.length }}
+        onCancel={() => {
+          setPublishTargetIds([]);
+          publishForm.resetFields();
+        }}
+        onOk={async () => {
+          const values = await publishForm.validateFields();
+          setPublishing(true);
+          try {
+            await request("/api/admin/channels/publish", {
+              method: "POST",
+              body: JSON.stringify({ ids: publishTargetIds, accountId: values.accountId }),
+            });
+            message.success("频道发布完成");
+            setPublishTargetIds([]);
+            publishForm.resetFields();
+          } finally {
+            setPublishing(false);
+          }
+        }}
+      >
+        <Form form={publishForm} layout="vertical">
+          <Form.Item label="本次发布资源">
+            <Tag color="blue">{publishTargetIds.length} 个</Tag>
+          </Form.Item>
+          <Form.Item label="频道账号" name="accountId" rules={[{ required: true, message: "请选择频道账号" }]}>
+            <Select
+              loading={channelLoading}
+              placeholder={channelAccounts.length ? "选择频道账号" : "还没有配置频道账号"}
+              options={channelAccounts.map((account) => ({
+                value: account.id,
+                label: `${account.label}${account.isDefault ? " · 默认" : ""}${account.channelName ? ` · ${account.channelName}` : ""}`,
+              }))}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </section>
   );
@@ -781,15 +845,6 @@ async function bulkPatch(ids: React.Key[], data: unknown, reload: () => void) {
   await request("/api/admin/wallpapers/bulk", { method: "POST", body: JSON.stringify({ ids, ...(data as object) }) });
   message.success("批量操作完成");
   reload();
-}
-
-async function publishBatch(ids: React.Key[]) {
-  if (!ids.length) {
-    message.warning("先选择资源");
-    return;
-  }
-  await request("/api/admin/channels/publish", { method: "POST", body: JSON.stringify({ ids }) });
-  message.success("频道发布完成");
 }
 
 function splitTags(value?: string) {
