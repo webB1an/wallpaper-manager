@@ -15,7 +15,8 @@
     "prisma:migrate": "npm run prisma:migrate -w apps/api",
     "prisma:deploy": "npm run prisma:deploy -w apps/api",
     "package:release": "powershell -ExecutionPolicy Bypass -File deploy/package-release.ps1",
-    "smoke:json": "npm run smoke:json -w apps/api"
+    "smoke:json": "npm run smoke:json -w apps/api",
+    "verify:release": "node scripts/verify-release.mjs"
   },
   "workspaces": [
     "apps/api",
