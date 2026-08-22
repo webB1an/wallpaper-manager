@@ -3,6 +3,24 @@
     <text class="hero-title">按风格探索</text>
     <text class="hero-subtitle">分类来自 AI 识图和人工整理，不沿用老站分类</text>
   </view>
+
+  <view class="section-title">
+    <text>资源类型</text>
+    <text class="muted">动静态入口</text>
+  </view>
+  <view class="type-grid">
+    <block wx:for="{{types}}" wx:key="key">
+      <view class="type-card" bindtap="openType" data-type="{{item.key}}">
+        <text>{{item.title}}</text>
+        <text>{{item.subtitle}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view class="section-title">
+    <text>AI 标签</text>
+    <text class="muted">{{tags.length}} 个</text>
+  </view>
   <view class="category-grid">
     <block wx:for="{{tags}}" wx:key="*this">
       <view class="category-card" bindtap="openTag" data-tag="{{item}}">

@@ -12,10 +12,15 @@ Page({
     loading: false
   },
 
-  onLoad(options?: { tag?: string }) {
+  onLoad(options?: { tag?: string; type?: string }) {
     if (options?.tag) {
       this.setData({ tag: decodeURIComponent(options.tag) });
       wx.setNavigationBarTitle({ title: `#${decodeURIComponent(options.tag)}` });
+    }
+    if (options?.type) {
+      const type = decodeURIComponent(options.type);
+      this.setData({ type });
+      wx.setNavigationBarTitle({ title: formatTypeTitle(type) });
     }
     this.load();
   },
@@ -75,3 +80,13 @@ Page({
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
   }
 });
+
+function formatTypeTitle(value: string) {
+  const map: Record<string, string> = {
+    live: "动态壁纸",
+    static: "静态壁纸",
+    mobile: "手机壁纸",
+    desktop: "电脑壁纸"
+  };
+  return map[value] || "壁纸库";
+}
