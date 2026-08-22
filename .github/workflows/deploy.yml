@@ -58,7 +58,7 @@ jobs:
 
       - name: Sync source to server
         run: |
-          rsync -az --human-readable \
+          rsync -az --delete --human-readable \
             --exclude='.git/' \
             --exclude='.github/' \
             --exclude='.runs/' \
