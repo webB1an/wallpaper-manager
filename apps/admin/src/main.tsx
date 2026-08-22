@@ -31,6 +31,13 @@ type TaskItem = {
   result?: { warnings?: string[] };
 };
 
+type TaskSummary = {
+  todayTotal: number;
+  active: number;
+  successToday: number;
+  failedToday: number;
+};
+
 type ImportPreview = {
   coverFileName: string;
   candidateTitle: string;
@@ -895,6 +902,14 @@ function Channels() {
 }
 
 function Header({ title, subtitle }: { title: string; subtitle: string }) {
+  const [summary, setSummary] = useState<TaskSummary | null>(null);
+
+  useEffect(() => {
+    request<TaskSummary>("/api/admin/tasks/summary")
+      .then(setSummary)
+      .catch(() => undefined);
+  }, []);
+
   return (
     <header className="page-header">
       <div>
@@ -903,7 +918,8 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
         <p>{subtitle}</p>
       </div>
       <Space>
-        <Statistic title="今日队列" value="--" />
+        <Statistic title="今日队列" value={summary?.todayTotal ?? "--"} />
+        <Statistic title="进行中" value={summary?.active ?? "--"} />
       </Space>
     </header>
   );

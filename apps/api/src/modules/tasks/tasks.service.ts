@@ -42,4 +42,21 @@ export class TasksService {
     ]);
     return { list, total, page: safePage, pageSize: safePageSize };
   }
+
+  async summary() {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+    const todayWhere = { createdAt: { gte: todayStart, lt: tomorrowStart } };
+    const [todayTotal, active, successToday, failedToday] = await Promise.all([
+      this.prisma.task.count({ where: todayWhere }),
+      this.prisma.task.count({ where: { status: { in: [TaskStatus.queued, TaskStatus.running] } } }),
+      this.prisma.task.count({ where: { ...todayWhere, status: TaskStatus.success } }),
+      this.prisma.task.count({ where: { ...todayWhere, status: TaskStatus.failed } }),
+    ]);
+
+    return { todayTotal, active, successToday, failedToday };
+  }
 }

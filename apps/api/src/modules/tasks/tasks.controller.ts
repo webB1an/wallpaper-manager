@@ -7,6 +7,11 @@ import { TasksService } from "./tasks.service";
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
+  @Get("summary")
+  async summary() {
+    return { code: 200, data: await this.tasks.summary() };
+  }
+
   @Get()
   async list(@Query() query: { page?: number; pageSize?: number }) {
     return { code: 200, data: await this.tasks.list(Number(query.page || 1), Number(query.pageSize || 50)) };
