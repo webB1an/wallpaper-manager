@@ -73,7 +73,7 @@ export class PublicService {
           provider: link.provider,
           label: link.provider === StorageProvider.quark ? "夸克下载" : "百度备用",
           url: shortUrl(this.config, link.code),
-          passcode: link.storageLink.passcode || "",
+          passcode: resolvePasscode(link.storageLink.provider, link.storageLink.url, link.storageLink.passcode),
         })),
       related,
     };
@@ -198,4 +198,16 @@ function assertRedirectUrl(value: string) {
     // Fall through to a consistent business error.
   }
   throw new NotFoundException("短链目标地址不正确");
+}
+
+function resolvePasscode(provider: StorageProvider, url: string, passcode?: string | null) {
+  const stored = passcode?.trim();
+  if (stored) return stored;
+  if (provider !== StorageProvider.baidu) return "";
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get("pwd") || parsed.searchParams.get("password") || "";
+  } catch {
+    return "";
+  }
 }

@@ -89,6 +89,8 @@ requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
+requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
+requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",
