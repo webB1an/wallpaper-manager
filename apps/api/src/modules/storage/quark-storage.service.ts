@@ -26,7 +26,7 @@ export class QuarkStorageService {
     const parentFid = this.config.get<string>("QUARK_UPLOAD_PARENT_FID")?.trim();
     if (parentFid) args.splice(3, 0, "--parent-fid", parentFid);
 
-    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 60 * 60_000 });
+    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 60 * 60_000, env: quarkAgentEnv() });
     const final = lastResult(result.stdout);
     const code = Number(final?.code ?? (result.ok ? 0 : -1));
     if (!result.ok || code !== 0) {
@@ -59,7 +59,7 @@ export class QuarkStorageService {
       "--session-id",
       this.sessionId(),
     ];
-    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 120_000 });
+    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 120_000, env: quarkAgentEnv() });
     const final = lastResult(result.stdout);
     const code = Number(final?.code ?? (result.ok ? 0 : -1));
     if (!result.ok || code !== 0) {
@@ -74,7 +74,7 @@ export class QuarkStorageService {
     try {
       const skillDir = this.requireSkillDir();
       const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
-      const result = await runCli(process.execPath, [cliPath, "get-user-info"], { cwd: skillDir, timeoutMs: 60_000 });
+      const result = await runCli(process.execPath, [cliPath, "get-user-info"], { cwd: skillDir, timeoutMs: 60_000, env: quarkAgentEnv() });
       const final = parseNdjson(result.stdout).at(-1);
       return {
         ok: result.ok && Number(final?.code ?? 0) === 0,
@@ -96,4 +96,11 @@ export class QuarkStorageService {
   private sessionId(): string {
     return `${Math.floor(Date.now() / 1000)}-wmgr01`;
   }
+}
+
+function quarkAgentEnv(): NodeJS.ProcessEnv {
+  return {
+    CODEX_ENV: "1",
+    AI_AGENT: "codex",
+  };
 }
