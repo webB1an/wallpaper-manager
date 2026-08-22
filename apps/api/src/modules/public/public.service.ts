@@ -34,16 +34,7 @@ export class PublicService {
       this.prisma.wallpaper.count({ where }),
     ]);
     return {
-      list: items.map((item) => ({
-        id: item.id,
-        title: item.title,
-        type: item.type,
-        coverUrl: item.coverUrl,
-        tags: item.tags.map(({ tag }) => tag.name),
-        viewCount: item.viewCount,
-        downloadCount: item.downloadCount,
-        createdAt: item.createdAt,
-      })),
+      list: items.map(wallpaperCard),
       total,
       page,
       pageSize,
@@ -59,13 +50,15 @@ export class PublicService {
       },
     });
     if (!item) throw new NotFoundException("壁纸不存在或未上架");
+    const tagNames = item.tags.map(({ tag }) => tag.name);
+    const related = await this.relatedWallpapers(item.id, item.type, tagNames);
     await this.prisma.wallpaper.update({ where: { id }, data: { viewCount: { increment: 1 } } });
     return {
       id: item.id,
       title: item.title,
       type: item.type,
       coverUrl: item.coverUrl,
-      tags: item.tags.map(({ tag }) => tag.name),
+      tags: tagNames,
       viewCount: item.viewCount + 1,
       downloadCount: item.downloadCount,
       fileSize: Number(item.fileSize || 0),
@@ -78,6 +71,7 @@ export class PublicService {
           label: link.provider === StorageProvider.quark ? "夸克下载" : "百度备用",
           url: shortUrl(this.config, link.code),
         })),
+      related,
     };
   }
 
@@ -133,4 +127,43 @@ export class PublicService {
       : link.storageLink.url;
     return url;
   }
+
+  private async relatedWallpapers(id: string, type: string, tags: string[]) {
+    const related = await this.prisma.wallpaper.findMany({
+      where: {
+        id: { not: id },
+        status: WallpaperStatus.published,
+        OR: [
+          ...(tags.length ? [{ tags: { some: { tag: { name: { in: tags } } } } }] : []),
+          { type: type as never },
+        ],
+      },
+      include: { tags: { include: { tag: true } } },
+      orderBy: [{ downloadCount: "desc" }, { sortOrder: "desc" }, { createdAt: "desc" }],
+      take: 6,
+    });
+    return related.map(wallpaperCard);
+  }
+}
+
+function wallpaperCard(item: {
+  id: string;
+  title: string;
+  type: string;
+  coverUrl: string | null;
+  viewCount: number;
+  downloadCount: number;
+  createdAt: Date;
+  tags: Array<{ tag: { name: string } }>;
+}) {
+  return {
+    id: item.id,
+    title: item.title,
+    type: item.type,
+    coverUrl: item.coverUrl,
+    tags: item.tags.map(({ tag }) => tag.name),
+    viewCount: item.viewCount,
+    downloadCount: item.downloadCount,
+    createdAt: item.createdAt,
+  };
 }

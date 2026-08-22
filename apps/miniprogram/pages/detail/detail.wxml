@@ -23,6 +23,20 @@
         </view>
       </block>
     </view>
+    <view wx:if="{{item.related.length}}" class="related-section">
+      <view class="related-head">
+        <text>继续看看</text>
+        <text>{{item.related.length}} 张</text>
+      </view>
+      <scroll-view scroll-x class="related-scroll" enhanced show-scrollbar="{{false}}">
+        <block wx:for="{{item.related}}" wx:key="id">
+          <view class="related-card" bindtap="openRelated" data-id="{{item.id}}">
+            <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+            <text>{{item.title}}</text>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
   </view>
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty">

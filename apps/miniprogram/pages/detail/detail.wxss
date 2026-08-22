@@ -82,3 +82,60 @@
   font-weight: 760;
   line-height: 70rpx;
 }
+
+.related-section {
+  margin-top: 42rpx;
+}
+
+.related-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 18rpx;
+}
+
+.related-head text:first-child {
+  color: #111820;
+  font-size: 31rpx;
+  font-weight: 820;
+}
+
+.related-head text:last-child {
+  color: #7d887f;
+  font-size: 23rpx;
+}
+
+.related-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.related-card {
+  display: inline-block;
+  width: 220rpx;
+  margin-right: 18rpx;
+  overflow: hidden;
+  vertical-align: top;
+  border-radius: 14rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
+}
+
+.related-card image {
+  display: block;
+  width: 220rpx;
+  height: 144rpx;
+  background: #dce4e8;
+}
+
+.related-card text {
+  display: block;
+  height: 68rpx;
+  padding: 12rpx;
+  overflow: hidden;
+  color: #111820;
+  font-size: 23rpx;
+  font-weight: 720;
+  line-height: 34rpx;
+  white-space: normal;
+}

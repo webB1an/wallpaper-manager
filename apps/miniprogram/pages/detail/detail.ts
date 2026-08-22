@@ -18,12 +18,17 @@ Page({
     this.loadDetail(options.id);
   },
 
+  onUnload() {
+    wx.setNavigationBarTitle({ title: "壁纸详情" });
+  },
+
   async loadDetail(id = this.data.id) {
     if (!id) return;
     this.setData({ loading: true, error: "" });
     try {
       const item = await request<WallpaperDetail>(`/wallpapers/${id}`);
       this.setData({ item, sizeText: formatBytes(item.fileSize), typeText: formatType(item.type) });
+      wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
     } catch (error) {
       const message = error instanceof Error ? error.message : "详情加载失败";
       this.setData({ error: message });
@@ -47,6 +52,13 @@ Page({
         wx.showToast({ title: "短链已复制", icon: "success" });
       }
     });
+  },
+
+  openRelated(event: WechatMiniprogram.TouchEvent) {
+    const id = String(event.currentTarget.dataset.id || "");
+    if (!id || id === this.data.id) return;
+    this.setData({ id, item: null, sizeText: "", typeText: "" });
+    this.loadDetail(id);
   }
 });
 
