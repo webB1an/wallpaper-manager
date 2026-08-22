@@ -160,7 +160,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 ## 9. 上线后检查
 
-- 先打开管理端“上线诊断”，确认数据库、Redis、ffmpeg、bdpan、夸克 skill、旧站封面目录、DeepSeek、panapi、腾讯频道 CLI 和频道账号状态。
+- 先打开管理端“上线诊断”，确认公开域名、数据库、Redis、ffmpeg、bdpan、夸克 skill、旧站封面目录、DeepSeek、panapi、腾讯频道 CLI 和频道账号状态。
 - `DEEPSEEK_API_KEY` 必须配置后才能自动上架；未配置时 AI 审核会保护性失败，资源不会自动发布。
 - 管理端登录连续失败 5 次会锁定 10 分钟；仍建议宝塔站点只开放 HTTPS，并妥善保存后台密码。
 - 管理端新增至少一个腾讯频道账号，并设为默认账号。

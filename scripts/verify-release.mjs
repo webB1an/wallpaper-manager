@@ -65,6 +65,8 @@ requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "openDetail");
 requireContains("apps/miniprogram/pages/index/index.wxml", "hero-stack");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigins");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",

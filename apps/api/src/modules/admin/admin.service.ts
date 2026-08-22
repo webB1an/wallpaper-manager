@@ -139,6 +139,7 @@ export class AdminService {
     checks.push(await this.checkDatabase());
     checks.push(await this.checkRedis());
     checks.push(await this.checkWritableStorage());
+    checks.push(this.checkPublicOrigins());
     checks.push(await this.checkCommand("ffmpeg", "ffmpeg 视频封面", this.config.get<string>("FFMPEG_PATH")?.trim() || "ffmpeg", ["-version"]));
     checks.push(await this.checkCommand("bdpan", "百度网盘 bdpan", this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan", ["--version"]));
     checks.push(this.checkQuarkSkill());
@@ -722,6 +723,29 @@ export class AdminService {
     } catch (error) {
       return fail("storage", "本地缩略图存储", `storage/public 不可写：${shortError(error)}`);
     }
+  }
+
+  private checkPublicOrigins(): DiagnosticItem {
+    const expected = {
+      PUBLIC_API_ORIGIN: "https://wall-api.wdbzk.com",
+      ADMIN_ORIGIN: "https://wall-admin.wdbzk.com",
+      SHORT_LINK_ORIGIN: "https://r.wdbzk.com",
+    };
+    const mismatches = Object.entries(expected).flatMap(([key, expectedValue]) => {
+      const value = (this.config.get<string>(key) || "").replace(/\/$/, "");
+      if (!value) return [`${key} 未配置`];
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol !== "https:") return [`${key} 必须使用 HTTPS`];
+      } catch {
+        return [`${key} 不是合法 URL`];
+      }
+      return value === expectedValue ? [] : [`${key} 当前为 ${value}`];
+    });
+    if (mismatches.length) {
+      return fail("public_origins", "公开域名配置", mismatches.join("；"));
+    }
+    return ok("public_origins", "公开域名配置", "API、后台和短链域名配置正确");
   }
 
   private async checkCommand(key: string, label: string, command: string, args: string[]): Promise<DiagnosticItem> {
