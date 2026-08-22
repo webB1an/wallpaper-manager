@@ -172,6 +172,16 @@
   background: #fff;
 }
 
+.download-empty {
+  padding: 26rpx 18rpx;
+  border: 2rpx dashed #dce4e8;
+  border-radius: 14rpx;
+  color: #7d887f;
+  background: rgba(255, 255, 255, 0.68);
+  font-size: 24rpx;
+  text-align: center;
+}
+
 .download-label {
   display: block;
   color: #111820;

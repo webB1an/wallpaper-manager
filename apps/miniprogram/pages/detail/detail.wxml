@@ -41,6 +41,7 @@
           <button class="download-button" data-url="{{item.url}}" data-label="{{item.label}}" bindtap="copyLink">复制</button>
         </view>
       </block>
+      <view wx:if="{{item.shortLinks.length === 0}}" class="download-empty">暂无可用网盘短链</view>
     </view>
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">
@@ -60,6 +61,7 @@
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty">
   <text>{{error}}</text>
-  <button class="retry-button" bindtap="retry">重试</button>
+  <button wx:if="{{id}}" class="retry-button" bindtap="retry">重试</button>
+  <button wx:else class="retry-button" bindtap="goHome">回首页</button>
 </view>
 <view wx:else class="empty detail-empty">加载中...</view>

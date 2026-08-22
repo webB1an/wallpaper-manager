@@ -15,7 +15,10 @@ Page({
   },
 
   async onLoad(options: { id?: string }) {
-    if (!options.id) return;
+    if (!options.id) {
+      this.setData({ loading: false, error: "没有找到壁纸，请返回首页重新打开" });
+      return;
+    }
     this.setData({ id: options.id });
     this.loadDetail(options.id);
   },
@@ -47,7 +50,15 @@ Page({
   },
 
   retry() {
+    if (!this.data.id) {
+      this.goHome();
+      return;
+    }
     this.loadDetail();
+  },
+
+  goHome() {
+    wx.switchTab({ url: "/pages/index/index" });
   },
 
   copyLink(event: WechatMiniprogram.TouchEvent) {
