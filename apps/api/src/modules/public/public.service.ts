@@ -128,7 +128,7 @@ export class PublicService {
     const url = link.storageLink.passcode && link.storageLink.provider === StorageProvider.baidu && !link.storageLink.url.includes("pwd=")
       ? `${link.storageLink.url}${link.storageLink.url.includes("?") ? "&" : "?"}pwd=${link.storageLink.passcode}`
       : link.storageLink.url;
-    return url;
+    return assertRedirectUrl(url);
   }
 
   private async relatedWallpapers(id: string, type: string, tags: string[]) {
@@ -187,4 +187,14 @@ function optionalWallpaperType(value: string | undefined) {
 function cleanSearchText(value: string | undefined) {
   const text = String(value || "").trim();
   return text.slice(0, 80);
+}
+
+function assertRedirectUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.toString();
+  } catch {
+    // Fall through to a consistent business error.
+  }
+  throw new NotFoundException("短链目标地址不正确");
 }

@@ -354,7 +354,9 @@ export class AdminService {
 
   async addStorageLink(id: string, data: { provider: StorageProvider; url: string; passcode?: string; isPrimary?: boolean }) {
     const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id } });
-    if (!wallpaper) throw new Error("壁纸不存在");
+    if (!wallpaper) throw new BadRequestException("壁纸不存在");
+    const url = assertHttpUrl(data.url, "网盘链接");
+    const passcode = data.passcode?.trim() || undefined;
     if (data.isPrimary) {
       await this.prisma.storageLink.updateMany({
         where: { wallpaperId: id, provider: data.provider },
@@ -365,8 +367,8 @@ export class AdminService {
       data: {
         wallpaperId: id,
         provider: data.provider,
-        url: data.url,
-        passcode: data.passcode,
+        url,
+        passcode,
         isPrimary: Boolean(data.isPrimary),
       },
     });
@@ -898,6 +900,18 @@ function assertChannelMediaReady(items: Array<{ title: string; isVideo: boolean;
   if (missing.length) {
     throw new BadRequestException(`频道发帖素材不完整：${missing.slice(0, 5).join("、")}`);
   }
+}
+
+function assertHttpUrl(value: string | undefined, label: string) {
+  const url = String(value || "").trim();
+  if (!url) throw new BadRequestException(`${label}不能为空`);
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.toString();
+  } catch {
+    // Fall through to a consistent business error.
+  }
+  throw new BadRequestException(`${label}必须是 http 或 https 地址`);
 }
 
 function unique(values: string[]): string[] {
