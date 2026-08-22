@@ -36,6 +36,17 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
 };
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+const DEFAULT_UPLOAD_MAX_FILE_MB = 300;
 
 const loginAttempts = new Map<string, { count: number; lockedUntil?: number; lastFailedAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -70,11 +81,13 @@ export class AdminService {
   }
 
   async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean }) {
+    if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
     const autoPublish = options?.autoPublish ?? settings.defaultAutoPublish;
     const created = [];
     for (const file of files) {
+      this.assertUploadFile(file);
       const saved = await this.persistFile(file);
       const cover = await this.createCover(saved.path, saved.mimeType);
       const wallpaper = await this.prisma.wallpaper.create({
@@ -492,6 +505,16 @@ export class AdminService {
       originalName: file.originalname,
       mimeType: file.mimetype,
     };
+  }
+
+  private assertUploadFile(file: Express.Multer.File) {
+    if (!ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype)) {
+      throw new BadRequestException(`不支持的文件格式：${file.originalname}`);
+    }
+    const maxBytes = Math.max(1, Number(this.config.get("UPLOAD_MAX_FILE_MB") || DEFAULT_UPLOAD_MAX_FILE_MB)) * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new BadRequestException(`文件超过大小限制：${file.originalname}，当前限制 ${Math.round(maxBytes / 1024 / 1024)} MB`);
+    }
   }
 
   private async createCover(filePath: string, mimeType: string) {

@@ -1,8 +1,20 @@
-import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { AdminService } from "./admin.service";
 import { AdminAuthGuard } from "./auth.guard";
+
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+const DEFAULT_UPLOAD_MAX_FILE_MB = 300;
 
 @Controller("admin")
 export class AdminController {
@@ -21,7 +33,13 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("uploads")
-  @UseInterceptors(FilesInterceptor("files", 50))
+  @UseInterceptors(FilesInterceptor("files", 50, {
+    limits: { fileSize: uploadMaxBytes() },
+    fileFilter: (_request, file, callback) => {
+      if (ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype)) return callback(null, true);
+      callback(new BadRequestException(`不支持的文件格式：${file.originalname}`), false);
+    },
+  }))
   async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string }) {
     const autoProcess = body.autoProcess === undefined ? undefined : body.autoProcess === "true";
     const autoPublish = body.autoPublish === undefined ? undefined : body.autoPublish === "true";
@@ -161,4 +179,9 @@ export class AdminController {
   async deleteChannel(@Param("id") id: string) {
     return { code: 200, data: await this.admin.deleteChannel(id) };
   }
+}
+
+function uploadMaxBytes() {
+  const value = Number(process.env.UPLOAD_MAX_FILE_MB || DEFAULT_UPLOAD_MAX_FILE_MB);
+  return Math.max(1, value) * 1024 * 1024;
 }

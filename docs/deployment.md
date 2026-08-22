@@ -101,6 +101,7 @@ OLD_WALLPAPER_ROOT=/www/wwwroot/wallpaper.wdbzk.com
 QUARK_SKILL_DIR=/www/server/quarkclouddrive-1.0.14
 BDPAN_PATH=bdpan
 BAIDU_REMOTE_BASE=/apps/bdpan/wallpapers
+UPLOAD_MAX_FILE_MB=300
 FFMPEG_PATH=ffmpeg
 TENCENT_CHANNEL_CLI=
 TENCENT_CHANNEL_RUN_ROOT=/www/wwwroot/wallpaper-manager/.runs/tencent-channel
