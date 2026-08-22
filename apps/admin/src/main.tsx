@@ -127,6 +127,8 @@ type AdminOverview = {
   storage: {
     activeQuark: number;
     activeBaidu: number;
+    missingQuark: number;
+    missingBaidu: number;
     missingActiveLinks: number;
     missingShortLinks: number;
   };
@@ -138,6 +140,13 @@ type AdminOverview = {
     total: number;
   };
   tasks: TaskSummary;
+};
+
+type LibraryPreset = {
+  status?: string;
+  aiReview?: string;
+  storageFilter?: string;
+  nonce?: number;
 };
 
 function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -159,8 +168,14 @@ function request<T>(path: string, init?: RequestInit): Promise<T> {
 function App() {
   const [authed, setAuthed] = useState(Boolean(localStorage.getItem("wm_token")));
   const [active, setActive] = useState("overview");
+  const [libraryPreset, setLibraryPreset] = useState<LibraryPreset | null>(null);
 
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
+
+  const openLibrary = (preset?: LibraryPreset) => {
+    setLibraryPreset(preset ? { ...preset, nonce: Date.now() } : null);
+    setActive("library");
+  };
 
   return (
     <ConfigProvider locale={zhCN} theme={{ token: { borderRadius: 8, colorPrimary: "#1f7a5a" } }}>
@@ -176,7 +191,10 @@ function App() {
           <Menu
             mode="inline"
             selectedKeys={[active]}
-            onClick={(event) => setActive(event.key)}
+            onClick={(event) => {
+              if (event.key === "library") setLibraryPreset(null);
+              setActive(event.key);
+            }}
             items={[
               { key: "overview", icon: <Home size={18} />, label: "概览" },
               { key: "library", icon: <GalleryVerticalEnd size={18} />, label: "资源库" },
@@ -190,8 +208,8 @@ function App() {
           />
         </Layout.Sider>
         <Layout.Content className="content">
-          {active === "overview" && <Dashboard onNavigate={setActive} />}
-          {active === "library" && <Library />}
+          {active === "overview" && <Dashboard onNavigate={setActive} onOpenLibrary={openLibrary} />}
+          {active === "library" && <Library preset={libraryPreset} />}
           {active === "upload" && <Uploader />}
           {active === "tasks" && <Tasks />}
           {active === "import" && <OldImport />}
@@ -242,7 +260,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
+function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -261,6 +279,8 @@ function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
     ? overview.ai.unreviewed
       + overview.storage.missingActiveLinks
       + overview.storage.missingShortLinks
+      + overview.storage.missingQuark
+      + overview.storage.missingBaidu
       + overview.tasks.failedToday
       + (overview.channelAccounts.defaultConfigured ? 0 : 1)
     : 0;
@@ -271,7 +291,7 @@ function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
       <Space className="toolbar">
         <Button type="primary" icon={<RefreshCw size={16} />} loading={loading} onClick={load}>刷新</Button>
         <Button onClick={() => onNavigate("upload")}>上传壁纸</Button>
-        <Button onClick={() => onNavigate("library")}>查看资源库</Button>
+        <Button onClick={() => onOpenLibrary()}>查看资源库</Button>
         <Button onClick={() => onNavigate("tasks")}>任务队列</Button>
       </Space>
       {overview && !overview.channelAccounts.defaultConfigured && (
@@ -317,14 +337,15 @@ function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
           <h2>审核与同步</h2>
           <IssueRow label="AI 未识别" value={overview?.ai.unreviewed ?? 0} danger={Boolean(overview?.ai.unreviewed)} />
           <IssueRow label="AI 已拦截" value={overview?.ai.blocked ?? 0} danger={Boolean(overview?.ai.blocked)} />
-          <IssueRow label="缺活跃网盘链接" value={overview?.storage.missingActiveLinks ?? 0} danger={Boolean(overview?.storage.missingActiveLinks)} />
-          <IssueRow label="缺短链" value={overview?.storage.missingShortLinks ?? 0} danger={Boolean(overview?.storage.missingShortLinks)} />
+          <IssueRow label="缺活跃网盘链接" value={overview?.storage.missingActiveLinks ?? 0} danger={Boolean(overview?.storage.missingActiveLinks)} onClick={() => onOpenLibrary({ storageFilter: "missing_active" })} />
+          <IssueRow label="缺短链" value={overview?.storage.missingShortLinks ?? 0} danger={Boolean(overview?.storage.missingShortLinks)} onClick={() => onOpenLibrary({ storageFilter: "missing_short" })} />
         </div>
         <div className="ops-panel">
           <h2>外部服务</h2>
           <IssueRow label="夸克活跃链接" value={overview?.storage.activeQuark ?? 0} />
           <IssueRow label="百度活跃链接" value={overview?.storage.activeBaidu ?? 0} />
-          <IssueRow label="标签总数" value={overview?.tags.total ?? 0} />
+          <IssueRow label="缺夸克链接" value={overview?.storage.missingQuark ?? 0} danger={Boolean(overview?.storage.missingQuark)} onClick={() => onOpenLibrary({ storageFilter: "missing_quark" })} />
+          <IssueRow label="缺百度链接" value={overview?.storage.missingBaidu ?? 0} danger={Boolean(overview?.storage.missingBaidu)} onClick={() => onOpenLibrary({ storageFilter: "missing_baidu" })} />
           <div className="issue-row">
             <span>频道账号</span>
             <Tag color={overview?.channelAccounts.defaultConfigured ? "green" : "gold"}>
@@ -337,7 +358,7 @@ function Dashboard({ onNavigate }: { onNavigate: (key: string) => void }) {
   );
 }
 
-function Library() {
+function Library({ preset }: { preset?: LibraryPreset | null }) {
   const [data, setData] = useState<{ list: Wallpaper[]; total: number }>({ list: [], total: 0 });
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
@@ -374,7 +395,21 @@ function Library() {
       setLoading(false);
     }
   };
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!preset) void load();
+  }, []);
+
+  useEffect(() => {
+    if (!preset) return;
+    const nextStatus = preset.status || "";
+    const nextAiReview = preset.aiReview || "";
+    const nextStorageFilter = preset.storageFilter || "";
+    setStatus(nextStatus);
+    setAiReview(nextAiReview);
+    setStorageFilter(nextStorageFilter);
+    setSelectedRowKeys([]);
+    void load(1, nextStatus, nextAiReview, nextStorageFilter);
+  }, [preset?.nonce]);
 
   const reloadFromFirstPage = () => {
     setSelectedRowKeys([]);
@@ -1196,9 +1231,9 @@ function DiagnosticStatusTag({ status }: { status: DiagnosticItem["status"] }) {
   return <Tag color={color}>{label}</Tag>;
 }
 
-function IssueRow({ label, value, danger = false }: { label: string; value: number; danger?: boolean }) {
+function IssueRow({ label, value, danger = false, onClick }: { label: string; value: number; danger?: boolean; onClick?: () => void }) {
   return (
-    <div className="issue-row">
+    <div className={`issue-row${onClick ? " is-clickable" : ""}`} onClick={onClick}>
       <span>{label}</span>
       <strong className={danger ? "is-danger" : ""}>{value}</strong>
     </div>

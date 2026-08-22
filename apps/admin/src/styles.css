@@ -171,6 +171,14 @@ h1 {
   border-bottom: 0;
 }
 
+.issue-row.is-clickable {
+  cursor: pointer;
+}
+
+.issue-row.is-clickable:hover {
+  color: #1f7a5a;
+}
+
 .issue-row strong {
   color: #1f7a5a;
   font-size: 18px;

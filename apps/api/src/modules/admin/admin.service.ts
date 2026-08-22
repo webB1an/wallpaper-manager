@@ -160,6 +160,8 @@ export class AdminService {
       aiBlocked,
       activeQuark,
       activeBaidu,
+      missingQuark,
+      missingBaidu,
       missingActiveLinks,
       missingShortLinks,
       channelAccounts,
@@ -178,6 +180,8 @@ export class AdminService {
       this.prisma.aiAnalysis.count({ where: { safe: false } }),
       this.prisma.storageLink.count({ where: { provider: StorageProvider.quark, isActive: true } }),
       this.prisma.storageLink.count({ where: { provider: StorageProvider.baidu, isActive: true } }),
+      this.prisma.wallpaper.count({ where: { storageLinks: { none: { provider: StorageProvider.quark, isActive: true } } } }),
+      this.prisma.wallpaper.count({ where: { storageLinks: { none: { provider: StorageProvider.baidu, isActive: true } } } }),
       this.prisma.wallpaper.count({
         where: {
           status: WallpaperStatus.published,
@@ -227,6 +231,8 @@ export class AdminService {
       storage: {
         activeQuark,
         activeBaidu,
+        missingQuark,
+        missingBaidu,
         missingActiveLinks,
         missingShortLinks,
       },
