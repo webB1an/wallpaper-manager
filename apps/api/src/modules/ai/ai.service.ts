@@ -66,7 +66,7 @@ export class AiService {
     const body = (await response.json()) as { choices?: Array<{ message?: { content?: string | null } }> };
     const raw = body.choices?.[0]?.message?.content;
     if (!raw) throw new Error("DeepSeek 未返回识别结果");
-    const parsed = analysisSchema.parse(JSON.parse(raw));
+    const parsed = analysisSchema.parse(normalizeAnalysisPayload(JSON.parse(raw), originalName));
     return {
       ...parsed,
       safe: parsed.safe && parsed.sensitiveFlags.length === 0,
@@ -98,5 +98,30 @@ function fallbackAnalysis(originalName: string): WallpaperAnalysis {
     sensitiveFlags: [],
     safe: false,
     summary: "未配置 DeepSeek，无法完成敏感内容审核，禁止自动上架。",
+  };
+}
+
+function normalizeAnalysisPayload(value: unknown, originalName: string) {
+  const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const flags = new Set(["sexual", "violence", "political", "vulgar"]);
+  const types = new Set(["static", "live", "mobile", "desktop", "other"]);
+  const tags = Array.isArray(record.tags)
+    ? record.tags
+      .map((tag) => String(tag || "").trim().slice(0, 12))
+      .filter(Boolean)
+      .slice(0, 8)
+    : [];
+  const sensitiveFlags = Array.isArray(record.sensitiveFlags)
+    ? record.sensitiveFlags.map((flag) => String(flag || "").trim()).filter((flag) => flags.has(flag)).slice(0, 4)
+    : [];
+  const fallback = fallbackAnalysis(originalName);
+  const title = String(record.title || fallback.title).trim().slice(0, 40);
+  return {
+    title: title || fallback.title,
+    type: types.has(String(record.type)) ? String(record.type) : "other",
+    tags: tags.length ? tags : ["待整理"],
+    sensitiveFlags,
+    safe: typeof record.safe === "boolean" ? record.safe : sensitiveFlags.length === 0,
+    summary: typeof record.summary === "string" ? record.summary.trim().slice(0, 160) : undefined,
   };
 }
