@@ -15,9 +15,9 @@ const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "video/webm",
 ]);
 const DEFAULT_UPLOAD_MAX_FILE_MB = 300;
-const STORAGE_FILTERS = new Set(["has_quark", "has_baidu", "missing_quark", "missing_baidu", "missing_active", "missing_short"]);
+const STORAGE_FILTERS = new Set(["has_quark", "has_baidu", "missing_quark", "missing_baidu", "missing_active", "missing_short", "unpublished_active_short"]);
 const AI_REVIEW_FILTERS = new Set(["unreviewed", "safe", "blocked"]);
-type StorageFilterQuery = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short";
+type StorageFilterQuery = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short" | "unpublished_active_short";
 type AiReviewQuery = "unreviewed" | "safe" | "blocked";
 
 @Controller("admin")
