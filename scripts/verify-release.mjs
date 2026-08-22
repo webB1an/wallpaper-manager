@@ -117,6 +117,7 @@ requireContains("apps/api/src/modules/public/public.service.ts", "FALLBACK_COVER
 requireContains("apps/api/src/modules/public/public.service.ts", "compareShortLinks");
 requireContains("apps/api/src/modules/public/public.service.ts", "storageLink.isPrimary");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
+requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper.status !== WallpaperStatus.published");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
 

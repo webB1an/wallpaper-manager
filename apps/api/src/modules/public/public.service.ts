@@ -121,7 +121,9 @@ export class PublicService {
       where: { code },
       include: { storageLink: true, wallpaper: true },
     });
-    if (!link || !link.storageLink.isActive) throw new NotFoundException("短链不存在或已失效");
+    if (!link || !link.storageLink.isActive || link.wallpaper.status !== WallpaperStatus.published) {
+      throw new NotFoundException("短链不存在或已失效");
+    }
     await this.prisma.$transaction([
       this.prisma.shortLink.update({ where: { id: link.id }, data: { clickCount: { increment: 1 } } }),
       this.prisma.wallpaper.update({ where: { id: link.wallpaperId }, data: { downloadCount: { increment: 1 } } }),
