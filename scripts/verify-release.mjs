@@ -110,6 +110,7 @@ requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，
 requireContains("apps/admin/src/main.tsx", "row.command");
 requireContains("apps/admin/src/main.tsx", "命令已复制");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");
+requireContains("apps/admin/vite.config.ts", "chunkSizeWarningLimit");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 requireContains("apps/api/src/modules/public/public.service.ts", "publicCoverUrl");
