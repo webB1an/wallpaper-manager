@@ -807,27 +807,67 @@ function Tasks() {
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const load = (nextPage = page) => request<{ list: TaskItem[]; total: number }>(`/api/admin/tasks?page=${nextPage}&pageSize=${pageSize}`).then((next) => {
-    setData(next);
-    setPage(nextPage);
-  });
+  const [status, setStatus] = useState("");
+  const [type, setType] = useState("");
+  const [loading, setLoading] = useState(false);
+  const load = async (nextPage = page, nextStatus = status, nextType = type) => {
+    setLoading(true);
+    try {
+      const query = new URLSearchParams({
+        page: String(nextPage),
+        pageSize: String(pageSize),
+        status: nextStatus,
+        type: nextType,
+      });
+      const next = await request<{ list: TaskItem[]; total: number }>(`/api/admin/tasks?${query.toString()}`);
+      setData(next);
+      setPage(nextPage);
+    } finally {
+      setLoading(false);
+    }
+  };
   useEffect(() => { void load(); }, []);
   useEffect(() => {
     if (!autoRefresh) return undefined;
     const timer = window.setInterval(() => void load(), 5000);
     return () => window.clearInterval(timer);
-  }, [autoRefresh]);
+  }, [autoRefresh, page, status, type]);
   return (
     <section>
       <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。" />
       <Space className="toolbar">
         <Button onClick={() => void load()}>刷新</Button>
         <Tag color="blue">共 {data.total} 条</Tag>
+        <Select
+          allowClear
+          placeholder="全部状态"
+          value={status || undefined}
+          onChange={(value) => {
+            const nextStatus = value || "";
+            setStatus(nextStatus);
+            void load(1, nextStatus, type);
+          }}
+          options={["queued", "running", "success", "failed", "skipped"].map((value) => ({ value, label: value }))}
+          style={{ width: 150 }}
+        />
+        <Select
+          allowClear
+          placeholder="全部类型"
+          value={type || undefined}
+          onChange={(value) => {
+            const nextType = value || "";
+            setType(nextType);
+            void load(1, status, nextType);
+          }}
+          options={["upload_asset", "ai_classify", "quark_sync", "baidu_sync", "wdbzk_sync", "channel_publish", "old_cover_import"].map((value) => ({ value, label: taskTypeText(value) }))}
+          style={{ width: 180 }}
+        />
         <span>自动刷新</span>
         <Switch checked={autoRefresh} onChange={setAutoRefresh} />
       </Space>
       <Table
         rowKey="id"
+        loading={loading}
         dataSource={data.list}
         pagination={{ total: data.total, pageSize, current: page, showSizeChanger: false }}
         onChange={(pagination) => {
@@ -835,7 +875,7 @@ function Tasks() {
           void load(nextPage);
         }}
         columns={[
-        { title: "类型", dataIndex: "type" },
+        { title: "类型", dataIndex: "type", render: (value) => taskTypeText(value) },
         { title: "状态", dataIndex: "status", render: (status) => <StatusTag status={status} /> },
         { title: "进度", dataIndex: "progress", render: (value, row) => <Progress percent={value} size="small" status={row.status === "failed" ? "exception" : row.status === "success" ? "success" : "active"} /> },
         { title: "消息", dataIndex: "message" },
@@ -1213,6 +1253,19 @@ function typeText(value: string) {
     mobile: "手机壁纸",
     desktop: "桌面壁纸",
     other: "其他",
+  };
+  return map[value] || value;
+}
+
+function taskTypeText(value: string) {
+  const map: Record<string, string> = {
+    upload_asset: "上传处理",
+    ai_classify: "AI 识别",
+    quark_sync: "夸克同步",
+    baidu_sync: "百度同步",
+    wdbzk_sync: "wdbzk 入库",
+    channel_publish: "频道发帖",
+    old_cover_import: "老封面迁移",
   };
   return map[value] || value;
 }

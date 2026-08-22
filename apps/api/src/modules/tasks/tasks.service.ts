@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { TaskStatus, TaskType } from "@prisma/client";
+import { Prisma, TaskStatus, TaskType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+
+type TaskListFilters = {
+  status?: TaskStatus;
+  type?: TaskType;
+};
 
 @Injectable()
 export class TasksService {
@@ -29,16 +34,21 @@ export class TasksService {
     });
   }
 
-  async list(page = 1, pageSize = 50) {
+  async list(page = 1, pageSize = 50, filters: TaskListFilters = {}) {
     const safePage = Math.max(1, page);
     const safePageSize = Math.min(100, Math.max(1, pageSize));
+    const where: Prisma.TaskWhereInput = {
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.type ? { type: filters.type } : {}),
+    };
     const [list, total] = await Promise.all([
       this.prisma.task.findMany({
+        where,
         orderBy: { createdAt: "desc" },
         skip: (safePage - 1) * safePageSize,
         take: safePageSize,
       }),
-      this.prisma.task.count(),
+      this.prisma.task.count({ where }),
     ]);
     return { list, total, page: safePage, pageSize: safePageSize };
   }
