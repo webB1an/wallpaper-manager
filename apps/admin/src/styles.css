@@ -142,6 +142,12 @@ small {
   border-radius: 8px;
 }
 
+.form-hint {
+  margin-left: 10px;
+  color: #6f7e75;
+  font-size: 12px;
+}
+
 .sub-panel {
   margin-top: 18px;
   padding: 14px;

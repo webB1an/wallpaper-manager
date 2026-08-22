@@ -14,6 +14,7 @@ type Wallpaper = {
   originalName: string;
   type: string;
   status: string;
+  mimeType?: string;
   coverUrl?: string;
   sortOrder: number;
   tags: Array<{ tag: { name: string } }>;
@@ -246,6 +247,11 @@ function Library() {
       message.warning("先选择资源");
       return;
     }
+    const issue = getChannelPublishIssue(ids, data.list);
+    if (issue) {
+      message.warning(issue);
+      return;
+    }
     setPublishTargetIds(ids);
     setChannelLoading(true);
     try {
@@ -436,6 +442,7 @@ function Library() {
         <Form form={publishForm} layout="vertical">
           <Form.Item label="本次发布资源">
             <Tag color="blue">{publishTargetIds.length} 个</Tag>
+            <span className="form-hint">动态壁纸一次只能发 1 个，静态壁纸一次最多 18 张。</span>
           </Form.Item>
           <Form.Item label="频道账号" name="accountId" rules={[{ required: true, message: "请选择频道账号" }]}>
             <Select
@@ -985,6 +992,15 @@ function splitTags(value?: string) {
 
 function providerText(value: string) {
   return value === "quark" ? "夸克" : value === "baidu" ? "百度" : value;
+}
+
+function getChannelPublishIssue(ids: React.Key[], rows: Wallpaper[]) {
+  const idSet = new Set(ids.map(String));
+  const selected = rows.filter((row) => idSet.has(row.id));
+  const hasLive = selected.some((row) => row.type === "live" || row.mimeType?.startsWith("video/"));
+  if (hasLive && ids.length > 1) return "动态壁纸一次只能发布 1 个，不能和静态图混发";
+  if (!hasLive && ids.length > 18) return "静态壁纸一次最多发布 18 张图";
+  return "";
 }
 
 async function copyText(value: string) {
