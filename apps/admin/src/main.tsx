@@ -478,7 +478,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             setSelectedRowKeys([]);
             void load(1, nextStatus);
           }}
-          options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: value }))}
+          options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))}
           style={{ width: 170 }}
         />
         <Select
@@ -582,7 +582,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           render: (_, row) => row.coverUrl ? <img className="cover-thumb" src={row.coverUrl} /> : <div className="cover-empty" />,
         },
         { title: "标题", dataIndex: "title", render: (text, row) => <div><strong>{text}</strong><small>{row.originalName}</small></div> },
-        { title: "类型", dataIndex: "type", render: (type) => <Tag>{type}</Tag> },
+        { title: "类型", dataIndex: "type", render: (type) => <Tag>{typeText(type)}</Tag> },
         { title: "状态", dataIndex: "status", render: (status) => <StatusTag status={status} /> },
         { title: "AI审核", width: 170, render: (_, row) => <AiReviewCell wallpaper={row} /> },
         { title: "标签", render: (_, row) => row.tags?.map((item) => <Tag key={item.tag.name}>{item.tag.name}</Tag>) },
@@ -644,8 +644,8 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
       >
         <Form form={form} layout="vertical">
           <Form.Item label="标题" name="title" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item label="类型" name="type"><Select options={["static", "live", "mobile", "desktop", "other"].map((value) => ({ value, label: value }))} /></Form.Item>
-          <Form.Item label="状态" name="status"><Select options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: value }))} /></Form.Item>
+          <Form.Item label="类型" name="type"><Select options={["static", "live", "mobile", "desktop", "other"].map((value) => ({ value, label: typeText(value) }))} /></Form.Item>
+          <Form.Item label="状态" name="status"><Select options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))} /></Form.Item>
           <Form.Item label="排序" name="sortOrder"><Input type="number" /></Form.Item>
           <Form.Item label="标签" name="tags"><Input placeholder="多个标签用逗号分隔" /></Form.Item>
         </Form>
@@ -677,7 +677,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             <Tag color="blue">{selectedRowKeys.length} 个</Tag>
           </Form.Item>
           <Form.Item label="状态" name="status">
-            <Select allowClear options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: value }))} />
+            <Select allowClear options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))} />
           </Form.Item>
           <Form.Item label="标签" name="tags">
             <Input placeholder="留空不修改；多个标签用逗号分隔，填写后会替换所选资源标签" />
@@ -982,7 +982,7 @@ function Tasks() {
             setStatus(nextStatus);
             void load(1, nextStatus, type);
           }}
-          options={["queued", "running", "success", "failed", "skipped"].map((value) => ({ value, label: value }))}
+          options={["queued", "running", "success", "failed", "skipped"].map((value) => ({ value, label: statusText(value) }))}
           style={{ width: 150 }}
         />
         <Select
@@ -1299,8 +1299,23 @@ function Header({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 function StatusTag({ status }: { status: string }) {
-  const colors: Record<string, string> = { published: "green", matched: "green", rejected: "red", failed: "red", classify_failed: "red", processing: "gold", needs_review: "gold", pending_review: "blue", success: "green" };
-  return <Tag color={colors[status] || "default"}>{status}</Tag>;
+  const colors: Record<string, string> = {
+    archived: "default",
+    classify_failed: "red",
+    draft: "default",
+    failed: "red",
+    matched: "green",
+    needs_review: "gold",
+    pending_review: "blue",
+    processing: "gold",
+    published: "green",
+    queued: "blue",
+    rejected: "red",
+    running: "gold",
+    skipped: "default",
+    success: "green",
+  };
+  return <Tag color={colors[status] || "default"}>{statusText(status)}</Tag>;
 }
 
 function DiagnosticStatusTag({ status }: { status: DiagnosticItem["status"] }) {
@@ -1377,6 +1392,14 @@ function statusText(value: string) {
     published: "已上架",
     rejected: "已拦截",
     archived: "已下架",
+    queued: "排队中",
+    running: "执行中",
+    success: "成功",
+    failed: "失败",
+    skipped: "已跳过",
+    matched: "已匹配",
+    needs_review: "待复核",
+    classify_failed: "识别失败",
   };
   return map[value] || value;
 }
