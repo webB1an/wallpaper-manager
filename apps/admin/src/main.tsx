@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Alert, Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadProps } from "antd";
-import { Activity, CloudUpload, GalleryVerticalEnd, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
+import { Activity, CloudUpload, Copy, GalleryVerticalEnd, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
 import "./styles.css";
 
@@ -972,7 +972,13 @@ function Diagnostics() {
       <Table rowKey="key" loading={loading} dataSource={items} pagination={false} columns={[
         { title: "项目", dataIndex: "label", width: 220 },
         { title: "状态", dataIndex: "status", width: 120, render: (status) => <DiagnosticStatusTag status={status} /> },
-        { title: "说明", dataIndex: "message" },
+        { title: "说明", dataIndex: "message", render: (value) => <DiagnosticMessage value={String(value || "")} /> },
+        { title: "操作", width: 150, render: (_, row) => {
+          const command = diagnosticCommand(row.message);
+          return command ? (
+            <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(command, "命令已复制")}>复制命令</Button>
+          ) : null;
+        } },
       ]} />
     </section>
   );
@@ -1378,6 +1384,18 @@ function DiagnosticStatusTag({ status }: { status: DiagnosticItem["status"] }) {
   return <Tag color={color}>{label}</Tag>;
 }
 
+function DiagnosticMessage({ value }: { value: string }) {
+  const command = diagnosticCommand(value);
+  if (!command) return <span>{value}</span>;
+  const [messageText] = value.split("；请在服务器执行 ");
+  return (
+    <div className="diagnostic-message">
+      <span>{messageText}</span>
+      <code>{command}</code>
+    </div>
+  );
+}
+
 function IssueRow({ label, value, danger = false, onClick }: { label: string; value: number; danger?: boolean; onClick?: () => void }) {
   return (
     <div className={`issue-row${onClick ? " is-clickable" : ""}`} onClick={onClick}>
@@ -1522,7 +1540,14 @@ function getChannelPublishIssue(ids: React.Key[], rows: Wallpaper[]) {
   return "";
 }
 
-async function copyText(value: string) {
+function diagnosticCommand(messageText: string) {
+  const marker = "；请在服务器执行 ";
+  const index = messageText.indexOf(marker);
+  if (index === -1) return "";
+  return messageText.slice(index + marker.length).trim();
+}
+
+async function copyText(value: string, successText = "短链已复制") {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(value);
   } else {
@@ -1535,7 +1560,7 @@ async function copyText(value: string) {
     document.execCommand("copy");
     document.body.removeChild(textarea);
   }
-  message.success("短链已复制");
+  message.success(successText);
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

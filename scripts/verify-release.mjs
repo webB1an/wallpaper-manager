@@ -93,6 +93,9 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认�
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertDefaultChannelReady");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "updateSettings({ defaultAutoPublish: false })");
 requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
+requireContains("apps/admin/src/main.tsx", "diagnosticCommand");
+requireContains("apps/admin/src/main.tsx", "命令已复制");
+requireContains("apps/admin/src/styles.css", "diagnostic-message");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");

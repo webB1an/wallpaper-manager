@@ -338,6 +338,25 @@ small {
   margin-bottom: 0;
 }
 
+.diagnostic-message {
+  display: grid;
+  gap: 8px;
+}
+
+.diagnostic-message code {
+  display: block;
+  max-width: 720px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border: 1px solid #e2e6dd;
+  border-radius: 7px;
+  color: #1f4f3d;
+  background: #fbfcf8;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;
