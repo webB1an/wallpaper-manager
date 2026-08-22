@@ -145,6 +145,12 @@ export class OldCoverImportService {
             },
           },
         });
+        if (wallpaper.matchKey) {
+          await this.prisma.oldCoverImport.updateMany({
+            where: { matchKey: wallpaper.matchKey },
+            data: { status: "matched", message: null },
+          });
+        }
         if (analysis.safe) classified += 1;
         else rejected += 1;
       } catch (error) {
