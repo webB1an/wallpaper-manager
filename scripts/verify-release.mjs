@@ -122,6 +122,9 @@ requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkUnpublishedActiveShortLinks");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "unpublished_active_short");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "unpublished_active_short");
+requireContains("apps/api/src/modules/admin/admin.controller.ts", "deactivate-unpublished-links");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "deactivateUnpublishedStorageLinks");
+requireContains("apps/admin/src/main.tsx", "deactivateUnpublishedLinks");
 requireContains("apps/admin/src/main.tsx", "unpublishedActiveShortLinks");
 requireContains("apps/admin/src/main.tsx", "下架活跃短链");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");

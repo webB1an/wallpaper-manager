@@ -547,6 +547,9 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         }}>批量编辑</Button>
         <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
+        {storageFilter === "unpublished_active_short" ? (
+          <Button danger ghost onClick={() => deactivateUnpublishedLinks(selectedRowKeys, load)}>停用遗留短链</Button>
+        ) : null}
         <Button type="primary" ghost onClick={() => openChannelPublish(selectedRowKeys)}>发到频道</Button>
       </Space>
       {activeFilters.length ? (
@@ -1445,6 +1448,28 @@ async function bulkPatch(ids: React.Key[], data: unknown, reload: () => void) {
   await request("/api/admin/wallpapers/bulk", { method: "POST", body: JSON.stringify({ ids, ...(data as object) }) });
   message.success("批量操作完成");
   reload();
+}
+
+async function deactivateUnpublishedLinks(ids: React.Key[], reload: () => void) {
+  if (!ids.length) {
+    message.warning("先选择资源");
+    return;
+  }
+  Modal.confirm({
+    title: "停用所选资源的遗留短链？",
+    content: "只会停用非上架资源的活跃网盘链接，已上架资源不会受影响。",
+    okText: "停用",
+    okButtonProps: { danger: true },
+    cancelText: "取消",
+    onOk: async () => {
+      const result = await request<{ affectedLinks: number; affectedWallpapers: number }>("/api/admin/wallpapers/bulk/deactivate-unpublished-links", {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      });
+      message.success(`已停用 ${result.affectedLinks} 条链接，涉及 ${result.affectedWallpapers} 个资源`);
+      reload();
+    },
+  });
 }
 
 function splitTags(value?: string) {

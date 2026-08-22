@@ -421,6 +421,30 @@ export class AdminService {
     });
   }
 
+  async deactivateUnpublishedStorageLinks(ids: string[]) {
+    const wallpaperIds = unique(ids.map(String));
+    if (!wallpaperIds.length) throw new BadRequestException("请先选择资源");
+    const links = await this.prisma.storageLink.findMany({
+      where: {
+        wallpaperId: { in: wallpaperIds },
+        isActive: true,
+        wallpaper: { status: { not: WallpaperStatus.published } },
+      },
+      select: { id: true, wallpaperId: true },
+    });
+    if (!links.length) {
+      return { affectedLinks: 0, affectedWallpapers: 0 };
+    }
+    const result = await this.prisma.storageLink.updateMany({
+      where: { id: { in: links.map((link) => link.id) } },
+      data: { isActive: false, isPrimary: false },
+    });
+    return {
+      affectedLinks: result.count,
+      affectedWallpapers: new Set(links.map((link) => link.wallpaperId)).size,
+    };
+  }
+
   async bulkUpdate(ids: string[], data: { status?: WallpaperStatus; tags?: string[] }) {
     if (data.status === WallpaperStatus.published) {
       await this.assertWallpapersCanPublish(ids);

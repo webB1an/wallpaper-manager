@@ -142,6 +142,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Post("wallpapers/bulk/deactivate-unpublished-links")
+  async deactivateUnpublishedLinks(@Body() body: { ids: string[] }) {
+    return { code: 200, data: await this.admin.deactivateUnpublishedStorageLinks(body.ids || []) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Post("wallpapers/bulk")
   async bulk(@Body() body: { ids: string[]; status?: WallpaperStatus; tags?: string[] }) {
     const status = optionalEnum(body.status, WallpaperStatus, "壁纸状态");
