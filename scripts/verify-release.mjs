@@ -45,6 +45,7 @@ function parseEnvExample(path) {
 
 const app = readJson("apps/miniprogram/app.json");
 const project = readJson("apps/miniprogram/project.config.json");
+const rootPackage = readJson("package.json");
 const env = parseEnvExample("deploy/production.env.example");
 
 for (const page of app.pages || []) {
@@ -60,7 +61,12 @@ for (const page of ["pages/index/index", "pages/category/category", "pages/mine/
 
 if (project.appid !== "") fail("project.config.json appid must stay blank until the real WeChat AppID is assigned");
 if (project.setting?.urlCheck !== true) fail("project.config.json setting.urlCheck must stay true for production parity");
+if (!rootPackage.workspaces?.includes("apps/miniprogram")) fail("root package workspaces must include apps/miniprogram");
 
+requireFile("apps/miniprogram/package.json");
+requireFile("apps/miniprogram/tsconfig.json");
+requireContains("apps/miniprogram/package.json", "typecheck");
+requireContains("apps/miniprogram/tsconfig.json", "miniprogram-api-typings");
 requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall-api.wdbzk.com/api"');
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "download-passcode");

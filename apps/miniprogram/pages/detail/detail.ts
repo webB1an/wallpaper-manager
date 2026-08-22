@@ -27,11 +27,12 @@ Page({
     wx.setNavigationBarTitle({ title: "壁纸详情" });
   },
 
-  async loadDetail(id = this.data.id) {
-    if (!id) return;
+  async loadDetail(id?: string) {
+    const targetId = id || this.data.id;
+    if (!targetId) return;
     this.setData({ loading: true, error: "" });
     try {
-      const item = await request<WallpaperDetail>(`/wallpapers/${id}`);
+      const item = await request<WallpaperDetail>(`/wallpapers/${targetId}`);
       this.setData({
         item,
         primaryLink: item.shortLinks[0] || null,

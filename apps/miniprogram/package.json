@@ -1,0 +1,11 @@
+{
+  "name": "@wallpaper-manager/miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "5.2.3"
+  }
+}

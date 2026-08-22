@@ -21,6 +21,7 @@
   "workspaces": [
     "apps/api",
     "apps/admin",
+    "apps/miniprogram",
     "packages/shared"
   ],
   "engines": {
