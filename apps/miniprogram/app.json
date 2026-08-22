@@ -7,13 +7,13 @@
   ],
   "window": {
     "navigationBarTitleText": "Wallpaper壁纸库",
-    "navigationBarBackgroundColor": "#101915",
+    "navigationBarBackgroundColor": "#111820",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#F5F3EA"
+    "backgroundColor": "#F4F6F1"
   },
   "tabBar": {
-    "color": "#758077",
-    "selectedColor": "#1F7A5A",
+    "color": "#7E8791",
+    "selectedColor": "#D85A3A",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [

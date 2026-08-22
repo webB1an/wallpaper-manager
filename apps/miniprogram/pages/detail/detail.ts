@@ -1,5 +1,7 @@
 import { request, WallpaperDetail } from "../../utils/api";
 
+const HISTORY_KEY = "wallpaper_download_history";
+
 Page({
   data: {
     item: null as WallpaperDetail | null,
@@ -14,13 +16,38 @@ Page({
   },
 
   copyLink(event: WechatMiniprogram.TouchEvent) {
-    const url = event.currentTarget.dataset.url;
+    const url = String(event.currentTarget.dataset.url || "");
+    const label = String(event.currentTarget.dataset.label || "下载短链");
     wx.setClipboardData({
       data: url,
-      success: () => wx.showToast({ title: "短链已复制", icon: "success" })
+      success: () => {
+        saveHistory(this.data.item, url, label);
+        wx.showToast({ title: "短链已复制", icon: "success" });
+      }
     });
   }
 });
+
+function saveHistory(item: WallpaperDetail | null, url: string, label: string) {
+  if (!item || !url) return;
+  const previous = readHistory();
+  const next = [
+    {
+      title: item.title,
+      coverUrl: item.coverUrl,
+      label,
+      url,
+      copiedAt: Date.now()
+    },
+    ...previous.filter((record) => record.url !== url)
+  ].slice(0, 20);
+  wx.setStorageSync(HISTORY_KEY, next);
+}
+
+function readHistory(): Array<{ title: string; coverUrl: string; label: string; url: string; copiedAt: number }> {
+  const value = wx.getStorageSync(HISTORY_KEY);
+  return Array.isArray(value) ? value : [];
+}
 
 function formatBytes(value: number) {
   if (!value) return "原图资源";

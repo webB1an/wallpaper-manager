@@ -3,14 +3,32 @@
     <text class="hero-title">服务中心</text>
     <text class="hero-subtitle">短链复制后请在浏览器或网盘 App 中打开</text>
   </view>
+
+  <view class="section-title">
+    <text>最近复制</text>
+    <text wx:if="{{records.length}}" class="muted" bindtap="clearHistory">清空</text>
+  </view>
+
+  <view class="history-list">
+    <block wx:for="{{records}}" wx:key="url">
+      <view class="history-card">
+        <image src="{{item.coverUrl}}" mode="aspectFill" />
+        <view class="history-main">
+          <text class="history-title">{{item.title}}</text>
+          <text class="history-url">{{item.url}}</text>
+          <text class="history-meta">{{item.label}}</text>
+        </view>
+        <button data-url="{{item.url}}" bindtap="copyLink">复制</button>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{records.length === 0}}" class="empty">暂无复制记录</view>
+
   <view class="panel">
     <view class="row">
-      <text>下载记录</text>
-      <text class="muted">保存在微信本地缓存</text>
-    </view>
-    <view class="row">
-      <text>关于我们</text>
-      <text class="muted">Wallpaper壁纸库</text>
+      <text>关于</text>
+      <text class="muted">Wallpaper 壁纸库</text>
     </view>
   </view>
 </view>

@@ -12,3 +12,67 @@
   border-bottom: 1rpx solid #edf0eb;
   font-size: 28rpx;
 }
+
+.history-list {
+  display: grid;
+  gap: 16rpx;
+}
+
+.history-card {
+  display: grid;
+  grid-template-columns: 116rpx 1fr 104rpx;
+  gap: 16rpx;
+  align-items: center;
+  padding: 16rpx;
+  border-radius: 14rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
+}
+
+.history-card image {
+  width: 116rpx;
+  height: 116rpx;
+  border-radius: 10rpx;
+  background: #dce4e8;
+}
+
+.history-main {
+  min-width: 0;
+}
+
+.history-title,
+.history-url,
+.history-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-title {
+  color: #111820;
+  font-size: 27rpx;
+  font-weight: 760;
+}
+
+.history-url {
+  margin-top: 8rpx;
+  color: #68727c;
+  font-size: 22rpx;
+}
+
+.history-meta {
+  margin-top: 8rpx;
+  color: #d85a3a;
+  font-size: 22rpx;
+}
+
+.history-card button {
+  height: 64rpx;
+  padding: 0;
+  border-radius: 12rpx;
+  color: #fff;
+  background: #25465a;
+  font-size: 24rpx;
+  line-height: 64rpx;
+}

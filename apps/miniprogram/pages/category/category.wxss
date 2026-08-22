@@ -13,8 +13,20 @@
   border-radius: 14rpx;
   color: #fff;
   background:
-    linear-gradient(145deg, rgba(16, 25, 21, 0.08), rgba(16, 25, 21, 0.74)),
-    linear-gradient(135deg, #1f7a5a, #94b447);
+    linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
+    linear-gradient(135deg, #25465a, #d85a3a);
   font-size: 32rpx;
   font-weight: 800;
+}
+
+.category-card:nth-child(3n + 2) {
+  background:
+    linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.74)),
+    linear-gradient(135deg, #5b6c7a, #e8b543);
+}
+
+.category-card:nth-child(3n) {
+  background:
+    linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
+    linear-gradient(135deg, #111820, #25465a);
 }

@@ -3,6 +3,10 @@
     <text class="hero-kicker">WDBZK Gallery</text>
     <text class="hero-title">今日灵感墙</text>
     <text class="hero-subtitle">精选动静态壁纸，短链直达原始资源</text>
+    <view class="hero-meter">
+      <text>{{total}}</text>
+      <text>已上架资源</text>
+    </view>
   </view>
 
   <view class="search-row">
@@ -13,6 +17,7 @@
   <view class="filter-row">
     <view class="filter {{sort === 'latest' ? 'active' : ''}}" data-sort="latest" bindtap="switchSort">最新</view>
     <view class="filter {{sort === 'hot' ? 'active' : ''}}" data-sort="hot" bindtap="switchSort">热门</view>
+    <view wx:if="{{tag}}" class="tag-filter">#{{tag}}</view>
   </view>
 
   <view class="type-row">
@@ -31,6 +36,7 @@
   <view class="masonry">
     <block wx:for="{{items}}" wx:key="id">
       <view class="wall-card" bindtap="openDetail" data-id="{{item.id}}">
+        <text wx:if="{{item.type === 'live'}}" class="live-ribbon">LIVE</text>
         <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
         <view class="wall-info">
           <text>{{item.title}}</text>
