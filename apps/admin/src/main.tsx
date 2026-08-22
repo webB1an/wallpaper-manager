@@ -443,6 +443,21 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
     }
   };
 
+  const clearFilters = () => {
+    setStatus("");
+    setTypeFilter("");
+    setAiReview("");
+    setStorageFilter("");
+    setSelectedRowKeys([]);
+    void load(1, "", "", "", "");
+  };
+  const activeFilters = [
+    status ? { key: "status", label: "状态", value: statusText(status), clear: () => { setStatus(""); setSelectedRowKeys([]); void load(1, "", typeFilter, aiReview, storageFilter); } } : undefined,
+    typeFilter ? { key: "type", label: "类型", value: typeText(typeFilter), clear: () => { setTypeFilter(""); setSelectedRowKeys([]); void load(1, status, "", aiReview, storageFilter); } } : undefined,
+    aiReview ? { key: "aiReview", label: "AI审核", value: aiReviewText(aiReview), clear: () => { setAiReview(""); setSelectedRowKeys([]); void load(1, status, typeFilter, "", storageFilter); } } : undefined,
+    storageFilter ? { key: "storage", label: "网盘", value: storageFilterText(storageFilter), clear: () => { setStorageFilter(""); setSelectedRowKeys([]); void load(1, status, typeFilter, aiReview, ""); } } : undefined,
+  ].filter(Boolean) as Array<{ key: string; label: string; value: string; clear: () => void }>;
+
   return (
     <section>
       <Header title="资源库" subtitle="审核、编辑、排序、上下架与查看网盘同步状态。" />
@@ -524,6 +539,26 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
         <Button type="primary" ghost onClick={() => openChannelPublish(selectedRowKeys)}>发到频道</Button>
       </Space>
+      {activeFilters.length ? (
+        <div className="active-filters">
+          <span>当前筛选</span>
+          <Space size={6} wrap>
+            {activeFilters.map((item) => (
+              <Tag
+                key={item.key}
+                closable
+                onClose={(event) => {
+                  event.preventDefault();
+                  item.clear();
+                }}
+              >
+                {item.label}：{item.value}
+              </Tag>
+            ))}
+            <Button size="small" type="link" onClick={clearFilters}>清空筛选</Button>
+          </Space>
+        </div>
+      ) : null}
       <Table
         rowKey="id"
         loading={loading}
@@ -1328,6 +1363,27 @@ function typeText(value: string) {
     mobile: "手机壁纸",
     desktop: "桌面壁纸",
     other: "其他",
+  };
+  return map[value] || value;
+}
+
+function aiReviewText(value: string) {
+  const map: Record<string, string> = {
+    unreviewed: "未识别",
+    safe: "通过",
+    blocked: "已拦截",
+  };
+  return map[value] || value;
+}
+
+function storageFilterText(value: string) {
+  const map: Record<string, string> = {
+    has_quark: "有夸克",
+    has_baidu: "有百度",
+    missing_quark: "缺夸克",
+    missing_baidu: "缺百度",
+    missing_active: "缺活跃链接",
+    missing_short: "缺短链",
   };
   return map[value] || value;
 }

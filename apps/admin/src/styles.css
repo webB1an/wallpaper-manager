@@ -97,6 +97,19 @@ h1 {
   margin-bottom: 18px;
 }
 
+.active-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: -4px 0 16px;
+  color: #65746b;
+  font-size: 13px;
+}
+
+.active-filters > span {
+  white-space: nowrap;
+}
+
 .page-alert {
   margin-bottom: 18px;
 }
