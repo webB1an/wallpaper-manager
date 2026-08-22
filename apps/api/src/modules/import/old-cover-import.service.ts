@@ -294,11 +294,11 @@ export class OldCoverImportService {
 
   private async readAllOldResources(): Promise<WdbzkResource[]> {
     const all: WdbzkResource[] = [];
-    const pageSize = 100;
+    const pageSize = 50;
     for (let page = 1; page <= 100; page += 1) {
       const result = await this.wdbzk.listResources(page, pageSize);
       all.push(...result.list);
-      if (all.length >= result.total || result.list.length < pageSize) break;
+      if (all.length >= result.total || result.list.length === 0) break;
     }
     return all;
   }
