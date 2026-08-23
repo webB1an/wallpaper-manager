@@ -20,11 +20,11 @@ export interface QuarkShareResult {
 export class QuarkStorageService {
   constructor(private readonly config: ConfigService) {}
 
-  async upload(filePath: string, account?: ManagedStorageAccount): Promise<QuarkUploadResult> {
+  async upload(filePath: string, account?: ManagedStorageAccount, remoteDirSegments?: string[]): Promise<QuarkUploadResult> {
     const skillDir = this.requireSkillDir();
     const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
     const args = [cliPath, "upload", filePath, "--session-input", "wallpaper-manager upload", "--session-id", this.sessionId()];
-    const parentFid = this.config.get<string>("QUARK_UPLOAD_PARENT_FID")?.trim();
+    const parentFid = await this.resolveParentFid(account, remoteDirSegments);
     if (parentFid) args.splice(3, 0, "--parent-fid", parentFid);
 
     const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 60 * 60_000, env: quarkAccountEnv(account) });
@@ -92,6 +92,41 @@ export class QuarkStorageService {
       throw new Error("未配置可用的夸克网盘 Skill 目录");
     }
     return skillDir;
+  }
+
+  private async resolveParentFid(account?: ManagedStorageAccount, remoteDirSegments?: string[]): Promise<string | undefined> {
+    if (!remoteDirSegments?.length) {
+      return this.config.get<string>("QUARK_UPLOAD_PARENT_FID")?.trim();
+    }
+    let parentFid = this.config.get<string>("QUARK_UPLOAD_PARENT_FID")?.trim() || "0";
+    for (const segment of remoteDirSegments) {
+      parentFid = await this.createFolder(segment, parentFid, account);
+    }
+    return parentFid;
+  }
+
+  private async createFolder(dirPath: string, parentFid: string, account?: ManagedStorageAccount): Promise<string> {
+    const skillDir = this.requireSkillDir();
+    const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
+    const result = await runCli(process.execPath, [
+      cliPath,
+      "create-folder",
+      "--dir-path",
+      dirPath,
+      "--parent-fid",
+      parentFid,
+      "--session-input",
+      "wallpaper-manager upload",
+      "--session-id",
+      this.sessionId(),
+    ], { cwd: skillDir, timeoutMs: 120_000, env: quarkAccountEnv(account) });
+    const final = lastResult(result.stdout);
+    const code = Number(final?.code ?? (result.ok ? 0 : -1));
+    const data = (final?.data || {}) as { fid?: string };
+    if (!result.ok || code !== 0 || !data.fid) {
+      throw new Error(String(final?.msg || result.stderr || "夸克创建目录失败"));
+    }
+    return data.fid;
   }
 
   private sessionId(): string {

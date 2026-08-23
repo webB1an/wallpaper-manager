@@ -588,7 +588,7 @@ export class AdminService {
 
       if (wallpaper.assetPath) {
         await this.tasks.update(taskId, { progress: 38, message: "正在同步夸克/百度网盘" });
-        const storageResults = await this.storage.syncWallpaper(id, join(process.cwd(), "storage", "public", wallpaper.assetPath), wallpaper.title, storageSelection);
+        const storageResults = await this.storage.syncWallpaper(id, join(process.cwd(), "storage", "public", wallpaper.assetPath), wallpaper.title, wallpaper.type, analysis.tags, storageSelection);
         taskResult.storage = storageResults;
         warnings.push(...storageResults
           .filter((item) => !item.ok)

@@ -412,6 +412,10 @@ requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper
 requireContains("apps/api/src/modules/public/public.service.ts", "async click(id: string)");
 requireContains("apps/api/src/modules/public/public.service.ts", "downloadCount: { increment: 1 }");
 requireContains("apps/api/src/modules/public/public.controller.ts", "this.service.click(id)");
+requireContains("apps/api/src/common/wallpaper-path.ts", "buildWallpaperRemoteDir");
+requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "create-folder");
+requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "remoteDirSegments");
+requireContains("apps/api/src/modules/storage/baidu-storage.service.ts", "ensureRemoteDir");
 requireContains("scripts/smoke-admin.mjs", "STRICT_ADMIN_SMOKE");
 requireContains("scripts/smoke-admin.mjs", "--strict");
 requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");

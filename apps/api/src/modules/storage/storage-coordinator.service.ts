@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { StorageProvider } from "@prisma/client";
 import { nanoid } from "nanoid";
+import { buildWallpaperRemoteDir } from "../../common/wallpaper-path";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaiduStorageService } from "./baidu-storage.service";
 import { QuarkStorageService } from "./quark-storage.service";
@@ -15,8 +16,9 @@ export class StorageCoordinatorService {
     private readonly accounts: StorageAccountService,
   ) {}
 
-  async syncWallpaper(wallpaperId: string, filePath: string, title: string, selection?: { quarkAccountId?: string; baiduAccountId?: string }) {
+  async syncWallpaper(wallpaperId: string, filePath: string, title: string, type: string, tags: string[], selection?: { quarkAccountId?: string; baiduAccountId?: string }) {
     const results: Array<{ provider: StorageProvider; ok: boolean; url?: string; passcode?: string; remoteFileId?: string; remotePath?: string; storageAccountId?: string; error?: string }> = [];
+    const remoteDir = buildWallpaperRemoteDir(type, tags);
     const quarkAccount = await this.accounts.getAccountForProvider(StorageProvider.quark, selection?.quarkAccountId);
     const baiduAccount = await this.accounts.getAccountForProvider(StorageProvider.baidu, selection?.baiduAccountId);
 
@@ -24,7 +26,7 @@ export class StorageCoordinatorService {
       results.push({ provider: StorageProvider.quark, ok: false, error: missingManagedAccountError(StorageProvider.quark) });
     } else {
       try {
-        const upload = await this.quark.upload(filePath, quarkAccount);
+        const upload = await this.quark.upload(filePath, quarkAccount, remoteDir.quarkSegments);
         const share = await this.quark.share(upload.fids, title, quarkAccount);
         results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath, storageAccountId: quarkAccount.id });
       } catch (error) {
@@ -36,7 +38,7 @@ export class StorageCoordinatorService {
       results.push({ provider: StorageProvider.baidu, ok: false, error: missingManagedAccountError(StorageProvider.baidu) });
     } else {
       try {
-        const share = await this.baidu.uploadAndShare(filePath, baiduAccount);
+        const share = await this.baidu.uploadAndShare(filePath, baiduAccount, remoteDir.baiduRelativeDir);
         results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount.id });
       } catch (error) {
         results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
