@@ -12,6 +12,7 @@ import { nanoid } from "nanoid";
 import { Prisma, StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
+import { positiveInt } from "../../common/query-values";
 import { AiService } from "../ai/ai.service";
 import { ChannelService } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -387,8 +388,8 @@ export class AdminService {
   }
 
   async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; aiReview?: AiReviewFilter; storage?: StorageFilter }) {
-    const page = Math.max(1, Number(query.page || 1));
-    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
+    const page = positiveInt(query.page, 1, "页码");
+    const pageSize = positiveInt(query.pageSize, 20, "每页数量", 100);
     const where: Prisma.WallpaperWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.type ? { type: query.type } : {}),

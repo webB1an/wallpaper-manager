@@ -16,7 +16,8 @@
     "import:old-covers": "tsx src/scripts/import-old-covers.ts",
     "smoke:json": "tsx src/scripts/smoke-json.ts",
     "smoke:auth-code": "tsx src/scripts/smoke-auth-code.ts",
-    "smoke:short-code": "tsx src/scripts/smoke-short-code.ts"
+    "smoke:short-code": "tsx src/scripts/smoke-short-code.ts",
+    "smoke:query-values": "tsx src/scripts/smoke-query-values.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.3",

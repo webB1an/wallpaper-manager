@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma, TaskStatus, TaskType } from "@prisma/client";
+import { positiveInt } from "../../common/query-values";
 import { PrismaService } from "../prisma/prisma.service";
 
 type TaskListFilters = {
@@ -35,8 +36,8 @@ export class TasksService {
   }
 
   async list(page = 1, pageSize = 50, filters: TaskListFilters = {}) {
-    const safePage = Math.max(1, page);
-    const safePageSize = Math.min(100, Math.max(1, pageSize));
+    const safePage = positiveInt(page, 1, "页码");
+    const safePageSize = positiveInt(pageSize, 50, "每页数量", 100);
     const where: Prisma.TaskWhereInput = {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.type ? { type: filters.type } : {}),

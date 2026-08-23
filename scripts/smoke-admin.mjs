@@ -15,12 +15,17 @@ if (!password) {
 }
 
 async function request(path, init = {}) {
-  const response = await fetch(`${adminOrigin}${path}`, init);
-  const body = await response.json().catch(() => ({}));
+  const { response, body } = await rawRequest(path, init);
   if (!response.ok || body.code !== 200) {
     throw new Error(`${path} failed with ${response.status}: ${body.message || body.error || "invalid response"}`);
   }
   return body.data;
+}
+
+async function rawRequest(path, init = {}) {
+  const response = await fetch(`${adminOrigin}${path}`, init);
+  const body = await response.json().catch(() => ({}));
+  return { response, body };
 }
 
 function assert(condition, message) {
@@ -35,6 +40,7 @@ const login = await request("/api/admin/auth/login", {
 assert(typeof login.token === "string" && login.token.length > 20, "admin login must return a token");
 
 const headers = { Authorization: `Bearer ${login.token}`, "Content-Type": "application/json" };
+const invalidQueryGuards = await assertInvalidQueryGuards(headers);
 const [me, overview, diagnostics, settings, storageAccounts, readiness] = await Promise.all([
   request("/api/admin/me", { headers }),
   request("/api/admin/overview", { headers }),
@@ -103,6 +109,7 @@ console.log(JSON.stringify({
     defaultBaidu: overview.storageAccounts.defaultBaidu,
     defaultQuark: overview.storageAccounts.defaultQuark,
   },
+  invalidQueryGuards,
 }, null, 2));
 
 function readDotenv(path) {
@@ -118,4 +125,17 @@ function readDotenv(path) {
         return index === -1 ? [line, ""] : [line.slice(0, index), line.slice(index + 1)];
       }),
   );
+}
+
+async function assertInvalidQueryGuards(headers) {
+  const targets = [
+    "/api/admin/wallpapers?page=abc",
+    "/api/admin/tasks?page=abc",
+    "/api/admin/imports/old-covers/preview?limit=abc",
+  ];
+  for (const target of targets) {
+    const { response, body } = await rawRequest(target, { headers });
+    assert(response.status === 400, `${target} must reject invalid query values with 400, got ${response.status}: ${body.message || body.error || "invalid response"}`);
+  }
+  return targets.length;
 }

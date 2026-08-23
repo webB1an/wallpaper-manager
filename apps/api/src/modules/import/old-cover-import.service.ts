@@ -8,6 +8,7 @@ import { basename, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { candidateTitleFromCoverFile, legacyResourceMatchKey } from "../../common/match";
 import { publicAssetUrl } from "../../common/public-url";
+import { positiveInt } from "../../common/query-values";
 import { legacyShortCodeCandidates, normalizeLegacyResourceId } from "../../common/short-code";
 import { AiService } from "../ai/ai.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -64,8 +65,8 @@ export class OldCoverImportService {
   }
 
   async records(query: { page?: number; pageSize?: number; status?: string; keyword?: string }) {
-    const page = Math.max(1, Number(query.page || 1));
-    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize || 20)));
+    const page = positiveInt(query.page, 1, "页码");
+    const pageSize = positiveInt(query.pageSize, 20, "每页数量", 100);
     const where = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.keyword ? {

@@ -25,6 +25,7 @@
     "smoke:admin": "node scripts/smoke-admin.mjs",
     "smoke:auth-code": "npm run smoke:auth-code -w apps/api",
     "smoke:short-code": "npm run smoke:short-code -w apps/api",
+    "smoke:query-values": "npm run smoke:query-values -w apps/api",
     "smoke:json": "npm run smoke:json -w apps/api",
     "smoke:production": "npm run smoke:public && npm run smoke:admin",
     "smoke:production:strict": "node scripts/smoke-public.mjs && node scripts/smoke-admin.mjs --strict",
