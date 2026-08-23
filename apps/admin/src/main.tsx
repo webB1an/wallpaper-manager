@@ -1720,7 +1720,7 @@ function StorageAccounts() {
                   }}>设为默认</Button>}
                   <Button size="small" loading={loadingAuth && authTarget?.id === row.id} onClick={() => startAuth(row)}>授权</Button>
                   <Button size="small" onClick={() => probe(row)}>探活</Button>
-                  <Popconfirm title="删除这个网盘账号？" description="账号会被停用，已有资源链接不会被删除。" okText="删除" cancelText="取消" onConfirm={async () => {
+                  <Popconfirm title="删除这个网盘账号？" description="未使用账号会直接移除；已有资源链接的账号会被停用，资源链接不会被删除。" okText="删除" cancelText="取消" onConfirm={async () => {
                     await request(`/api/admin/storage-accounts/${row.id}`, { method: "DELETE" });
                     message.success("网盘账号已删除");
                     await load();

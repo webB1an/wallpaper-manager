@@ -3,8 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { StorageAccount, StorageProvider } from "@prisma/client";
 import { nanoid } from "nanoid";
 import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, rm } from "node:fs/promises";
+import { join, resolve, sep } from "node:path";
 import { lastResult, parseNdjson, runCli } from "../../common/cli";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -70,7 +70,13 @@ export class StorageAccountService {
 
   async deleteAccount(id: string) {
     const account = await this.requireAccount(id);
-    await this.prisma.storageAccount.update({ where: { id }, data: { isActive: false, isDefault: false } });
+    const linkCount = await this.prisma.storageLink.count({ where: { storageAccountId: id } });
+    if (linkCount > 0) {
+      await this.prisma.storageAccount.update({ where: { id }, data: { isActive: false, isDefault: false } });
+    } else {
+      await this.prisma.storageAccount.delete({ where: { id } });
+      await this.removeProfile(account.profileDir);
+    }
     if (account.isDefault) {
       const next = await this.prisma.storageAccount.findFirst({
         where: { provider: account.provider, isActive: true, id: { not: id } },
@@ -238,6 +244,14 @@ export class StorageAccountService {
 
   private root() {
     return resolve(this.config.get<string>("STORAGE_ACCOUNT_ROOT") || "storage/private/storage-accounts");
+  }
+
+  private async removeProfile(profileDir: string) {
+    const root = this.root();
+    const target = resolve(profileDir);
+    if (target !== root && target.startsWith(`${root}${sep}`)) {
+      await rm(target, { recursive: true, force: true }).catch(() => undefined);
+    }
   }
 }
 
