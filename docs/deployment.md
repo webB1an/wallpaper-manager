@@ -252,6 +252,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 管理端至少存在一个默认腾讯频道账号。
 - 资源库里已上架资源都有可用 `r.wdbzk.com` 短链。
 - `npm run cleanup:unpublished-links` 返回 `Matched wallpapers: 0`，或已确认并执行过 `--apply`。
+- 服务器执行 `npm run readiness:launch`，只剩你确认接受的提醒；正式发布前应全部通过。
 - 小程序首页、分类页、详情页、我的页都能加载线上数据。
 - 详情页复制短链后，“我的”页出现最近复制记录，且能点回详情。
 - 抽查百度备用链接时，小程序详情页能展示提取码。

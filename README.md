@@ -45,6 +45,7 @@ See `docs/deployment.md` for Baota database setup, GitHub Secrets, Nginx configu
 On the server, run this when you want the remaining launch work as copyable actions:
 
 ```bash
+npm run readiness:launch
 npm run readiness:production
 ```
 
