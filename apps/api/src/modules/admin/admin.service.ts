@@ -95,13 +95,13 @@ export class AdminService {
     return { token: this.jwt.sign({ sub: username, role: "admin" }) };
   }
 
-  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection }) {
+  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string }) {
     if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
     const autoPublish = options?.autoPublish ?? settings.defaultAutoPublish;
     if (autoPublish) {
-      await this.assertDefaultChannelReady("未配置默认腾讯频道账号，不能开启上传后自动发帖");
+      await this.assertChannelReady("未配置可用腾讯频道账号，不能开启上传后自动发帖", options?.channelAccountId);
     }
     const created = [];
     for (const file of files) {
@@ -122,7 +122,7 @@ export class AdminService {
           autoPublish,
         },
       });
-      const queued = autoProcess ? await this.enqueueProcessWallpaper(wallpaper.id, options?.storageSelection) : undefined;
+      const queued = autoProcess ? await this.enqueueProcessWallpaper(wallpaper.id, options?.storageSelection, autoPublish ? options?.channelAccountId : undefined) : undefined;
       created.push({ ...wallpaper, queued });
     }
     return created;
@@ -136,7 +136,7 @@ export class AdminService {
   async updateSettings(input: Partial<SystemSettings>) {
     const current = await this.getSettings();
     if (input.defaultAutoPublish === true) {
-      await this.assertDefaultChannelReady("未配置默认腾讯频道账号，不能开启默认自动发帖");
+      await this.assertChannelReady("未配置默认腾讯频道账号，不能开启默认自动发帖");
     }
     const value: SystemSettings = {
       ...current,
@@ -522,12 +522,12 @@ export class AdminService {
     return { updated: ids.length };
   }
 
-  async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection) {
-    const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}) };
+  async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection, channelAccountId?: string) {
+    const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) };
     const task = await this.tasks.create("upload_asset", payload, "开始处理壁纸");
     await this.wallpaperQueue.add(
       "process-wallpaper",
-      { wallpaperId: id, taskId: task.id, storageSelection },
+      { wallpaperId: id, taskId: task.id, storageSelection, channelAccountId },
       { attempts: 1, removeOnComplete: 200, removeOnFail: 500 },
     );
     return { queued: true, taskId: task.id };
@@ -546,7 +546,7 @@ export class AdminService {
     return this.runProcessWallpaper(id, task.id);
   }
 
-  async runProcessWallpaper(id: string, taskId: string, storageSelection?: StorageSelection) {
+  async runProcessWallpaper(id: string, taskId: string, storageSelection?: StorageSelection, channelAccountId?: string) {
     const warnings: string[] = [];
     const taskResult: Record<string, unknown> = {};
     try {
@@ -591,7 +591,7 @@ export class AdminService {
       if (wallpaper.autoPublish) {
         await this.tasks.update(taskId, { progress: 84, message: "正在发布到腾讯频道" });
         try {
-          taskResult.channel = await this.publishWallpaperToChannel(id);
+          taskResult.channel = await this.publishWallpaperToChannel(id, channelAccountId);
         } catch (error) {
           const message = `腾讯频道发帖失败：${shortError(error)}`;
           warnings.push(message);
@@ -614,8 +614,8 @@ export class AdminService {
     }
   }
 
-  async publishWallpaperToChannel(id: string) {
-    const account = await this.channel.getDefaultAccount();
+  async publishWallpaperToChannel(id: string, accountId?: string) {
+    const account = await this.getChannelAccountForPublish(accountId);
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpaper = await this.prisma.wallpaper.findUnique({
       where: { id },
@@ -644,9 +644,7 @@ export class AdminService {
 
   async publishWallpapersToChannel(ids: string[], accountId?: string) {
     const uniqueIds = unique(ids.map(String));
-    const account = accountId
-      ? await this.prisma.channelAccount.findUnique({ where: { id: accountId } })
-      : await this.channel.getDefaultAccount();
+    const account = await this.getChannelAccountForPublish(accountId);
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpapers = await this.prisma.wallpaper.findMany({
       where: { id: { in: uniqueIds } },
@@ -855,9 +853,15 @@ export class AdminService {
     }
   }
 
-  private async assertDefaultChannelReady(message: string) {
-    const defaultAccount = await this.channel.getDefaultAccount();
-    if (!defaultAccount) throw new BadRequestException(message);
+  private async assertChannelReady(message: string, accountId?: string) {
+    const account = await this.getChannelAccountForPublish(accountId);
+    if (!account) throw new BadRequestException(message);
+  }
+
+  private async getChannelAccountForPublish(accountId?: string) {
+    const id = accountId?.trim();
+    if (id) return this.prisma.channelAccount.findUnique({ where: { id } });
+    return this.channel.getDefaultAccount();
   }
 
   private async checkDatabase(): Promise<DiagnosticItem> {

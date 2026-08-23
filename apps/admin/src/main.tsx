@@ -1052,6 +1052,8 @@ function Uploader() {
   const [autoProcess, setAutoProcess] = useState(true);
   const [autoPublish, setAutoPublish] = useState(false);
   const [defaultChannelReady, setDefaultChannelReady] = useState(false);
+  const [channelAccounts, setChannelAccounts] = useState<ChannelAccount[]>([]);
+  const [channelAccountId, setChannelAccountId] = useState<string>();
   const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>([]);
   const [quarkAccountId, setQuarkAccountId] = useState<string>();
   const [baiduAccountId, setBaiduAccountId] = useState<string>();
@@ -1063,19 +1065,23 @@ function Uploader() {
     ])
       .then(([settings, accounts, storage]) => {
         const hasDefaultChannel = accounts.some((account) => account.isDefault);
+        const preferredChannel = accounts.find((account) => account.isDefault) || accounts[0];
         setDefaultChannelReady(hasDefaultChannel);
         setAutoProcess(settings.defaultAutoProcess);
-        setAutoPublish(settings.defaultAutoPublish && hasDefaultChannel);
+        setAutoPublish(settings.defaultAutoPublish && Boolean(preferredChannel));
+        setChannelAccounts(accounts);
+        setChannelAccountId(preferredChannel?.id);
         setStorageAccounts(storage);
       })
       .catch(() => undefined);
   }, []);
-  const autoPublishDisabled = !autoProcess || !defaultChannelReady;
+  const autoPublishDisabled = !autoProcess || !channelAccounts.length;
   const quarkAccounts = storageAccounts.filter((account) => account.provider === "quark");
   const baiduAccounts = storageAccounts.filter((account) => account.provider === "baidu");
   const selectedStorageData = {
     autoProcess: String(autoProcess),
     autoPublish: String(autoPublish),
+    ...(autoPublish && channelAccountId ? { channelAccountId } : {}),
     ...(quarkAccountId ? { quarkAccountId } : {}),
     ...(baiduAccountId ? { baiduAccountId } : {}),
   };
@@ -1118,7 +1124,21 @@ function Uploader() {
           onChange={setAutoPublish}
           disabled={autoPublishDisabled}
         />
-        {!defaultChannelReady ? <Tag color="gold">未配置默认频道账号</Tag> : null}
+        {!channelAccounts.length ? <Tag color="gold">未配置频道账号</Tag> : !defaultChannelReady ? <Tag color="gold">未设置默认频道账号</Tag> : null}
+      </div>
+      <div className="upload-options">
+        <span>本次发帖频道账号</span>
+        <Select
+          allowClear
+          placeholder={channelAccounts.length ? "使用默认频道账号" : "未配置频道账号"}
+          value={channelAccountId}
+          onChange={setChannelAccountId}
+          disabled={!autoPublish || !channelAccounts.length}
+          options={channelAccounts.map((account) => ({
+            value: account.id,
+            label: `${account.label}${account.isDefault ? " · 默认" : ""}${account.channelName ? ` · ${account.channelName}` : ""}`,
+          }))}
+        />
       </div>
       <div className="upload-storage-options">
         <div>

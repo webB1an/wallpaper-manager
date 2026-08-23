@@ -397,6 +397,10 @@ small {
   color: #536359;
 }
 
+.upload-options .ant-select {
+  min-width: 280px;
+}
+
 .upload-storage-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 360px));
