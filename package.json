@@ -30,6 +30,7 @@
     "smoke:public": "node scripts/smoke-public.mjs",
     "smoke:channel-accounts": "node scripts/smoke-channel-accounts.mjs",
     "smoke:storage-accounts": "node scripts/smoke-storage-accounts.mjs",
+    "smoke:upload-routing": "node scripts/smoke-upload-routing.mjs",
     "verify:release": "node scripts/verify-release.mjs"
   },
   "workspaces": [
