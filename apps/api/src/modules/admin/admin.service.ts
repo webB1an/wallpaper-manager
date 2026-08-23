@@ -658,7 +658,7 @@ export class AdminService {
     return this.channel.publish({
       accountId: account.id,
       content,
-      imagePaths: isVideo ? [] : absoluteCover ? [absoluteCover] : [],
+      imagePaths: isVideo ? [] : absoluteAsset ? [absoluteAsset] : absoluteCover ? [absoluteCover] : [],
       videoPaths: isVideo && absoluteAsset ? [absoluteAsset] : [],
       topicNames: wallpaper.tags.map(({ tag }) => tag.name).slice(0, 6),
     });
@@ -695,7 +695,9 @@ export class AdminService {
     const imagePaths = liveItems.length
       ? []
       : wallpapers
-        .map((item) => item.coverPath ? join(process.cwd(), "storage", "public", item.coverPath) : undefined)
+        .map((item) => item.assetPath
+          ? join(process.cwd(), "storage", "public", item.assetPath)
+          : item.coverPath ? join(process.cwd(), "storage", "public", item.coverPath) : undefined)
         .filter((item): item is string => Boolean(item));
     const videoPaths = liveItems.length && liveItems[0].assetPath
       ? [join(process.cwd(), "storage", "public", liveItems[0].assetPath)]
@@ -1148,7 +1150,8 @@ function assertChannelMediaReady(items: Array<{ title: string; isVideo: boolean;
     if (item.isVideo) {
       return item.assetPath && existsSync(item.assetPath) ? [] : [`${item.title} 缺少动态原文件`];
     }
-    return item.coverPath && existsSync(item.coverPath) ? [] : [`${item.title} 缺少封面图`];
+    if (item.assetPath && existsSync(item.assetPath)) return [];
+    return item.coverPath && existsSync(item.coverPath) ? [] : [`${item.title} 缺少源文件或封面图`];
   });
   if (missing.length) {
     throw new BadRequestException(`频道发帖素材不完整：${missing.slice(0, 5).join("、")}`);
