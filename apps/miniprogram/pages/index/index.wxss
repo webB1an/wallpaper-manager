@@ -211,13 +211,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42rpx;
-  height: 42rpx;
+  min-width: 48rpx;
+  height: 40rpx;
+  padding: 0 14rpx;
   border-radius: 999rpx;
   color: #ffffff;
   background: rgba(184, 92, 62, 0.96);
   font-size: 19rpx;
-  font-weight: 820;
+  font-weight: 760;
 }
 
 .poster-info {

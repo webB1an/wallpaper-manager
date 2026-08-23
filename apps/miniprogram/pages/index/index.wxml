@@ -1,6 +1,6 @@
 <template name="posterCard">
   <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
-    <text class="live-ribbon">{{item.type === 'live' ? '▶' : '●'}}</text>
+    <text class="live-ribbon">{{item.type === 'live' ? '动态' : '静态'}}</text>
     <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
     <view class="poster-info">
       <text class="poster-title">{{item.title}}</text>

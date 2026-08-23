@@ -23,7 +23,7 @@ button {
 .page {
   min-height: 100vh;
   width: 100%;
-  padding: 24rpx 24rpx 68rpx;
+  padding: 24rpx 24rpx calc(68rpx + env(safe-area-inset-bottom));
 }
 
 .hero {
@@ -31,7 +31,7 @@ button {
   overflow: hidden;
   padding: 34rpx 30rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.12);
-  border-radius: 26rpx;
+  border-radius: 28rpx;
   color: #ffffff;
   background:
     radial-gradient(circle at 88% 12%, rgba(230, 181, 102, 0.22), transparent 34%),
@@ -130,7 +130,7 @@ button {
   height: 64rpx;
   margin: 22rpx auto 0;
   padding: 0;
-  border-radius: 12rpx;
+  border-radius: 999rpx;
   color: #ffffff;
   background: #4c6b5a;
   font-size: 24rpx;
