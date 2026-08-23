@@ -1,14 +1,10 @@
 <view class="detail-page" wx:if="{{item}}">
   <view class="detail-topbar" style="background:{{topbarBg}};">
-    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back-dark.png" /></view>
+    <view class="detail-back {{navDark ? 'is-dark' : ''}}" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="{{navDark ? '/assets/icons/back-dark.png' : '/assets/icons/back.png'}}" /></view>
     <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;color:{{navColor}};">{{item.title}}</text>
   </view>
   <view class="detail-visual">
     <image class="detail-cover" src="{{item.coverUrl}}" mode="aspectFill" />
-    <view class="detail-visual-meta">
-      <text>{{typeText}}</text>
-      <text>{{item.downloadCount}} 次下载</text>
-    </view>
   </view>
   <view class="detail-panel">
     <text class="detail-title">{{item.title}}</text>
@@ -50,7 +46,7 @@
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty state-card">
   <view class="detail-topbar" style="background:{{topbarBg}};">
-    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back-dark.png" /></view>
+    <view class="detail-back {{navDark ? 'is-dark' : ''}}" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="{{navDark ? '/assets/icons/back-dark.png' : '/assets/icons/back.png'}}" /></view>
     <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;color:{{navColor}};">壁纸详情</text>
   </view>
   <text>{{error}}</text>
@@ -59,7 +55,7 @@
 </view>
 <view wx:else class="detail-page detail-loading">
   <view class="detail-topbar" style="background:{{topbarBg}};">
-    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back-dark.png" /></view>
+    <view class="detail-back {{navDark ? 'is-dark' : ''}}" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="{{navDark ? '/assets/icons/back-dark.png' : '/assets/icons/back.png'}}" /></view>
     <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;color:{{navColor}};">壁纸详情</text>
   </view>
   <view class="detail-cover-skeleton"></view>

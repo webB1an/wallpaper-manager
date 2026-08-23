@@ -17,7 +17,8 @@ Page({
         capsuleTop: 48,
         capsuleHeight: 32,
         topbarBg: "rgba(251,247,240,0)",
-        navColor: "#ffffff"
+        navColor: "#ffffff",
+        navDark: false
     },
     onPageScroll(event) {
         const ratio = Math.min(1, Math.max(0, (event.scrollTop || 0) / 160));
@@ -26,6 +27,7 @@ Page({
         this.setData({
             topbarBg: `rgba(251,247,240,${alpha})`,
             navColor: white ? "#2b211b" : "#ffffff",
+            navDark: white,
         });
     },
     async onLoad(options) {

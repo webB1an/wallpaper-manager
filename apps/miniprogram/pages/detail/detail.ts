@@ -18,7 +18,8 @@ Page({
     capsuleTop: 48,
     capsuleHeight: 32,
     topbarBg: "rgba(251,247,240,0)",
-    navColor: "#ffffff"
+    navColor: "#ffffff",
+    navDark: false
   },
 
   onPageScroll(event: { scrollTop: number }) {
@@ -28,6 +29,7 @@ Page({
     this.setData({
       topbarBg: `rgba(251,247,240,${alpha})`,
       navColor: white ? "#2b211b" : "#ffffff",
+      navDark: white,
     });
   },
 
