@@ -240,6 +240,23 @@ small {
   color: #536359;
 }
 
+.upload-storage-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 360px));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.upload-storage-options > div {
+  display: grid;
+  gap: 7px;
+}
+
+.upload-storage-options span {
+  color: #536359;
+  font-size: 13px;
+}
+
 .upload-dragger {
   background: #fbfbf7 !important;
   border-color: #b6c7ba !important;

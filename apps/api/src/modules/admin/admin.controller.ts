@@ -44,10 +44,14 @@ export class AdminController {
       callback(new BadRequestException(`不支持的文件格式：${file.originalname}`), false);
     },
   }))
-  async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string }) {
+  async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string; quarkAccountId?: string; baiduAccountId?: string }) {
     const autoProcess = body.autoProcess === undefined ? undefined : body.autoProcess === "true";
     const autoPublish = body.autoPublish === undefined ? undefined : body.autoPublish === "true";
-    const data = await this.admin.createUpload(files || [], { autoProcess, autoPublish });
+    const data = await this.admin.createUpload(files || [], {
+      autoProcess,
+      autoPublish,
+      storageSelection: cleanStorageSelection(body),
+    });
     return { code: 200, data };
   }
 
@@ -269,4 +273,10 @@ function optionalSet(value: string | undefined, values: Set<string>, label: stri
   if (!value) return undefined;
   if (values.has(value)) return value;
   throw new BadRequestException(`${label}不正确`);
+}
+
+function cleanStorageSelection(body: { quarkAccountId?: string; baiduAccountId?: string }) {
+  const quarkAccountId = body.quarkAccountId?.trim() || undefined;
+  const baiduAccountId = body.baiduAccountId?.trim() || undefined;
+  return quarkAccountId || baiduAccountId ? { quarkAccountId, baiduAccountId } : undefined;
 }

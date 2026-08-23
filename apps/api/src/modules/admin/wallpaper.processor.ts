@@ -9,9 +9,9 @@ export class WallpaperProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ taskId: string; wallpaperId: string }>) {
+  async process(job: Job<{ taskId: string; wallpaperId: string; storageSelection?: { quarkAccountId?: string; baiduAccountId?: string } }>) {
     if (job.name === "process-wallpaper") {
-      return this.admin.runProcessWallpaper(job.data.wallpaperId, job.data.taskId);
+      return this.admin.runProcessWallpaper(job.data.wallpaperId, job.data.taskId, job.data.storageSelection);
     }
     return undefined;
   }

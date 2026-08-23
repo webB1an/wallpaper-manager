@@ -91,6 +91,13 @@ export class StorageAccountService {
     });
   }
 
+  async getAccountForProvider(provider: StorageProvider, id?: string) {
+    if (!id) return this.getDefaultAccount(provider);
+    const account = await this.prisma.storageAccount.findFirst({ where: { id, provider, isActive: true } });
+    if (!account) throw new BadRequestException(`${provider === StorageProvider.baidu ? "百度" : "夸克"}网盘账号不存在或类型不匹配`);
+    return account;
+  }
+
   async startBaiduAuth(id: string) {
     const account = await this.requireAccount(id, StorageProvider.baidu);
     await this.ensureProfile(account);

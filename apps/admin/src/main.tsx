@@ -855,27 +855,40 @@ function Uploader() {
   const [autoProcess, setAutoProcess] = useState(true);
   const [autoPublish, setAutoPublish] = useState(false);
   const [defaultChannelReady, setDefaultChannelReady] = useState(false);
+  const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>([]);
+  const [quarkAccountId, setQuarkAccountId] = useState<string>();
+  const [baiduAccountId, setBaiduAccountId] = useState<string>();
   useEffect(() => {
     Promise.all([
       request<SystemSettings>("/api/admin/settings"),
       request<ChannelAccount[]>("/api/admin/channels"),
+      request<StorageAccount[]>("/api/admin/storage-accounts"),
     ])
-      .then(([settings, accounts]) => {
+      .then(([settings, accounts, storage]) => {
         const hasDefaultChannel = accounts.some((account) => account.isDefault);
         setDefaultChannelReady(hasDefaultChannel);
         setAutoProcess(settings.defaultAutoProcess);
         setAutoPublish(settings.defaultAutoPublish && hasDefaultChannel);
+        setStorageAccounts(storage);
       })
       .catch(() => undefined);
   }, []);
   const autoPublishDisabled = !autoProcess || !defaultChannelReady;
+  const quarkAccounts = storageAccounts.filter((account) => account.provider === "quark");
+  const baiduAccounts = storageAccounts.filter((account) => account.provider === "baidu");
+  const selectedStorageData = {
+    autoProcess: String(autoProcess),
+    autoPublish: String(autoPublish),
+    ...(quarkAccountId ? { quarkAccountId } : {}),
+    ...(baiduAccountId ? { baiduAccountId } : {}),
+  };
   const props: UploadProps = {
     name: "files",
     multiple: true,
     accept: "image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/quicktime,video/webm",
     action: `${API}/api/admin/uploads`,
     headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
-    data: { autoProcess: String(autoProcess), autoPublish: String(autoPublish) },
+    data: selectedStorageData,
     onChange(info) {
       if (info.file.status === "done") {
         const response = info.file.response as { code?: number; message?: string; error?: string } | undefined;
@@ -910,6 +923,45 @@ function Uploader() {
         />
         {!defaultChannelReady ? <Tag color="gold">未配置默认频道账号</Tag> : null}
       </div>
+      <div className="upload-storage-options">
+        <div>
+          <span>本次夸克同步账号</span>
+          <Select
+            allowClear
+            placeholder={quarkAccounts.length ? "使用默认夸克账号" : "未配置夸克账号"}
+            value={quarkAccountId}
+            onChange={setQuarkAccountId}
+            disabled={!autoProcess || !quarkAccounts.length}
+            options={quarkAccounts.map((account) => ({
+              value: account.id,
+              label: `${account.label}${account.isDefault ? " · 默认" : ""}${account.accountName ? ` · ${account.accountName}` : ""}`,
+            }))}
+          />
+        </div>
+        <div>
+          <span>本次百度同步账号</span>
+          <Select
+            allowClear
+            placeholder={baiduAccounts.length ? "使用默认百度账号" : "未配置百度账号"}
+            value={baiduAccountId}
+            onChange={setBaiduAccountId}
+            disabled={!autoProcess || !baiduAccounts.length}
+            options={baiduAccounts.map((account) => ({
+              value: account.id,
+              label: `${account.label}${account.isDefault ? " · 默认" : ""}${account.accountName ? ` · ${account.accountName}` : ""}`,
+            }))}
+          />
+        </div>
+      </div>
+      {!quarkAccounts.length || !baiduAccounts.length ? (
+        <Alert
+          className="page-alert"
+          type="warning"
+          showIcon
+          message="网盘默认账号未配置完整"
+          description="上传处理仍会执行，但缺少对应网盘账号时会在任务提醒里记录同步失败。请到“网盘账号”完成授权和默认账号配置。"
+        />
+      ) : null}
       <Upload.Dragger {...props} className="upload-dragger">
         <UploadCloud size={42} />
         <h2>拖拽壁纸文件到这里</h2>

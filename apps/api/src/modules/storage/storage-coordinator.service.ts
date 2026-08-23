@@ -15,10 +15,10 @@ export class StorageCoordinatorService {
     private readonly accounts: StorageAccountService,
   ) {}
 
-  async syncWallpaper(wallpaperId: string, filePath: string, title: string) {
+  async syncWallpaper(wallpaperId: string, filePath: string, title: string, selection?: { quarkAccountId?: string; baiduAccountId?: string }) {
     const results: Array<{ provider: StorageProvider; ok: boolean; url?: string; passcode?: string; remoteFileId?: string; remotePath?: string; storageAccountId?: string; error?: string }> = [];
-    const quarkAccount = await this.accounts.getDefaultAccount(StorageProvider.quark);
-    const baiduAccount = await this.accounts.getDefaultAccount(StorageProvider.baidu);
+    const quarkAccount = await this.accounts.getAccountForProvider(StorageProvider.quark, selection?.quarkAccountId);
+    const baiduAccount = await this.accounts.getAccountForProvider(StorageProvider.baidu, selection?.baiduAccountId);
 
     try {
       const upload = await this.quark.upload(filePath, quarkAccount || undefined);

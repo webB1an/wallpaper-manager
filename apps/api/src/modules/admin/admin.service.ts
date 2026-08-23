@@ -38,6 +38,7 @@ type DiagnosticItem = {
 
 type AiReviewFilter = "unreviewed" | "safe" | "blocked";
 type StorageFilter = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short" | "unpublished_active_short";
+type StorageSelection = { quarkAccountId?: string; baiduAccountId?: string };
 
 const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
@@ -90,7 +91,7 @@ export class AdminService {
     return { token: this.jwt.sign({ sub: username, role: "admin" }) };
   }
 
-  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean }) {
+  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection }) {
     if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
@@ -117,7 +118,7 @@ export class AdminService {
           autoPublish,
         },
       });
-      const queued = autoProcess ? await this.enqueueProcessWallpaper(wallpaper.id) : undefined;
+      const queued = autoProcess ? await this.enqueueProcessWallpaper(wallpaper.id, options?.storageSelection) : undefined;
       created.push({ ...wallpaper, queued });
     }
     return created;
@@ -466,11 +467,12 @@ export class AdminService {
     return { updated: ids.length };
   }
 
-  async enqueueProcessWallpaper(id: string) {
-    const task = await this.tasks.create("upload_asset", { wallpaperId: id }, "开始处理壁纸");
+  async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection) {
+    const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}) };
+    const task = await this.tasks.create("upload_asset", payload, "开始处理壁纸");
     await this.wallpaperQueue.add(
       "process-wallpaper",
-      { wallpaperId: id, taskId: task.id },
+      { wallpaperId: id, taskId: task.id, storageSelection },
       { attempts: 1, removeOnComplete: 200, removeOnFail: 500 },
     );
     return { queued: true, taskId: task.id };
@@ -489,7 +491,7 @@ export class AdminService {
     return this.runProcessWallpaper(id, task.id);
   }
 
-  async runProcessWallpaper(id: string, taskId: string) {
+  async runProcessWallpaper(id: string, taskId: string, storageSelection?: StorageSelection) {
     const warnings: string[] = [];
     const taskResult: Record<string, unknown> = {};
     try {
@@ -509,7 +511,7 @@ export class AdminService {
 
       if (wallpaper.assetPath) {
         await this.tasks.update(taskId, { progress: 38, message: "正在同步夸克/百度网盘" });
-        const storageResults = await this.storage.syncWallpaper(id, join(process.cwd(), "storage", "public", wallpaper.assetPath), wallpaper.title);
+        const storageResults = await this.storage.syncWallpaper(id, join(process.cwd(), "storage", "public", wallpaper.assetPath), wallpaper.title, storageSelection);
         taskResult.storage = storageResults;
         warnings.push(...storageResults
           .filter((item) => !item.ok)
