@@ -107,21 +107,36 @@ export class AdminService {
     for (const file of files) {
       this.assertUploadFile(file);
       const saved = await this.persistFile(file);
-      const cover = await this.createCover(saved.path, saved.mimeType);
-      const wallpaper = await this.prisma.wallpaper.create({
-        data: {
-          title: saved.originalName.replace(/\.[^.]+$/, ""),
-          originalName: saved.originalName,
-          mimeType: saved.mimeType,
-          fileSize: BigInt(file.size),
-          assetPath: saved.relativePath,
-          coverPath: cover.relativePath,
-          coverUrl: publicAssetUrl(this.config, cover.relativePath),
-          status: autoProcess ? WallpaperStatus.processing : WallpaperStatus.draft,
-          type: detectType(saved.mimeType, saved.originalName),
-          autoPublish,
-        },
-      });
+      let cover: { path: string; relativePath: string };
+      try {
+        cover = await this.createCover(saved.path, saved.mimeType);
+      } catch {
+        await this.removeUploadedFile(saved.path);
+        throw new BadRequestException(`无法生成封面：${saved.originalName}，请检查文件是否损坏或格式是否受支持`);
+      }
+      let wallpaper;
+      try {
+        wallpaper = await this.prisma.wallpaper.create({
+          data: {
+            title: saved.originalName.replace(/\.[^.]+$/, ""),
+            originalName: saved.originalName,
+            mimeType: saved.mimeType,
+            fileSize: BigInt(file.size),
+            assetPath: saved.relativePath,
+            coverPath: cover.relativePath,
+            coverUrl: publicAssetUrl(this.config, cover.relativePath),
+            status: autoProcess ? WallpaperStatus.processing : WallpaperStatus.draft,
+            type: detectType(saved.mimeType, saved.originalName),
+            autoPublish,
+          },
+        });
+      } catch (error) {
+        await Promise.all([
+          this.removeUploadedFile(saved.path),
+          this.removeUploadedFile(cover.path),
+        ]);
+        throw error;
+      }
       const queued = autoProcess ? await this.enqueueProcessWallpaper(wallpaper.id, options?.storageSelection, autoPublish ? options?.channelAccountId : undefined) : undefined;
       created.push({ ...wallpaper, queued });
     }
@@ -792,6 +807,11 @@ export class AdminService {
       }).jpeg({ quality: 82 }).toFile(output);
     }
     return { path: output, relativePath: `covers/${fileName}` };
+  }
+
+  private async removeUploadedFile(filePath?: string) {
+    if (!filePath) return;
+    await unlink(filePath).catch(() => undefined);
   }
 
   private async createVideoCover(filePath: string, output: string): Promise<boolean> {

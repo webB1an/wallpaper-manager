@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { readdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 
@@ -51,6 +51,7 @@ const createdWallpaperIds = [];
 let uploadedWallpaper;
 
 await cleanupSmokeData();
+await assertCorruptUploadIsClean();
 
 try {
   for (const index of [1, 2]) {
@@ -138,6 +139,29 @@ async function cleanupSmokeAccounts() {
   }
 }
 
+async function assertCorruptUploadIsClean() {
+  const fileName = `${runId}-broken.jpg`;
+  const before = await publicFileSnapshot();
+  const form = new FormData();
+  form.set("autoProcess", "false");
+  form.set("autoPublish", "false");
+  form.append("files", new Blob([Buffer.from("not-a-real-jpeg")], { type: "image/jpeg" }), fileName);
+
+  const response = await fetch(`${adminOrigin}/api/admin/uploads`, {
+    method: "POST",
+    headers: uploadHeaders,
+    body: form,
+  });
+  const body = await response.json().catch(() => ({}));
+  assert(response.status === 400, `corrupt upload must return 400, got ${response.status}: ${body.message || body.error || "invalid response"}`);
+  assert(String(body.message || body.error || "").includes("无法生成封面"), "corrupt upload must explain cover generation failure");
+
+  const after = await publicFileSnapshot();
+  assert(sameSet(before, after), "corrupt upload must not leave original or cover files");
+  const leaked = await prisma.wallpaper.count({ where: { originalName: fileName } });
+  assert(leaked === 0, "corrupt upload must not create wallpaper rows");
+}
+
 async function cleanupSmokeData(ids = []) {
   const wallpapers = await prisma.wallpaper.findMany({
     where: {
@@ -154,6 +178,24 @@ async function cleanupSmokeData(ids = []) {
     await removePublicFile(item.assetPath);
     await removePublicFile(item.coverPath);
   }
+}
+
+async function publicFileSnapshot() {
+  const root = resolve(process.cwd(), "storage", "public");
+  const result = new Set();
+  for (const dir of ["originals", "covers"]) {
+    const names = await readdir(resolve(root, dir)).catch(() => []);
+    for (const name of names) result.add(`${dir}/${name}`);
+  }
+  return result;
+}
+
+function sameSet(left, right) {
+  if (left.size !== right.size) return false;
+  for (const item of left) {
+    if (!right.has(item)) return false;
+  }
+  return true;
 }
 
 async function removePublicFile(relativePath) {

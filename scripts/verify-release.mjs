@@ -200,6 +200,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "assertChannelMed
 requireContains("apps/api/src/modules/admin/admin.service.ts", "频道发帖素材不完整");
 requireContains("apps/api/src/modules/admin/admin.service.ts", 'BadRequestException("未配置腾讯频道账号")');
 requireContains("apps/admin/src/main.tsx", "uploadErrorMessage");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "无法生成封面");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "removeUploadedFile");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "存在没有可用网盘短链");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { isActive: true }");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");
@@ -275,6 +277,9 @@ requireContains("scripts/smoke-upload-routing.mjs", "channelAccountId");
 requireContains("scripts/smoke-upload-routing.mjs", "autoProcess\", \"false");
 requireContains("scripts/smoke-upload-routing.mjs", "autoPublish\", \"true");
 requireContains("scripts/smoke-upload-routing.mjs", "autoProcess=false upload must not enqueue processing tasks");
+requireContains("scripts/smoke-upload-routing.mjs", "assertCorruptUploadIsClean");
+requireContains("scripts/smoke-upload-routing.mjs", "corrupt upload must not leave original or cover files");
+requireContains("scripts/smoke-upload-routing.mjs", "无法生成封面");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
 requireContains("scripts/smoke-public.mjs", "passcodedShortLinks");
 requireContains("scripts/smoke-public.mjs", "baidu short link must expose passcode");
