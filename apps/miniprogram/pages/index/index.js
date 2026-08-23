@@ -5,6 +5,8 @@ let requestToken = 0;
 Page({
     data: {
         items: [],
+        leftItems: [],
+        rightItems: [],
         heroSlides: [],
         total: 0,
         page: 1,
@@ -23,7 +25,7 @@ Page({
         this.load();
     },
     onPullDownRefresh() {
-        this.setData({ page: 1, items: [] });
+        this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
         Promise.all([this.loadHero(), this.load()]).finally(() => wx.stopPullDownRefresh());
     },
     onReachBottom() {
@@ -36,11 +38,11 @@ Page({
         this.setData({ keyword: event.detail.value });
     },
     reload() {
-        this.setData({ page: 1, items: [] });
+        this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
         this.load();
     },
     switchSort(event) {
-        this.setData({ sort: event.currentTarget.dataset.sort || "latest", page: 1, items: [] });
+        this.setData({ sort: event.currentTarget.dataset.sort || "latest", page: 1, items: [], leftItems: [], rightItems: [] });
         this.load();
     },
     async load(append = false) {
@@ -57,9 +59,11 @@ Page({
             if (token !== requestToken)
                 return;
             const list = data.list.map(decorateCard);
+            const nextItems = append ? [...this.data.items, ...list] : list;
             this.setData({
-                items: append ? [...this.data.items, ...list] : list,
-                total: data.total
+                items: nextItems,
+                total: data.total,
+                ...splitMasonry(nextItems)
             });
         }
         catch (error) {
@@ -88,7 +92,7 @@ Page({
         }
     },
     retry() {
-        this.setData({ page: 1, items: [] });
+        this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
         this.load();
     },
     openDetail(event) {
@@ -110,6 +114,17 @@ Page({
 });
 function decorateCard(item) {
     return { ...item, typeLabel: formatTypeLabel(item.type) };
+}
+function splitMasonry(items) {
+    const leftItems = [];
+    const rightItems = [];
+    items.forEach((item, index) => {
+        if (index % 2 === 0)
+            leftItems.push(item);
+        else
+            rightItems.push(item);
+    });
+    return { leftItems, rightItems };
 }
 function formatTypeLabel(value) {
     return value === "live" ? "动态" : "静态";

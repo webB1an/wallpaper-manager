@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "壁纸详情"
+  "navigationBarTitleText": "壁纸详情",
+  "navigationBarBackgroundColor": "#1D2521",
+  "navigationBarTextStyle": "white"
 }

@@ -5,6 +5,8 @@ let requestToken = 0;
 Page({
   data: {
     items: [] as WallpaperCard[],
+    leftItems: [] as WallpaperCard[],
+    rightItems: [] as WallpaperCard[],
     heroSlides: [] as WallpaperCard[],
     total: 0,
     page: 1,
@@ -25,7 +27,7 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.setData({ page: 1, items: [] });
+    this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
     Promise.all([this.loadHero(), this.load()]).finally(() => wx.stopPullDownRefresh());
   },
 
@@ -41,12 +43,12 @@ Page({
   },
 
   reload() {
-    this.setData({ page: 1, items: [] });
+    this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
     this.load();
   },
 
   switchSort(event: WechatMiniprogram.TouchEvent) {
-    this.setData({ sort: event.currentTarget.dataset.sort || "latest", page: 1, items: [] });
+    this.setData({ sort: event.currentTarget.dataset.sort || "latest", page: 1, items: [], leftItems: [], rightItems: [] });
     this.load();
   },
 
@@ -63,9 +65,11 @@ Page({
       });
       if (token !== requestToken) return;
       const list = data.list.map(decorateCard);
+      const nextItems = append ? [...this.data.items, ...list] : list;
       this.setData({
-        items: append ? [...this.data.items, ...list] : list,
-        total: data.total
+        items: nextItems,
+        total: data.total,
+        ...splitMasonry(nextItems)
       });
     } catch (error) {
       if (token !== requestToken) return;
@@ -91,7 +95,7 @@ Page({
   },
 
   retry() {
-    this.setData({ page: 1, items: [] });
+    this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
     this.load();
   },
 
@@ -117,6 +121,16 @@ Page({
 
 function decorateCard(item: WallpaperCard): WallpaperCard {
   return { ...item, typeLabel: formatTypeLabel(item.type) };
+}
+
+function splitMasonry(items: WallpaperCard[]) {
+  const leftItems: WallpaperCard[] = [];
+  const rightItems: WallpaperCard[] = [];
+  items.forEach((item, index) => {
+    if (index % 2 === 0) leftItems.push(item);
+    else rightItems.push(item);
+  });
+  return { leftItems, rightItems };
 }
 
 function formatTypeLabel(value: string) {

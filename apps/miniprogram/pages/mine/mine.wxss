@@ -2,14 +2,14 @@
   margin-top: 26rpx;
   overflow: hidden;
   border-radius: 10rpx;
-  background: #fff;
+  background: #ffffff;
 }
 
 .row {
   display: flex;
   justify-content: space-between;
   padding: 28rpx 24rpx;
-  border-bottom: 1rpx solid #edf0eb;
+  border-bottom: 1rpx solid #ebe6dc;
   font-size: 28rpx;
 }
 
@@ -22,17 +22,17 @@
   padding: 12rpx 18rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.24);
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .mine-meter text:first-child {
-  color: #e3c35e;
+  color: #e6b566;
   font-size: 34rpx;
   font-weight: 820;
 }
 
 .mine-meter text:last-child {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 22rpx;
 }
 
@@ -47,17 +47,17 @@
   gap: 16rpx;
   align-items: center;
   padding: 16rpx;
-  border: 1rpx solid rgba(47, 75, 63, 0.08);
+  border: 1rpx solid #e3ddd0;
   border-radius: 10rpx;
-  background: #fff;
-  box-shadow: 0 10rpx 30rpx rgba(32, 36, 31, 0.06);
+  background: #ffffff;
+  box-shadow: 0 10rpx 30rpx rgba(31, 35, 28, 0.06);
 }
 
 .history-card image {
   width: 116rpx;
   height: 116rpx;
   border-radius: 10rpx;
-  background: #d9ded4;
+  background: #e8e2d6;
 }
 
 .history-main {
@@ -75,20 +75,20 @@
 }
 
 .history-title {
-  color: #20241f;
+  color: #1f231c;
   font-size: 27rpx;
   font-weight: 760;
 }
 
 .history-url {
   margin-top: 8rpx;
-  color: #77746b;
+  color: #7a746c;
   font-size: 22rpx;
 }
 
 .history-meta {
   margin-top: 8rpx;
-  color: #b55c3b;
+  color: #b85c3e;
   font-size: 22rpx;
 }
 
@@ -98,8 +98,8 @@
   margin-top: 8rpx;
   padding: 4rpx 10rpx;
   border-radius: 8rpx;
-  color: #2f4b3f;
-  background: #eef1e8;
+  color: #4c6b5a;
+  background: #e4eadf;
   font-size: 21rpx;
   font-weight: 760;
 }
@@ -124,7 +124,7 @@
   display: block;
   margin-top: 4rpx;
   overflow: hidden;
-  color: #88857b;
+  color: #9a948a;
   font-size: 21rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -137,8 +137,8 @@
   height: 64rpx;
   padding: 0;
   border-radius: 10rpx;
-  color: #fff;
-  background: #2f4b3f;
+  color: #ffffff;
+  background: #4c6b5a;
   font-size: 24rpx;
   line-height: 64rpx;
 }
@@ -150,15 +150,15 @@
 .empty-state {
   margin-top: 10rpx;
   padding: 64rpx 36rpx;
-  border: 2rpx dashed #d6dfd8;
+  border: 2rpx dashed #e3ddd0;
   border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.58);
+  background: #ffffff;
   text-align: center;
 }
 
 .empty-state text:first-child {
   display: block;
-  color: #20241f;
+  color: #1f231c;
   font-size: 30rpx;
   font-weight: 820;
 }
@@ -166,7 +166,7 @@
 .empty-state text:last-child {
   display: block;
   margin-top: 12rpx;
-  color: #77766e;
+  color: #7a746c;
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -178,8 +178,8 @@
   margin: 26rpx auto 0;
   padding: 0;
   border-radius: 12rpx;
-  color: #fff;
-  background: #2f4b3f;
+  color: #ffffff;
+  background: #4c6b5a;
   font-size: 25rpx;
   font-weight: 760;
   line-height: 68rpx;

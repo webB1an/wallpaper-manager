@@ -49,7 +49,7 @@
     <button class="retry-button" bindtap="retry">重试</button>
   </view>
   <view wx:elif="{{!loading && tags.length === 0}}" class="empty state-card">
-    <text>暂无分类</text>
-    <text class="empty-subtitle">上传并完成 AI 识别后会自动生成标签</text>
+    <text>暂无标签</text>
+    <text class="empty-subtitle">上传并完成识别后会自动生成标签</text>
   </view>
 </view>

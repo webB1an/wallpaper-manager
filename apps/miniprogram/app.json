@@ -8,27 +8,33 @@
   ],
   "window": {
     "navigationBarTitleText": "WDBZK 壁纸",
-    "navigationBarBackgroundColor": "#F8F5EA",
+    "navigationBarBackgroundColor": "#F4F0E8",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F8F5EA"
+    "backgroundColor": "#F4F0E8"
   },
   "tabBar": {
-    "color": "#7B7A72",
-    "selectedColor": "#3F5C40",
+    "color": "#9A948A",
+    "selectedColor": "#4C6B5A",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "发现"
+        "text": "发现",
+        "iconPath": "assets/tabbar/discover.png",
+        "selectedIconPath": "assets/tabbar/discover-active.png"
       },
       {
         "pagePath": "pages/category/category",
-        "text": "分类"
+        "text": "标签",
+        "iconPath": "assets/tabbar/tag.png",
+        "selectedIconPath": "assets/tabbar/tag-active.png"
       },
       {
         "pagePath": "pages/mine/mine",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/tabbar/mine.png",
+        "selectedIconPath": "assets/tabbar/mine-active.png"
       }
     ]
   },

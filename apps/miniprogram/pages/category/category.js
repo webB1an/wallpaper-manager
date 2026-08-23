@@ -34,9 +34,9 @@ Page({
         catch (error) {
             if (token !== requestToken)
                 return;
-            const message = error instanceof Error ? error.message : "分类加载失败";
+            const message = error instanceof Error ? error.message : "标签加载失败";
             this.setData({ error: message });
-            wx.showToast({ title: "分类加载失败", icon: "none" });
+            wx.showToast({ title: "标签加载失败", icon: "none" });
         }
         finally {
             if (token === requestToken)

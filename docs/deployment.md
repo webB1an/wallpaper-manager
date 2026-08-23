@@ -80,6 +80,8 @@ cp deploy/production.env.example apps/api/.env
 vim apps/api/.env
 ```
 
+生产模式下 API 启动时会拒绝 `CHANGE_ME`、`change-this-password` 和示例数据库地址等占位值；`ADMIN_PASSWORD` 至少 12 位，`JWT_SECRET` 至少 32 位，`DATABASE_URL` 必须替换成真实数据库账号和强密码。
+
 关键配置参考：
 
 ```dotenv
@@ -139,7 +141,7 @@ pm2 save
 npm run package:release
 ```
 
-生成 `wallpaper-manager-deploy-YYYYMMDDHHmmss.tar.gz` 后上传到宝塔服务器并解压到 `/www/wwwroot/wallpaper-manager`。
+脚本会先执行 `npm run build`，把 API、管理后台和共享包的 `dist` 产物一起打进压缩包；服务器只安装 API 运行时依赖并执行 Prisma，不会重复构建前端。生成 `wallpaper-manager-deploy-YYYYMMDDHHmmss.tar.gz` 后上传到宝塔服务器并解压到 `/www/wwwroot/wallpaper-manager`。
 
 ## 7. 网盘账号与授权
 
@@ -189,6 +191,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 - 先打开管理端“上线诊断”，确认公开域名、数据库、Redis、ffmpeg、bdpan、夸克 skill、旧站封面目录、DeepSeek、panapi、腾讯频道 CLI 和频道账号状态。
 - 对诊断失败项，优先使用页面右侧“复制命令”按钮，把命令粘贴到宝塔终端执行。
+- 在填写 `apps/api/.env` 后，可先执行 `npm run preflight:env`，本地检查生产启动硬性配置；它不连接服务器，也不打印任何密码或 Token 值。
 - 在服务器执行 `npm run readiness:production`，把当前失败/提醒项整理成可直接操作的上线待办；需要把提醒也作为失败处理时执行 `npm run readiness:production:strict`。
 - 在服务器执行 `npm run smoke:production`，一次确认公开列表、详情、封面域名、短链域名、分类聚合、后台登录、概览、诊断和系统设置接口都可用。
 - 需要强制所有诊断项无失败/提醒时执行 `npm run smoke:production:strict`。

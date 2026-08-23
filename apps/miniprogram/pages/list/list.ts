@@ -9,6 +9,8 @@ Page({
     tag: "",
     type: "",
     items: [] as WallpaperCard[],
+    leftItems: [] as WallpaperCard[],
+    rightItems: [] as WallpaperCard[],
     total: 0,
     page: 1,
     loading: false,
@@ -23,14 +25,14 @@ Page({
       tag,
       type,
       title,
-      subtitle: tag ? "标签下的全部壁纸" : "分类下的全部壁纸"
+      subtitle: tag ? "标签下的全部壁纸" : "类型下的全部壁纸"
     });
     wx.setNavigationBarTitle({ title });
     this.load();
   },
 
   onPullDownRefresh() {
-    this.setData({ page: 1, items: [] });
+    this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
     this.load().finally(() => wx.stopPullDownRefresh());
   },
 
@@ -54,9 +56,11 @@ Page({
       });
       if (token !== requestToken) return;
       const list = data.list.map(decorateCard);
+      const nextItems = append ? [...this.data.items, ...list] : list;
       this.setData({
-        items: append ? [...this.data.items, ...list] : list,
-        total: data.total
+        items: nextItems,
+        total: data.total,
+        ...splitMasonry(nextItems)
       });
     } catch (error) {
       if (token !== requestToken) return;
@@ -69,7 +73,7 @@ Page({
   },
 
   retry() {
-    this.setData({ page: 1, items: [] });
+    this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
     this.load();
   },
 
@@ -94,6 +98,16 @@ Page({
 
 function decorateCard(item: WallpaperCard): WallpaperCard {
   return { ...item, typeLabel: formatTypeLabel(item.type) };
+}
+
+function splitMasonry(items: WallpaperCard[]) {
+  const leftItems: WallpaperCard[] = [];
+  const rightItems: WallpaperCard[] = [];
+  items.forEach((item, index) => {
+    if (index % 2 === 0) leftItems.push(item);
+    else rightItems.push(item);
+  });
+  return { leftItems, rightItems };
 }
 
 function decodeOption(value?: string) {

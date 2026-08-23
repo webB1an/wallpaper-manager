@@ -1,8 +1,8 @@
 page {
   min-height: 100vh;
   overflow-x: hidden;
-  background: #f8f5ea;
-  color: #2a2a22;
+  background: #f4f0e8;
+  color: #1f231c;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -30,13 +30,13 @@ button {
   position: relative;
   overflow: hidden;
   padding: 34rpx 30rpx;
-  border: 1rpx solid #e4ddcc;
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
   border-radius: 26rpx;
-  color: #fffdf7;
+  color: #ffffff;
   background:
-    linear-gradient(90deg, rgba(230, 197, 95, 0.18), transparent 46%),
-    linear-gradient(135deg, #2a2a22 0%, #3f5c40 68%, #7a4f2b 145%);
-  box-shadow: 0 18rpx 42rpx rgba(42, 42, 34, 0.12);
+    radial-gradient(circle at 88% 12%, rgba(230, 181, 102, 0.22), transparent 34%),
+    linear-gradient(135deg, #314a3b 0%, #6e5a43 100%);
+  box-shadow: 0 18rpx 42rpx rgba(49, 74, 59, 0.22);
 }
 
 .hero::before {
@@ -61,7 +61,7 @@ button {
 .hero-subtitle {
   display: block;
   margin-top: 12rpx;
-  color: rgba(255, 255, 255, 0.76);
+  color: rgba(255, 255, 255, 0.84);
   font-size: 24rpx;
   line-height: 1.5;
 }
@@ -71,13 +71,13 @@ button {
   align-items: center;
   justify-content: space-between;
   margin: 34rpx 2rpx 16rpx;
-  color: #2a2a22;
+  color: #1f231c;
   font-size: 32rpx;
   font-weight: 840;
 }
 
 .muted {
-  color: #8a8174;
+  color: #7a746c;
   font-size: 24rpx;
 }
 
@@ -88,14 +88,14 @@ button {
   padding: 0 18rpx;
   margin: 0 12rpx 12rpx 0;
   border-radius: 999rpx;
-  color: #3f5c40;
-  background: #e7eddf;
+  color: #4c6b5a;
+  background: #e4eadf;
   font-size: 23rpx;
 }
 
 .empty {
   padding: 80rpx 0;
-  color: #77766e;
+  color: #7a746c;
   text-align: center;
 }
 
@@ -106,20 +106,20 @@ button {
 .state-card {
   margin-top: 26rpx;
   padding: 56rpx 24rpx;
-  border: 2rpx dashed #e1dac8;
+  border: 2rpx dashed #e3ddd0;
   border-radius: 20rpx;
-  background: rgba(255, 253, 247, 0.78);
+  background: #ffffff;
 }
 
 .empty-subtitle {
   margin-top: 10rpx;
-  color: #9a9487;
+  color: #9a948a;
   font-size: 23rpx;
 }
 
 .loading-more {
   padding: 30rpx 0 8rpx;
-  color: #77766e;
+  color: #7a746c;
   font-size: 24rpx;
   text-align: center;
 }
@@ -131,8 +131,8 @@ button {
   margin: 22rpx auto 0;
   padding: 0;
   border-radius: 12rpx;
-  color: #fffdf7;
-  background: #3f5c40;
+  color: #ffffff;
+  background: #4c6b5a;
   font-size: 24rpx;
   line-height: 64rpx;
 }

@@ -1,15 +1,34 @@
+<template name="posterCard">
+  <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
+    <text class="live-ribbon">{{item.type === 'live' ? '▶' : '●'}}</text>
+    <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
+    <view class="poster-info">
+      <text class="poster-title">{{item.title}}</text>
+      <view>
+        <text class="pill">{{item.typeLabel}}</text>
+        <text class="count">{{item.downloadCount}} 次下载</text>
+      </view>
+      <view class="card-tags" wx:if="{{item.tags.length}}">
+        <block wx:for="{{item.tags}}" wx:for-item="tagName" wx:key="*this">
+          <text wx:if="{{index < 2}}">#{{tagName}}</text>
+        </block>
+      </view>
+    </view>
+  </view>
+</template>
+
 <view class="page">
   <view class="hero">
-    <swiper wx:if="{{heroSlides.length}}" class="hero-swiper" autoplay circular interval="4200" duration="420">
+    <swiper wx:if="{{heroSlides.length}}" class="hero-swiper" autoplay circular interval="4200" duration="420" indicator-dots="{{heroSlides.length > 1}}" indicator-color="rgba(255,255,255,0.38)" indicator-active-color="#ffffff">
       <block wx:for="{{heroSlides}}" wx:key="id">
         <swiper-item>
           <view class="hero-slide" bindtap="openDetail" data-id="{{item.id}}">
             <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
             <view class="hero-overlay">
-              <text class="hero-kicker">热门动态壁纸</text>
+              <text class="hero-kicker">热门壁纸</text>
               <text class="hero-title">{{item.title}}</text>
               <view class="hero-meta">
-                <text>▶ 动态</text>
+                <text>{{item.type === 'live' ? '▶ ' : ''}}{{item.typeLabel}}</text>
                 <text>{{item.downloadCount}} 次领取</text>
               </view>
             </view>
@@ -19,7 +38,7 @@
     </swiper>
     <view wx:else class="hero-fallback">
       <text class="hero-kicker">WDBZK WALLPAPERS</text>
-      <text class="hero-title">发现好看的动态壁纸</text>
+      <text class="hero-title">发现好看的壁纸</text>
       <text class="hero-subtitle">只展示缩略图，原图资源复制短链领取</text>
     </view>
   </view>
@@ -36,36 +55,32 @@
   </view>
 
   <view class="section-title gallery-head">
-    <text>{{sort === 'hot' ? '热门动态' : '最新动态'}}</text>
+    <text>{{sort === 'hot' ? '热门壁纸' : '最新壁纸'}}</text>
     <text class="muted">{{total}} 张</text>
   </view>
 
-  <view class="poster-grid">
-    <block wx:for="{{items}}" wx:key="id">
-      <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
-        <text class="live-ribbon">▶</text>
-        <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
-        <view class="poster-info">
-          <text class="poster-title">{{item.title}}</text>
-          <view>
-            <text class="pill">{{item.typeLabel}}</text>
-            <text class="count">{{item.downloadCount}} 次下载</text>
-          </view>
-          <view class="card-tags" wx:if="{{item.tags.length}}">
-            <block wx:for="{{item.tags}}" wx:for-item="tagName" wx:key="*this">
-              <text wx:if="{{index < 2}}">#{{tagName}}</text>
-            </block>
-          </view>
-        </view>
-      </view>
-    </block>
+  <view class="masonry-grid">
+    <view class="masonry-column">
+      <block wx:for="{{leftItems}}" wx:key="id">
+        <template is="posterCard" data="{{item}}" />
+      </block>
+    </view>
+    <view class="masonry-column">
+      <block wx:for="{{rightItems}}" wx:key="id">
+        <template is="posterCard" data="{{item}}" />
+      </block>
+    </view>
   </view>
 
-  <view wx:if="{{loading && items.length === 0}}" class="skeleton-grid">
+  <view wx:if="{{loading && items.length === 0}}" class="skeleton-grid masonry-grid">
+    <view class="masonry-column">
     <view class="skeleton-card tall"><text></text><text></text></view>
     <view class="skeleton-card"><text></text><text></text></view>
+    </view>
+    <view class="masonry-column">
     <view class="skeleton-card"><text></text><text></text></view>
     <view class="skeleton-card tall"><text></text><text></text></view>
+    </view>
   </view>
   <view wx:elif="{{loading && items.length > 0}}" class="loading-more">继续加载缩略图...</view>
   <view wx:elif="{{!loading && error}}" class="empty state-card">
@@ -74,6 +89,6 @@
   </view>
   <view wx:elif="{{!loading && items.length === 0}}" class="empty state-card">
     <text>暂无壁纸</text>
-    <text class="empty-subtitle">换个关键词或分类再试试</text>
+    <text class="empty-subtitle">换个关键词或标签再试试</text>
   </view>
 </view>

@@ -1,3 +1,16 @@
+<template name="listPosterCard">
+  <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
+    <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
+    <view class="poster-body">
+      <text class="poster-title">{{item.title}}</text>
+      <view class="poster-meta">
+        <text class="poster-pill">{{item.type === 'live' ? '▶ 动态' : '● 静态'}}</text>
+        <text>{{item.downloadCount}} 次</text>
+      </view>
+    </view>
+  </view>
+</template>
+
 <view class="page list-page">
   <view class="list-head">
     <view>
@@ -8,26 +21,28 @@
     <text class="list-count">{{total}} 张</text>
   </view>
 
-  <view class="poster-grid">
-    <block wx:for="{{items}}" wx:key="id">
-      <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
-        <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
-        <view class="poster-body">
-          <text class="poster-title">{{item.title}}</text>
-          <view class="poster-meta">
-            <text class="poster-pill">▶ 动态</text>
-            <text>{{item.downloadCount}} 次</text>
-          </view>
-        </view>
-      </view>
-    </block>
+  <view class="poster-grid masonry-grid">
+    <view class="masonry-column">
+      <block wx:for="{{leftItems}}" wx:key="id">
+        <template is="listPosterCard" data="{{item}}" />
+      </block>
+    </view>
+    <view class="masonry-column">
+      <block wx:for="{{rightItems}}" wx:key="id">
+        <template is="listPosterCard" data="{{item}}" />
+      </block>
+    </view>
   </view>
 
-  <view wx:if="{{loading && items.length === 0}}" class="skeleton-grid">
-    <view class="skeleton-card"></view>
-    <view class="skeleton-card"></view>
-    <view class="skeleton-card"></view>
-    <view class="skeleton-card"></view>
+  <view wx:if="{{loading && items.length === 0}}" class="masonry-grid">
+    <view class="masonry-column">
+      <view class="skeleton-card"></view>
+      <view class="skeleton-card"></view>
+    </view>
+    <view class="masonry-column">
+      <view class="skeleton-card"></view>
+      <view class="skeleton-card"></view>
+    </view>
   </view>
   <view wx:elif="{{loading && items.length > 0}}" class="loading-more">继续加载...</view>
   <view wx:elif="{{!loading && error}}" class="empty state-card">
@@ -36,6 +51,6 @@
   </view>
   <view wx:elif="{{!loading && items.length === 0}}" class="empty state-card">
     <text>暂无壁纸</text>
-    <text class="empty-subtitle">换个标签再看看</text>
+    <text class="empty-subtitle">换个标签或类型再看看</text>
   </view>
 </view>

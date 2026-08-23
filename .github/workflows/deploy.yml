@@ -95,4 +95,4 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "cd '${DEPLOY_PATH}' && npm run readiness:launch -- --allow-empty-appid || true"
+            "cd '${DEPLOY_PATH}' && npm run preflight:env || true; npm run readiness:launch -- --allow-empty-appid || true"

@@ -152,6 +152,7 @@ if (rootPackage.scripts?.["smoke:query-values"] !== "npm run smoke:query-values 
 if (rootPackage.scripts?.["readiness:production"] !== "node scripts/production-readiness.mjs") fail("root package must expose readiness:production");
 if (rootPackage.scripts?.["readiness:production:strict"] !== "node scripts/production-readiness.mjs --strict") fail("root package must expose readiness:production:strict");
 if (rootPackage.scripts?.["readiness:miniprogram"] !== "node scripts/miniprogram-readiness.mjs") fail("root package must expose readiness:miniprogram");
+if (rootPackage.scripts?.["preflight:env"] !== "node scripts/preflight-env.mjs") fail("root package must expose preflight:env");
 if (rootPackage.scripts?.["miniprogram:appid"] !== "node scripts/set-miniprogram-appid.mjs") fail("root package must expose miniprogram:appid");
 if (rootPackage.scripts?.["readiness:launch"] !== "node scripts/launch-readiness.mjs") fail("root package must expose readiness:launch");
 if (rootPackage.scripts?.["auth:storage"] !== "node scripts/storage-auth.mjs") fail("root package must expose auth:storage diagnostic helper");
@@ -238,6 +239,13 @@ requireContains("apps/miniprogram/pages/category/category.ts", "openList");
 requireContains("apps/miniprogram/pages/category/category.ts", "wx.navigateTo");
 requireContains("apps/miniprogram/pages/category/category.ts", "/pages/list/list");
 requireNotContains("apps/miniprogram/pages/category/category.ts", "wx.reLaunch");
+requireContains("deploy/package-release.ps1", "npm run build");
+requireContains("deploy/package-release.ps1", "--exclude='./.git'");
+requireContains("deploy/package-release.ps1", "--exclude='./.github'");
+requireNotContains("deploy/package-release.ps1", "--exclude='./apps/*/dist'");
+requireNotContains("deploy/package-release.ps1", "--exclude='./packages/*/dist'");
+requireContains("deploy/package-release.ps1", "--exclude='./packages/*/node_modules'");
+requireContains("deploy/bootstrap-server.sh", "npm run preflight:env");
 for (const path of [
   "apps/miniprogram/app.json",
   "apps/miniprogram/app.wxss",
@@ -261,6 +269,13 @@ requireNoBluePurplePalette([
   "apps/miniprogram/pages/mine/mine.wxss",
 ]);
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigins");
+requireContains("apps/api/src/main.ts", "assertProductionConfig");
+requireContains("apps/api/src/main.ts", 'process.env.NODE_ENV === "production"');
+requireContains("apps/api/src/main.ts", "JWT_SECRET 必须配置为至少 32 位的非默认随机字符串");
+requireContains("apps/api/src/main.ts", "DATABASE_URL 必须使用真实数据库地址和非默认密码");
+requireContains("apps/api/src/main.ts", "PUBLIC_API_ORIGIN");
+requireContains("apps/api/src/main.ts", "ADMIN_ORIGIN");
+requireContains("apps/api/src/main.ts", "SHORT_LINK_ORIGIN");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkMiniprogramReleaseConfig");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "微信小程序发布");
@@ -461,6 +476,9 @@ requireContains("scripts/production-readiness.mjs", "--strict");
 requireContains("scripts/production-readiness.mjs", "production_readiness");
 requireContains("scripts/production-readiness.mjs", "ADMIN_PASSWORD");
 requireContains("scripts/miniprogram-readiness.mjs", "--allow-empty-appid");
+requireContains("scripts/preflight-env.mjs", "apps/api/.env");
+requireContains("scripts/preflight-env.mjs", "Hard failures");
+requireContains("scripts/preflight-env.mjs", "MINIPROGRAM_APPID");
 requireContains("scripts/miniprogram-readiness.mjs", "MINIPROGRAM_APPID");
 requireContains("scripts/miniprogram-readiness.mjs", "category_tab_jump");
 requireContains("scripts/miniprogram-readiness.mjs", "wx.navigateTo");
@@ -507,6 +525,7 @@ requireContainsIfPresent(".github/workflows/deploy.yml", "npm run smoke:upload-r
 requireContainsIfPresent(".github/workflows/deploy.yml", "npm run smoke:auth-code");
 requireContainsIfPresent(".github/workflows/deploy.yml", "Launch readiness report");
 requireContainsIfPresent(".github/workflows/deploy.yml", "npm run readiness:launch -- --allow-empty-appid || true");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run preflight:env || true");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",
@@ -555,10 +574,12 @@ requireContains("docs/deployment.md", "npm run readiness:production");
 requireContains("docs/deployment.md", "npm run readiness:miniprogram");
 requireContains("docs/deployment.md", "npm run miniprogram:appid -- wx你的AppID");
 requireContains("docs/deployment.md", "npm run readiness:launch");
+requireContains("docs/deployment.md", "npm run preflight:env");
 requireContains("docs/deployment.md", "正式业务同步只读取管理端创建的多账号授权态");
 requireContains("docs/deployment.md", "npm run cleanup:unpublished-links");
 requireContains("README.md", "npm run readiness:production");
 requireContains("README.md", "npm run miniprogram:appid -- wx你的AppID");
+requireContains("README.md", "npm run preflight:env");
 requireContains("README.md", "Storage authorization is completed in the admin web console");
 requireContains("README.md", "not as a shared server login");
 requireContains("README.md", "npm run cleanup:unpublished-links");
