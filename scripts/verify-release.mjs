@@ -155,6 +155,9 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { i
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");
 requireContains("apps/admin/src/main.tsx", "defaultChannelReady");
 requireContains("apps/admin/src/main.tsx", "未配置默认频道账号");
+requireContains("apps/admin/src/main.tsx", "默认频道账号");
+requireContains("apps/admin/src/main.tsx", "静态最多 18 张 · 动态 1 个");
+requireContains("apps/admin/src/main.tsx", "发帖内容不带网盘链接");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认腾讯频道账号，不能开启默认自动发帖");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认腾讯频道账号，不能开启上传后自动发帖");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertDefaultChannelReady");
@@ -173,6 +176,7 @@ requireContains("apps/admin/src/main.tsx", "warnCount");
 requireContains("apps/admin/src/main.tsx", "提醒 {warnCount}");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");
 requireContains("apps/admin/src/styles.css", "storage-readiness");
+requireContains("apps/admin/src/styles.css", "channel-readiness");
 requireContains("apps/admin/vite.config.ts", "chunkSizeWarningLimit");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");

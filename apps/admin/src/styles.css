@@ -160,6 +160,49 @@ h1 {
   justify-content: flex-end;
 }
 
+.channel-readiness {
+  margin-bottom: 14px;
+}
+
+.channel-readiness-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  min-height: 92px;
+  padding: 16px;
+  border: 1px solid #ead8aa;
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.channel-readiness-card.is-ready {
+  border-color: #dce8da;
+  background: #f7fbf5;
+}
+
+.channel-readiness-card strong,
+.channel-readiness-card span {
+  display: block;
+}
+
+.channel-readiness-card strong {
+  font-size: 16px;
+}
+
+.channel-readiness-card span {
+  margin-top: 4px;
+  color: #66746b;
+  font-size: 13px;
+}
+
+.channel-readiness-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .launch-checklist {
   margin-bottom: 18px;
   padding: 16px;

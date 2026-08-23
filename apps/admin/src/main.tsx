@@ -1395,6 +1395,7 @@ function Channels() {
   const [form] = Form.useForm();
   const load = () => request<ChannelAccount[]>("/api/admin/channels").then(setItems);
   useEffect(() => { void load(); }, []);
+  const defaultAccount = items.find((item) => item.isDefault);
 
   const discoverGuilds = async () => {
     const token = String(form.getFieldValue("token") || "").trim();
@@ -1446,6 +1447,26 @@ function Channels() {
   return (
     <section>
       <Header title="腾讯频道" subtitle="支持多个 Token 账号，保存后上传批次可以选择默认账号自动发帖。" />
+      <div className="channel-readiness">
+        <div className={`channel-readiness-card${defaultAccount ? " is-ready" : ""}`}>
+          <div>
+            <strong>默认频道账号</strong>
+            <span>{defaultAccount ? `${defaultAccount.guildName || "已选频道"} · ${defaultAccount.channelName || "已选版块"}` : "上传后自动发帖和资源库手动发帖都需要默认账号"}</span>
+          </div>
+          <div className="channel-readiness-meta">
+            <Tag color={defaultAccount ? "green" : "gold"}>{defaultAccount ? `默认：${defaultAccount.label}` : "缺默认账号"}</Tag>
+            <Tag color={items.length ? "green" : "default"}>{items.length ? `${items.length} 个账号` : "未新增"}</Tag>
+            <Tag color="blue">静态最多 18 张 · 动态 1 个</Tag>
+          </div>
+          <Button size="small" type={defaultAccount ? "default" : "primary"} onClick={() => setActiveTab("new")}>新增频道账号</Button>
+        </div>
+      </div>
+      <Alert
+        className="page-alert"
+        type="info"
+        showIcon
+        message="第一个频道账号会自动设为默认；保存前可先验证 Token 获取频道和版块，发帖内容不带网盘链接。"
+      />
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {
           key: "accounts",
