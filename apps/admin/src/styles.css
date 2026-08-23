@@ -548,6 +548,49 @@ small {
   white-space: nowrap;
 }
 
+.release-guide {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #dfe6dc;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.release-guide strong,
+.release-guide span {
+  display: block;
+}
+
+.release-guide strong {
+  font-size: 16px;
+}
+
+.release-guide span {
+  margin-top: 4px;
+  color: #66746b;
+  font-size: 13px;
+}
+
+.release-guide-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 8px 12px;
+  padding-top: 12px;
+  border-top: 1px solid #edf0e9;
+  color: #66746b;
+}
+
+.release-guide-grid code {
+  color: #17201b;
+  white-space: normal;
+  word-break: break-all;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

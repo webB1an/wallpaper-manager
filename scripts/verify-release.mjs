@@ -167,6 +167,9 @@ requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，
 requireContains("apps/admin/src/main.tsx", "row.command");
 requireContains("apps/admin/src/main.tsx", "命令已复制");
 requireContains("apps/admin/src/main.tsx", "复制上线报告");
+requireContains("apps/admin/src/main.tsx", "微信小程序发布参数");
+requireContains("apps/admin/src/main.tsx", "request 合法域名");
+requireContains("apps/admin/src/main.tsx", "r.wdbzk.com 只复制文本");
 requireContains("apps/admin/src/main.tsx", "function DiagnosticActions");
 requireContains("apps/admin/src/main.tsx", "去网盘账号");
 requireContains("apps/admin/src/main.tsx", "去腾讯频道");
@@ -177,6 +180,7 @@ requireContains("apps/admin/src/main.tsx", "提醒 {warnCount}");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");
 requireContains("apps/admin/src/styles.css", "storage-readiness");
 requireContains("apps/admin/src/styles.css", "channel-readiness");
+requireContains("apps/admin/src/styles.css", "release-guide");
 requireContains("apps/admin/vite.config.ts", "chunkSizeWarningLimit");
 requireContains("apps/api/src/modules/public/public.service.ts", "optionalWallpaperType");
 requireContains("apps/api/src/modules/public/public.service.ts", "positiveInt");

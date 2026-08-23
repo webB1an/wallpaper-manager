@@ -1173,7 +1173,38 @@ function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) 
         { title: "说明", render: (_, row) => <DiagnosticMessage value={row.message} command={row.command} /> },
         { title: "操作", width: 220, render: (_, row) => <DiagnosticActions row={row} onNavigate={onNavigate} onOpenLibrary={onOpenLibrary} /> },
       ]} />
+      <MiniProgramReleaseGuide />
     </section>
+  );
+}
+
+function MiniProgramReleaseGuide() {
+  const checklist = [
+    "微信小程序发布参数",
+    "AppID: 填入 apps/miniprogram/project.config.json",
+    "request 合法域名: https://wall-api.wdbzk.com",
+    "downloadFile 合法域名: https://wall-api.wdbzk.com",
+    "uploadFile/connectSocket: 当前不使用，留空",
+    "r.wdbzk.com: 只作为短链文本复制，不配置为小程序服务器域名",
+    "开发者工具本地设置: 不勾选“不校验合法域名”",
+  ].join("\n");
+  return (
+    <div className="release-guide">
+      <div>
+        <strong>微信小程序发布参数</strong>
+        <span>AppID 填入项目配置；微信后台只配置 API 域名，短链域名只作为文本展示。</span>
+      </div>
+      <Space wrap>
+        <Button size="small" icon={<Copy size={14} />} onClick={() => copyText("https://wall-api.wdbzk.com", "API 域名已复制")}>复制 API 域名</Button>
+        <Button size="small" icon={<Copy size={14} />} onClick={() => copyText("https://r.wdbzk.com", "短链域名已复制")}>复制短链域名</Button>
+        <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(checklist, "小程序发布清单已复制")}>复制清单</Button>
+      </Space>
+      <div className="release-guide-grid">
+        <span>request</span><code>https://wall-api.wdbzk.com</code>
+        <span>downloadFile</span><code>https://wall-api.wdbzk.com</code>
+        <span>短链策略</span><code>r.wdbzk.com 只复制文本</code>
+      </div>
+    </div>
   );
 }
 
