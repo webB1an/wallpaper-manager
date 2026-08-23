@@ -85,3 +85,10 @@ jobs:
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
             "cd '${DEPLOY_PATH}' && npm run smoke:production"
+
+      - name: Launch readiness report
+        if: always()
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd '${DEPLOY_PATH}' && npm run readiness:launch -- --allow-empty-appid || true"

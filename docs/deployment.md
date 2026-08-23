@@ -55,6 +55,7 @@ DATABASE_URL=mysql://wallpaper_manager_user:YOUR_PASSWORD@BAOTA_DB_HOST:3306/wal
 3. 通过 SSH/rsync 同步源码到宝塔服务器
 4. 在服务器执行 `deploy/bootstrap-server.sh`
 5. 在服务器执行 `npm run smoke:production`，确认公开接口和后台核心接口都可用
+6. 额外输出一份非阻塞 `npm run readiness:launch -- --allow-empty-appid` 报告，便于在 Actions 日志里查看剩余上线待办
 
 需要在 GitHub 仓库的 `Settings > Secrets and variables > Actions` 添加：
 
