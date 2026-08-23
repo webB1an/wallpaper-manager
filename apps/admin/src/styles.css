@@ -408,11 +408,11 @@ h1 {
 }
 
 .issue-row.is-clickable:hover {
-  color: #1f7a5a;
+  color: #2f6f5e;
 }
 
 .issue-row strong {
-  color: #1f7a5a;
+  color: #2f6f5e;
   font-size: 18px;
 }
 
@@ -671,7 +671,7 @@ small {
   justify-content: center;
   border-radius: 8px;
   background: #eef5ed;
-  color: #1f7a5a;
+  color: #2f6f5e;
 }
 
 .final-step strong,
