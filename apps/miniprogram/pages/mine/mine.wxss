@@ -26,7 +26,7 @@
 }
 
 .mine-meter text:first-child {
-  color: #ffd166;
+  color: #e3c35e;
   font-size: 34rpx;
   font-weight: 820;
 }
@@ -57,7 +57,7 @@
   width: 116rpx;
   height: 116rpx;
   border-radius: 10rpx;
-  background: #dce4e8;
+  background: #d9ded4;
 }
 
 .history-main {
@@ -75,7 +75,7 @@
 }
 
 .history-title {
-  color: #111820;
+  color: #20241f;
   font-size: 27rpx;
   font-weight: 760;
 }
@@ -88,7 +88,7 @@
 
 .history-meta {
   margin-top: 8rpx;
-  color: #d85a3a;
+  color: #b55c3b;
   font-size: 22rpx;
 }
 
@@ -98,7 +98,7 @@
   margin-top: 8rpx;
   padding: 4rpx 10rpx;
   border-radius: 8rpx;
-  color: #25465a;
+  color: #2f4b3f;
   background: #edf4f0;
   font-size: 21rpx;
   font-weight: 760;
@@ -138,7 +138,7 @@
   padding: 0;
   border-radius: 10rpx;
   color: #fff;
-  background: #25465a;
+  background: #2f4b3f;
   font-size: 24rpx;
   line-height: 64rpx;
 }
@@ -158,7 +158,7 @@
 
 .empty-state text:first-child {
   display: block;
-  color: #111820;
+  color: #20241f;
   font-size: 30rpx;
   font-weight: 820;
 }
@@ -179,7 +179,7 @@
   padding: 0;
   border-radius: 12rpx;
   color: #fff;
-  background: #25465a;
+  background: #2f4b3f;
   font-size: 25rpx;
   font-weight: 760;
   line-height: 68rpx;

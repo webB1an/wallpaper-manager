@@ -1,5 +1,5 @@
 .hero-kicker {
-  color: #f7d481;
+  color: #e3c35e;
   font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 1rpx;
@@ -31,7 +31,8 @@
   height: 214rpx;
   border: 5rpx solid rgba(255, 255, 255, 0.76);
   border-radius: 18rpx;
-  background: #263840;
+  background: #30382f;
+  filter: saturate(0.86) contrast(0.96);
   box-shadow: 0 18rpx 36rpx rgba(0, 0, 0, 0.28);
 }
 
@@ -70,7 +71,7 @@
 }
 
 .hero-meter text:first-child {
-  color: #f7d481;
+  color: #e3c35e;
   font-size: 34rpx;
   font-weight: 820;
 }
@@ -81,32 +82,41 @@
 }
 
 .search-row {
-  display: grid;
-  grid-template-columns: 1fr 138rpx;
-  gap: 14rpx;
+  display: flex;
+  align-items: center;
+  width: 100%;
   margin-top: 22rpx;
+  padding: 8rpx;
+  overflow: hidden;
+  border: 2rpx solid #e1dfd7;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 30rpx rgba(32, 36, 31, 0.06);
 }
 
 .search-input {
-  height: 82rpx;
-  padding: 0 26rpx;
-  border-radius: 18rpx;
-  background: #fff;
+  flex: 1;
+  min-width: 0;
+  height: 68rpx;
+  padding: 0 18rpx;
+  border-radius: 14rpx;
+  background: transparent;
   font-size: 27rpx;
-  box-shadow: inset 0 0 0 2rpx #e6e2d8;
 }
 
 .search-button {
-  width: 100%;
-  min-width: 0;
-  height: 82rpx;
+  flex: 0 0 108rpx;
+  width: 108rpx;
+  max-width: 108rpx;
+  height: 68rpx;
   padding: 0;
-  border-radius: 18rpx;
+  border-radius: 14rpx;
   color: #fff;
-  background: #176b5d;
-  font-size: 27rpx;
+  background: #2f4b3f;
+  font-size: 26rpx;
   font-weight: 760;
-  line-height: 82rpx;
+  line-height: 68rpx;
+  text-align: center;
 }
 
 .filter-row {
@@ -126,15 +136,15 @@
 
 .filter.active {
   color: #fff;
-  background: #171b1f;
+  background: #20241f;
   font-weight: 700;
 }
 
 .tag-filter {
   padding: 16rpx 24rpx;
   border-radius: 999rpx;
-  color: #176b5d;
-  background: #e4efed;
+  color: #2f4b3f;
+  background: #e6ebe2;
   font-size: 24rpx;
 }
 
@@ -149,7 +159,7 @@
   min-width: 100rpx;
   height: 58rpx;
   padding: 0 18rpx;
-  border: 2rpx solid #e0ded4;
+  border: 2rpx solid #dfddd4;
   border-radius: 16rpx;
   color: #3d4641;
   background: rgba(255, 255, 255, 0.72);
@@ -159,9 +169,9 @@
 }
 
 .type-filter.active {
-  border-color: #176b5d;
+  border-color: #2f4b3f;
   color: #fff;
-  background: #176b5d;
+  background: #2f4b3f;
   font-weight: 700;
 }
 
@@ -180,7 +190,7 @@
   overflow: hidden;
   border-radius: 20rpx;
   background: #fff;
-  box-shadow: 0 14rpx 36rpx rgba(23, 27, 31, 0.08);
+  box-shadow: 0 14rpx 36rpx rgba(32, 36, 31, 0.08);
 }
 
 .wall-card image {
@@ -206,7 +216,7 @@
   padding: 6rpx 12rpx;
   border-radius: 999rpx;
   color: #fff;
-  background: rgba(214, 109, 75, 0.94);
+  background: rgba(181, 92, 59, 0.94);
   font-size: 20rpx;
   font-weight: 820;
 }
@@ -229,8 +239,8 @@
   margin-top: 12rpx;
   padding: 5rpx 12rpx;
   border-radius: 999rpx;
-  color: #176b5d;
-  background: #e4efed;
+  color: #2f4b3f;
+  background: #e6ebe2;
   font-size: 21rpx;
 }
 
@@ -261,7 +271,7 @@
   overflow: hidden;
   border-radius: 999rpx;
   color: #66717b;
-  background: #f0f3ee;
+  background: #eff2ea;
   font-size: 20rpx;
   line-height: 34rpx;
   text-overflow: ellipsis;

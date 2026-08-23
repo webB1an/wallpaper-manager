@@ -1,13 +1,13 @@
 .detail-page {
   min-height: 100vh;
-  background: #111820;
+  background: #20241f;
 }
 
 .detail-visual {
   position: relative;
   overflow: hidden;
   height: 720rpx;
-  background: #111820;
+  background: #20241f;
 }
 
 .detail-cover {
@@ -98,7 +98,7 @@
   padding: 0;
   border-radius: 14rpx;
   color: #fff;
-  background: #25465a;
+  background: #2f4b3f;
   font-size: 27rpx;
   font-weight: 780;
   line-height: 76rpx;
@@ -124,9 +124,9 @@
   border-radius: 18rpx;
   color: #fff;
   background:
-    linear-gradient(135deg, rgba(255, 214, 121, 0.18), transparent 44%),
-    #111820;
-  box-shadow: 0 14rpx 34rpx rgba(17, 24, 32, 0.14);
+    linear-gradient(135deg, rgba(227, 195, 94, 0.18), transparent 44%),
+    #20241f;
+  box-shadow: 0 14rpx 34rpx rgba(32, 36, 31, 0.14);
 }
 
 .primary-download > view {
@@ -135,7 +135,7 @@
 
 .primary-download view text:first-child {
   display: block;
-  color: #ffd679;
+  color: #e3c35e;
   font-size: 23rpx;
   font-weight: 780;
 }
@@ -158,8 +158,8 @@
   margin-top: 10rpx;
   padding: 6rpx 12rpx;
   border-radius: 10rpx;
-  color: #111820;
-  background: rgba(255, 214, 121, 0.92);
+  color: #20241f;
+  background: rgba(227, 195, 94, 0.92);
   font-size: 21rpx;
   font-weight: 820;
 }
@@ -170,8 +170,8 @@
   height: 72rpx;
   padding: 0;
   border-radius: 14rpx;
-  color: #111820;
-  background: #ffd679;
+  color: #20241f;
+  background: #e3c35e;
   font-size: 25rpx;
   font-weight: 820;
   line-height: 72rpx;
@@ -182,7 +182,7 @@
 }
 
 .primary-download button.disabled {
-  color: rgba(17, 24, 32, 0.46);
+  color: rgba(32, 36, 31, 0.46);
   background: rgba(255, 255, 255, 0.42);
 }
 
@@ -190,7 +190,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  color: #111820;
+  color: #20241f;
   font-size: 29rpx;
   font-weight: 820;
 }
@@ -208,7 +208,7 @@
   gap: 14rpx;
   align-items: center;
   padding: 18rpx;
-  border: 2rpx solid #dce4e8;
+  border: 2rpx solid #d9ded4;
   border-radius: 10rpx;
   background: #fff;
 }
@@ -225,12 +225,12 @@
   height: 70rpx;
   border-radius: 0 999rpx 999rpx 0;
   content: "";
-  background: #245167;
+  background: #2f4b3f;
 }
 
 .download-empty {
   padding: 26rpx 18rpx;
-  border: 2rpx dashed #dce4e8;
+  border: 2rpx dashed #d9ded4;
   border-radius: 14rpx;
   color: #7d887f;
   background: rgba(255, 255, 255, 0.68);
@@ -240,7 +240,7 @@
 
 .download-label {
   display: block;
-  color: #111820;
+  color: #20241f;
   font-size: 28rpx;
   font-weight: 760;
 }
@@ -261,7 +261,7 @@
   margin-top: 10rpx;
   padding: 6rpx 12rpx;
   border-radius: 10rpx;
-  color: #25465a;
+  color: #2f4b3f;
   background: #edf4f0;
   font-size: 21rpx;
   font-weight: 760;
@@ -274,7 +274,7 @@
   padding: 0;
   border-radius: 10rpx;
   color: #fff;
-  background: #dd6b45;
+  background: #b55c3b;
   font-size: 27rpx;
   font-weight: 760;
   line-height: 70rpx;
@@ -292,7 +292,7 @@
 }
 
 .related-head text:first-child {
-  color: #111820;
+  color: #20241f;
   font-size: 31rpx;
   font-weight: 820;
 }
@@ -322,7 +322,7 @@
   display: block;
   width: 220rpx;
   height: 144rpx;
-  background: #dce4e8;
+  background: #d9ded4;
 }
 
 .related-card text {
@@ -330,7 +330,7 @@
   height: 68rpx;
   padding: 12rpx;
   overflow: hidden;
-  color: #111820;
+  color: #20241f;
   font-size: 23rpx;
   font-weight: 720;
   line-height: 34rpx;
@@ -338,14 +338,14 @@
 }
 
 .detail-loading {
-  background: #111820;
+  background: #20241f;
 }
 
 .detail-cover-skeleton {
   height: 720rpx;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
-    #263840;
+    #30382f;
   background-size: 260rpx 100%, 100% 100%;
   animation: detailSkeletonSweep 1.4s ease-in-out infinite;
 }

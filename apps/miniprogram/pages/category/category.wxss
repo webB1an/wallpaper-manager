@@ -28,15 +28,15 @@
   left: 0;
   width: 12rpx;
   height: 100%;
-  background: #dd6b45;
+  background: #b55c3b;
 }
 
 .type-card-live .type-mark {
-  background: #dd6b45;
+  background: #b55c3b;
 }
 
 .type-card-static .type-mark {
-  background: #245167;
+  background: #2f4b3f;
 }
 
 .type-card-mobile .type-mark {
@@ -44,13 +44,13 @@
 }
 
 .type-card-desktop .type-mark {
-  background: #111820;
+  background: #20241f;
 }
 
 .type-card view text:first-child {
   display: block;
   overflow: hidden;
-  color: #111820;
+  color: #20241f;
   font-size: 31rpx;
   font-weight: 820;
   text-overflow: ellipsis;
@@ -72,7 +72,7 @@
 }
 
 .type-card-live view text:first-child {
-  color: #d85a3a;
+  color: #b55c3b;
 }
 
 .type-card-static {
@@ -80,7 +80,7 @@
 }
 
 .type-card-static view text:first-child {
-  color: #25465a;
+  color: #2f4b3f;
 }
 
 .type-card-mobile {
@@ -96,7 +96,7 @@
   flex-shrink: 0;
   max-width: 112rpx;
   overflow: hidden;
-  color: #111820;
+  color: #20241f;
   font-size: 24rpx;
   font-weight: 780;
   text-overflow: ellipsis;
@@ -134,8 +134,8 @@
   border-radius: 18rpx;
   color: #fff;
   background:
-    linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
-    linear-gradient(135deg, #25465a, #d85a3a);
+    linear-gradient(145deg, rgba(32, 36, 31, 0.1), rgba(32, 36, 31, 0.78)),
+    linear-gradient(135deg, #2f4b3f, #9b6a42);
   font-size: 32rpx;
   font-weight: 800;
 }
@@ -180,14 +180,14 @@
 
 .category-card:nth-child(3n + 2) {
   background:
-    linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.74)),
-    linear-gradient(135deg, #5b6c7a, #e8b543);
+    linear-gradient(145deg, rgba(32, 36, 31, 0.08), rgba(32, 36, 31, 0.72)),
+    linear-gradient(135deg, #6f745f, #b99a49);
 }
 
 .category-card:nth-child(3n) {
   background:
-    linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
-    linear-gradient(135deg, #111820, #25465a);
+    linear-gradient(145deg, rgba(32, 36, 31, 0.08), rgba(32, 36, 31, 0.78)),
+    linear-gradient(135deg, #20241f, #4f604a);
 }
 
 .category-skeleton-grid {
