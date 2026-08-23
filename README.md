@@ -52,6 +52,7 @@ npm run readiness:production
 Before uploading the WeChat Mini Program release, run:
 
 ```bash
+npm run miniprogram:appid -- wx你的AppID
 npm run readiness:miniprogram
 ```
 
