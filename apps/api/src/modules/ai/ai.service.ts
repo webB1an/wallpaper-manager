@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const analysisSchema = z.object({
   title: z.string().trim().min(1).max(40),
-  type: z.enum(["static", "live", "mobile", "desktop", "other"]),
+  type: z.enum(["static", "live", "mobile", "desktop", "other"]).default("other"),
   tags: z.array(z.string().trim().min(1).max(12)).min(1).max(8),
   sensitiveFlags: z.array(z.enum(["sexual", "violence", "political", "vulgar"])).default([]),
   safe: z.boolean(),
@@ -41,7 +41,7 @@ export class AiService {
             content: [
               "你是壁纸内容审核与分类助手。",
               "只根据图片内容输出 JSON。",
-              "需要识别标题、壁纸类型、中文标签，以及是否包含色情、暴力、政治、低俗。",
+              "需要识别标题、中文标签，以及是否包含色情、暴力、政治、低俗。",
               "敏感审核只拦截 sexual、violence、political、vulgar 四类。",
               "色情/暴力/政治/低俗任一命中时 safe=false；四类都未命中时 safe=true。",
             ].join(""),
@@ -49,7 +49,7 @@ export class AiService {
           {
             role: "user",
             content: [
-              { type: "text", text: `文件名：${originalName}\n输出 JSON：{"title":"中文标题","type":"static|live|mobile|desktop|other","tags":["标签"],"sensitiveFlags":["sexual|violence|political|vulgar"],"safe":true,"summary":"一句话描述"}` },
+              { type: "text", text: `文件名：${originalName}\n输出 JSON：{"title":"中文标题","tags":["标签"],"sensitiveFlags":["sexual|violence|political|vulgar"],"safe":true,"summary":"一句话描述"}` },
               { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } },
             ],
           },

@@ -350,6 +350,7 @@ export class AdminService {
     if (!wallpaper?.coverPath) throw new Error("壁纸或封面不存在");
     const coverPath = join(process.cwd(), "storage", "public", wallpaper.coverPath);
     const analysis = await this.ai.analyzeImage(coverPath, wallpaper.originalName);
+    const detectedType = detectType(wallpaper.mimeType || "", wallpaper.originalName);
     const tags = await Promise.all(analysis.tags.map((name) => this.prisma.tag.upsert({
       where: { name },
       update: {},
@@ -359,7 +360,7 @@ export class AdminService {
       where: { wallpaperId },
       update: {
         title: analysis.title,
-        type: analysis.type,
+        type: detectedType,
         tags: analysis.tags,
         sensitiveFlags: analysis.sensitiveFlags,
         safe: analysis.safe,
@@ -368,7 +369,7 @@ export class AdminService {
       create: {
         wallpaperId,
         title: analysis.title,
-        type: analysis.type,
+        type: detectedType,
         tags: analysis.tags,
         sensitiveFlags: analysis.sensitiveFlags,
         safe: analysis.safe,
@@ -379,7 +380,7 @@ export class AdminService {
       where: { id: wallpaperId },
       data: {
         title: analysis.title,
-        type: analysis.type,
+        type: detectedType,
         status: analysis.safe ? WallpaperStatus.pending_review : WallpaperStatus.rejected,
         tags: {
           deleteMany: {},
@@ -1136,10 +1137,10 @@ function safeExtension(name: string): string {
 
 function detectType(mimeType: string, name: string): WallpaperType {
   if (mimeType.startsWith("video/")) return WallpaperType.live;
-  if (/\b(mobile|phone|竖屏|手机)\b/i.test(name)) return WallpaperType.mobile;
   if (mimeType.startsWith("image/")) return WallpaperType.static;
-  return WallpaperType.other;
+  return /\b(mp4|mov|webm|live|动态)\b/i.test(name) ? WallpaperType.live : WallpaperType.static;
 }
+
 
 function buildChannelContent(title: string, tags: string[]): string {
   const tagLine = tags.slice(0, 6).map((tag) => `#${tag}`).join(" ");

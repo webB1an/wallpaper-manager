@@ -118,12 +118,13 @@ export class PublicService {
       ? await this.prisma.tag.findMany({ where: { id: { in: tagGroups.map((group) => group.tagId) } } })
       : [];
     const tagNameById = new Map(tags.map((tag) => [tag.id, tag.name]));
+    const coverByTagId = tagGroups.length ? await this.tagCoverMap(tagGroups.map((group) => group.tagId)) : new Map<string, string>();
     return {
       types: typeGroups
         .map((group) => ({ type: group.type, count: group._count._all }))
         .sort((left, right) => right.count - left.count),
       tags: tagGroups
-        .map((group) => ({ name: tagNameById.get(group.tagId) || "", count: group._count._all }))
+        .map((group) => ({ name: tagNameById.get(group.tagId) || "", count: group._count._all, coverUrl: coverByTagId.get(group.tagId) || FALLBACK_COVER_URL }))
         .filter((tag) => tag.name),
     };
   }
@@ -161,6 +162,22 @@ export class PublicService {
       take: 6,
     });
     return related.map(wallpaperCard);
+  }
+
+  private async tagCoverMap(tagIds: string[]) {
+    const result = new Map<string, string>();
+    for (const tagId of tagIds) {
+      const item = await this.prisma.wallpaper.findFirst({
+        where: { status: WallpaperStatus.published, tags: { some: { tagId } } },
+        orderBy: [
+          { downloadCount: "desc" },
+          { sortOrder: "desc" },
+          { createdAt: "desc" },
+        ],
+      });
+      if (item) result.set(tagId, publicCoverUrl(item.coverUrl));
+    }
+    return result;
   }
 }
 

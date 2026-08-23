@@ -71,6 +71,9 @@ for (const link of detail.shortLinks) {
 const facets = await get("/api/wallpapers/facets");
 assert(Array.isArray(facets.types), "facets.types must be an array");
 assert(Array.isArray(facets.tags), "facets.tags must be an array");
+for (const tag of facets.tags.slice(0, 10)) {
+  assert(typeof tag.coverUrl === "string" && tag.coverUrl.length > 0, `tag ${tag.name || ""} must expose coverUrl`);
+}
 
 console.log(JSON.stringify({
   ok: true,

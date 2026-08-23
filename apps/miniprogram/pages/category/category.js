@@ -5,11 +5,8 @@ let requestToken = 0;
 Page({
     data: {
         types: [
-            { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", count: 0 },
-            { key: "static", title: "静态壁纸", subtitle: "单张高清图片", count: 0 },
-            { key: "mobile", title: "手机壁纸", subtitle: "竖屏优先", count: 0 },
-            { key: "desktop", title: "电脑壁纸", subtitle: "桌面场景", count: 0 },
-            { key: "other", title: "其他资源", subtitle: "待整理与混合类型", count: 0 }
+            { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", icon: "▶", count: 0 },
+            { key: "static", title: "静态壁纸", subtitle: "单张图片资源", icon: "▣", count: 0 }
         ],
         tags: [],
         loading: false,
@@ -51,11 +48,12 @@ Page({
     },
     openTag(event) {
         const tag = String(event.currentTarget.dataset.tag || "");
-        openIndexWithQuery(`tag=${encodeURIComponent(tag)}`);
+        openList(`tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}`);
     },
     openType(event) {
         const type = String(event.currentTarget.dataset.type || "");
-        openIndexWithQuery(`type=${encodeURIComponent(type)}`);
+        const title = this.data.types.find((item) => item.key === type)?.title || "壁纸列表";
+        openList(`type=${encodeURIComponent(type)}&title=${encodeURIComponent(title)}`);
     },
     onShareAppMessage() {
         return {
@@ -69,6 +67,6 @@ Page({
         };
     }
 });
-function openIndexWithQuery(query) {
-    wx.reLaunch({ url: `/pages/index/index?${query}` });
+function openList(query) {
+    wx.navigateTo({ url: `/pages/list/list?${query}` });
 }

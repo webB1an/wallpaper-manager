@@ -28,23 +28,6 @@
       </view>
       <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制主链' : '暂无短链'}}</button>
     </view>
-    <view class="download-list">
-      <view class="download-heading">
-        <text>短链清单</text>
-        <text>主链优先</text>
-      </view>
-      <block wx:for="{{item.shortLinks}}" wx:key="url">
-        <view class="download-card">
-          <view>
-            <text class="download-label">{{item.label}}</text>
-            <text class="download-url">{{item.url}}</text>
-            <text wx:if="{{item.passcode}}" class="download-passcode">提取码 {{item.passcode}}</text>
-          </view>
-          <button class="download-button" data-url="{{item.url}}" data-label="{{item.label}}" data-passcode="{{item.passcode}}" bindtap="copyLink">复制</button>
-        </view>
-      </block>
-      <view wx:if="{{item.shortLinks.length === 0}}" class="download-empty">暂无可用网盘短链</view>
-    </view>
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">
         <text>继续看看</text>

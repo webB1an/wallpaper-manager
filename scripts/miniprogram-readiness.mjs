@@ -113,11 +113,11 @@ add(
 );
 
 add(
-  categoryTs.includes("wx.reLaunch") && !categoryTs.includes("wx.navigateTo({ url: `/pages/index/index"),
+  categoryTs.includes("wx.navigateTo") && categoryTs.includes("/pages/list/list") && !categoryTs.includes("wx.reLaunch"),
   "category_tab_jump",
   "分类跳转",
-  "分类页可以携带筛选条件打开首页 tab",
-  "首页是 tabBar 页面，分类页跳转必须使用 wx.reLaunch 或等价方案，不能用 wx.navigateTo 打开首页。",
+  "分类页打开二级列表页",
+  "分类页不要跳回首页 tab；保持 wx.navigateTo 打开 pages/list/list。",
 );
 
 add(
@@ -129,16 +129,24 @@ add(
 );
 
 add(
-  indexWxml.includes('<view class="search-button" bindtap="reload">搜索</view>') &&
+  indexWxml.includes('<view class="search-button" bindtap="reload">⌕</view>') &&
     !indexWxml.includes('<button class="search-button"') &&
     indexWxss.includes("display: flex") &&
     indexWxss.includes("overflow: hidden") &&
-    indexWxss.includes("flex: 0 0 108rpx") &&
-    indexWxss.includes("max-width: 108rpx"),
+    indexWxss.includes("flex: 0 0 76rpx") &&
+    indexWxss.includes("max-width: 76rpx"),
   "home_search_layout",
   "首页搜索布局",
-  "搜索按钮使用内嵌 view 控件，避免微信原生 button 撑出屏幕",
+  "搜索按钮使用紧凑图标 view 控件，避免微信原生 button 撑出屏幕",
   "首页搜索按钮不要改回原生 button；保持 search-row 为 flex 且按钮固定在输入框内部。",
+);
+
+add(
+  indexWxml.includes("hero-swiper") && indexWxml.includes("<swiper") && indexJs.includes("loadHero") && indexJs.includes("pageSize: 5"),
+  "home_hot_carousel",
+  "首页热门轮播",
+  "首页顶部使用 5 张热门壁纸轮播",
+  "保持首页 loadHero 请求热门 5 张，并用 hero-swiper 展示。",
 );
 
 add(
@@ -228,6 +236,7 @@ function forbiddenPalette() {
     "apps/miniprogram/app.wxss",
     "apps/miniprogram/pages/index/index.wxss",
     "apps/miniprogram/pages/category/category.wxss",
+    "apps/miniprogram/pages/list/list.wxss",
     "apps/miniprogram/pages/detail/detail.wxss",
     "apps/miniprogram/pages/mine/mine.wxss",
   ];

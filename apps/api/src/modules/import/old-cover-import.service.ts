@@ -166,7 +166,7 @@ export class OldCoverImportService {
           where: { wallpaperId: wallpaper.id },
           update: {
             title: analysis.title,
-            type: analysis.type,
+            type: wallpaper.type,
             tags: analysis.tags,
             sensitiveFlags: analysis.sensitiveFlags,
             safe: analysis.safe,
@@ -175,7 +175,7 @@ export class OldCoverImportService {
           create: {
             wallpaperId: wallpaper.id,
             title: analysis.title,
-            type: analysis.type,
+            type: wallpaper.type,
             tags: analysis.tags,
             sensitiveFlags: analysis.sensitiveFlags,
             safe: analysis.safe,
@@ -186,7 +186,7 @@ export class OldCoverImportService {
           where: { id: wallpaper.id },
           data: {
             title: analysis.title,
-            type: analysis.type,
+            type: wallpaper.type,
             status: analysis.safe ? WallpaperStatus.pending_review : WallpaperStatus.rejected,
             tags: {
               deleteMany: {},

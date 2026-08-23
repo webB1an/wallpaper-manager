@@ -62,5 +62,5 @@ export interface WallpaperDetail extends WallpaperCard {
 
 export interface WallpaperFacets {
   types: Array<{ type: string; count: number }>;
-  tags: Array<{ name: string; count: number }>;
+  tags: Array<{ name: string; count: number; coverUrl: string }>;
 }

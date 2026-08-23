@@ -2,18 +2,19 @@
   "pages": [
     "pages/index/index",
     "pages/category/category",
+    "pages/list/list",
     "pages/detail/detail",
     "pages/mine/mine"
   ],
   "window": {
     "navigationBarTitleText": "WDBZK 壁纸",
-    "navigationBarBackgroundColor": "#F3F2EC",
+    "navigationBarBackgroundColor": "#F8F5EA",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F3F2EC"
+    "backgroundColor": "#F8F5EA"
   },
   "tabBar": {
     "color": "#7B7A72",
-    "selectedColor": "#2F4B3F",
+    "selectedColor": "#3F5C40",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [

@@ -647,7 +647,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             setSelectedRowKeys([]);
             void load(1, status, nextType);
           }}
-          options={["static", "live", "mobile", "desktop", "other"].map((value) => ({ value, label: typeText(value) }))}
+          options={["static", "live"].map((value) => ({ value, label: typeText(value) }))}
           style={{ width: 150 }}
         />
         <Select
@@ -804,7 +804,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
       >
         <Form form={form} layout="vertical">
           <Form.Item label="标题" name="title" rules={[{ required: true }]}><Input /></Form.Item>
-          <Form.Item label="类型" name="type"><Select options={["static", "live", "mobile", "desktop", "other"].map((value) => ({ value, label: typeText(value) }))} /></Form.Item>
+          <Form.Item label="类型" name="type"><Select options={["static", "live"].map((value) => ({ value, label: typeText(value) }))} /></Form.Item>
           <Form.Item label="状态" name="status"><Select options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))} /></Form.Item>
           <Form.Item label="排序" name="sortOrder"><Input type="number" /></Form.Item>
           <Form.Item label="标签" name="tags"><Input placeholder="多个标签用逗号分隔" /></Form.Item>

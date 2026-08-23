@@ -1,50 +1,52 @@
 <view class="page">
   <view class="hero">
-    <view class="hero-copy">
-      <text class="hero-kicker">WDBZK WALLPAPERS</text>
-      <text class="hero-title">发现好看的屏幕封面</text>
-      <text class="hero-subtitle">只展示缩略图，原图资源复制短链领取</text>
-      <view class="hero-meter">
-        <text>{{total}}</text>
-        <text>可领取资源</text>
-      </view>
-    </view>
-    <view wx:if="{{topCovers.length}}" class="hero-stack">
-      <block wx:for="{{topCovers}}" wx:key="id">
-        <image class="hero-shot shot-{{index}}" src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+    <swiper wx:if="{{heroSlides.length}}" class="hero-swiper" autoplay circular interval="4200" duration="420">
+      <block wx:for="{{heroSlides}}" wx:key="id">
+        <swiper-item>
+          <view class="hero-slide" bindtap="openDetail" data-id="{{item.id}}">
+            <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+            <view class="hero-overlay">
+              <text class="hero-kicker">热门动态壁纸</text>
+              <text class="hero-title">{{item.title}}</text>
+              <view class="hero-meta">
+                <text>▶ 动态</text>
+                <text>{{item.downloadCount}} 次领取</text>
+              </view>
+            </view>
+          </view>
+        </swiper-item>
       </block>
+    </swiper>
+    <view wx:else class="hero-fallback">
+      <text class="hero-kicker">WDBZK WALLPAPERS</text>
+      <text class="hero-title">发现好看的动态壁纸</text>
+      <text class="hero-subtitle">只展示缩略图，原图资源复制短链领取</text>
     </view>
   </view>
 
   <view class="search-row">
     <input class="search-input" placeholder="搜角色、场景、风格" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="reload" />
-    <view class="search-button" bindtap="reload">搜索</view>
+    <view class="search-button" bindtap="reload">⌕</view>
   </view>
 
   <view class="filter-row">
-    <view class="filter {{sort === 'latest' ? 'active' : ''}}" data-sort="latest" bindtap="switchSort">最新</view>
-    <view class="filter {{sort === 'hot' ? 'active' : ''}}" data-sort="hot" bindtap="switchSort">热门</view>
+    <view class="filter {{sort === 'latest' ? 'active' : ''}}" data-sort="latest" bindtap="switchSort"><text>◷</text>最新</view>
+    <view class="filter {{sort === 'hot' ? 'active' : ''}}" data-sort="hot" bindtap="switchSort"><text>▲</text>热门</view>
     <view wx:if="{{tag}}" class="tag-filter">#{{tag}}</view>
   </view>
 
-  <view class="type-row">
-    <block wx:for="{{typeOptions}}" wx:key="key">
-      <view class="type-filter {{type === item.key ? 'active' : ''}}" data-type="{{item.key}}" bindtap="switchType">{{item.title}}</view>
-    </block>
-  </view>
-
   <view class="section-title gallery-head">
-    <text>{{sort === 'hot' ? '热门资源' : '最新资源'}}</text>
+    <text>{{sort === 'hot' ? '热门动态' : '最新动态'}}</text>
     <text class="muted">{{total}} 张</text>
   </view>
 
-  <view class="masonry">
+  <view class="poster-grid">
     <block wx:for="{{items}}" wx:key="id">
-      <view class="wall-card" bindtap="openDetail" data-id="{{item.id}}">
-        <text wx:if="{{item.type === 'live'}}" class="live-ribbon">LIVE</text>
+      <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
+        <text class="live-ribbon">▶</text>
         <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
-        <view class="wall-info">
-          <text class="wall-title">{{item.title}}</text>
+        <view class="poster-info">
+          <text class="poster-title">{{item.title}}</text>
           <view>
             <text class="pill">{{item.typeLabel}}</text>
             <text class="count">{{item.downloadCount}} 次下载</text>

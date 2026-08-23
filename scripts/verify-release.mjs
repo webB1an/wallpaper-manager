@@ -121,7 +121,7 @@ const rootPackage = readJson("package.json");
 const env = parseEnvExample("deploy/production.env.example");
 
 for (const page of app.pages || []) {
-  for (const extension of ["json", "ts", "wxml", "wxss"]) {
+  for (const extension of ["json", "ts", "js", "wxml", "wxss"]) {
     requireFile(`apps/miniprogram/${page}.${extension}`);
   }
 }
@@ -200,8 +200,8 @@ requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall
 requireContains("apps/miniprogram/utils/api.ts", "export function post");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primaryPasscode");
-requireContains("apps/miniprogram/pages/detail/detail.wxml", "download-passcode");
-requireContains("apps/miniprogram/pages/detail/detail.wxml", "data-passcode");
+requireNotContains("apps/miniprogram/pages/detail/detail.wxml", "download-list");
+requireNotContains("apps/miniprogram/pages/detail/detail.wxml", "短链清单");
 requireContains("apps/miniprogram/pages/detail/detail.ts", "formatClipboardText");
 requireContains("apps/miniprogram/pages/detail/detail.ts", "recordDownloadClick");
 requireContains("apps/miniprogram/pages/detail/detail.ts", "/click");
@@ -212,23 +212,38 @@ requireContains("apps/miniprogram/pages/mine/mine.ts", "goExplore");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "formatClipboardText");
 requireContains("apps/miniprogram/pages/mine/mine.wxml", "mine-meter");
 requireContains("apps/miniprogram/pages/mine/mine.wxml", "history-passcode");
-requireContains("apps/miniprogram/pages/index/index.wxml", "hero-stack");
+requireContains("apps/miniprogram/pages/index/index.wxml", "hero-swiper");
+requireContains("apps/miniprogram/pages/index/index.wxml", "<swiper");
+requireContains("apps/miniprogram/pages/index/index.ts", "loadHero");
+requireContains("apps/miniprogram/pages/index/index.ts", "pageSize: 5");
 requireContains("apps/miniprogram/app.wxss", "box-sizing: border-box");
 requireContains("apps/miniprogram/app.wxss", "overflow-x: hidden");
 requireContains("apps/miniprogram/app.wxss", "button");
 requireContains("apps/miniprogram/app.wxss", "min-width: 0");
-requireContains("apps/miniprogram/pages/index/index.wxml", '<view class="search-button" bindtap="reload">搜索</view>');
+requireContains("apps/miniprogram/pages/index/index.wxml", '<view class="search-button" bindtap="reload">⌕</view>');
 requireNotContains("apps/miniprogram/pages/index/index.wxml", '<button class="search-button"');
 requireContains("apps/miniprogram/pages/index/index.wxss", ".search-row");
 requireContains("apps/miniprogram/pages/index/index.wxss", "display: flex");
 requireContains("apps/miniprogram/pages/index/index.wxss", "overflow: hidden");
-requireContains("apps/miniprogram/pages/index/index.wxss", "flex: 0 0 108rpx");
-requireContains("apps/miniprogram/pages/index/index.wxss", "max-width: 108rpx");
+requireContains("apps/miniprogram/pages/index/index.wxss", "flex: 0 0 76rpx");
+requireContains("apps/miniprogram/pages/index/index.wxss", "max-width: 76rpx");
+requireContains("apps/miniprogram/app.json", "pages/list/list");
+requireContains("apps/miniprogram/pages/list/list.ts", "/wallpapers");
+requireContains("apps/miniprogram/pages/list/list.ts", "openDetail");
+requireContains("apps/miniprogram/pages/list/list.wxml", "poster-grid");
+requireContains("apps/miniprogram/pages/category/category.wxml", "标签");
+requireNotContains("apps/miniprogram/pages/category/category.wxml", "AI 标签");
+requireContains("apps/miniprogram/pages/category/category.wxml", "coverUrl");
+requireContains("apps/miniprogram/pages/category/category.ts", "openList");
+requireContains("apps/miniprogram/pages/category/category.ts", "wx.navigateTo");
+requireContains("apps/miniprogram/pages/category/category.ts", "/pages/list/list");
+requireNotContains("apps/miniprogram/pages/category/category.ts", "wx.reLaunch");
 for (const path of [
   "apps/miniprogram/app.json",
   "apps/miniprogram/app.wxss",
   "apps/miniprogram/pages/index/index.wxss",
   "apps/miniprogram/pages/category/category.wxss",
+  "apps/miniprogram/pages/list/list.wxss",
   "apps/miniprogram/pages/detail/detail.wxss",
   "apps/miniprogram/pages/mine/mine.wxss",
 ]) {
@@ -241,6 +256,7 @@ requireNoBluePurplePalette([
   "apps/miniprogram/app.wxss",
   "apps/miniprogram/pages/index/index.wxss",
   "apps/miniprogram/pages/category/category.wxss",
+  "apps/miniprogram/pages/list/list.wxss",
   "apps/miniprogram/pages/detail/detail.wxss",
   "apps/miniprogram/pages/mine/mine.wxss",
 ]);
@@ -447,7 +463,8 @@ requireContains("scripts/production-readiness.mjs", "ADMIN_PASSWORD");
 requireContains("scripts/miniprogram-readiness.mjs", "--allow-empty-appid");
 requireContains("scripts/miniprogram-readiness.mjs", "MINIPROGRAM_APPID");
 requireContains("scripts/miniprogram-readiness.mjs", "category_tab_jump");
-requireContains("scripts/miniprogram-readiness.mjs", "wx.reLaunch");
+requireContains("scripts/miniprogram-readiness.mjs", "wx.navigateTo");
+requireContains("scripts/miniprogram-readiness.mjs", "/pages/list/list");
 requireContains("scripts/set-miniprogram-appid.mjs", "--clear");
 requireContains("scripts/set-miniprogram-appid.mjs", "Invalid WeChat Mini Program AppID");
 requireContains("scripts/miniprogram-readiness.mjs", "https://wall-api.wdbzk.com");
@@ -457,8 +474,8 @@ requireContains("scripts/launch-readiness.mjs", "scripts/miniprogram-readiness.m
 requireContains("scripts/launch-readiness.mjs", "--skip-production");
 requireContains("scripts/launch-readiness.mjs", "normalizeActions");
 requireContains("scripts/launch-readiness.mjs", "ADMIN_PASSWORD");
-requireContains("apps/miniprogram/pages/category/category.ts", "openIndexWithQuery");
-requireContains("apps/miniprogram/pages/category/category.ts", "wx.reLaunch");
+requireContains("apps/miniprogram/pages/category/category.ts", "openList");
+requireContains("apps/miniprogram/pages/category/category.ts", "wx.navigateTo");
 requireContains("scripts/storage-auth.mjs", "baidu-url");
 requireContains("scripts/storage-auth.mjs", "baidu-code");
 requireContains("scripts/storage-auth.mjs", "quark-login");
