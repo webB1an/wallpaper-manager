@@ -71,7 +71,6 @@
 .poster-card image {
   display: block;
   width: 100%;
-  min-height: 300rpx;
   height: auto;
   background: #e6ebe6;
 }

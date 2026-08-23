@@ -1,5 +1,14 @@
 .hero {
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 26rpx;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hero-fallback {
+  padding: 34rpx 30rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 26rpx;
   background: linear-gradient(135deg, #2f6f5e 0%, #5e6f5d 100%);
@@ -216,7 +225,6 @@
 .poster-card image {
   display: block;
   width: 100%;
-  min-height: 300rpx;
   height: auto;
   background: #e6ebe6;
 }
