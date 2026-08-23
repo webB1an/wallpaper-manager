@@ -198,6 +198,8 @@ requireContains("scripts/production-readiness.mjs", "bdpan");
 requireContains("scripts/production-readiness.mjs", "quark_skill");
 requireContains("scripts/production-readiness.mjs", "channel_accounts");
 requireContains("scripts/production-readiness.mjs", "unpublished_active_short_links");
+requireContains("scripts/production-readiness.mjs", "miniprogram_release");
+requireContains("scripts/production-readiness.mjs", "微信小程序发布");
 requireContains("scripts/production-readiness.mjs", "网盘账号");
 requireContains("scripts/production-readiness.mjs", "--json");
 requireContains("scripts/production-readiness.mjs", "--strict");

@@ -108,6 +108,12 @@ function toAction(item) {
       nextStep: "打开管理端的腾讯频道账号配置，新增账号 token，选择频道/版块，并设置一个默认账号。",
     };
   }
+  if (item.key === "miniprogram_release") {
+    return {
+      ...base,
+      nextStep: "按 docs/deployment.md 的“微信小程序发布”章节处理：填写 AppID，确认 wall-api.wdbzk.com 合法域名，保持 r.wdbzk.com 只作为复制短链文本。",
+    };
+  }
   if (item.key === "unpublished_active_short_links") {
     return {
       ...base,
