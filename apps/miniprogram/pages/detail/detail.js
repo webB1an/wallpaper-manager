@@ -15,15 +15,7 @@ Page({
         error: "",
         id: "",
         capsuleTop: 48,
-        capsuleHeight: 32,
-        navDark: false
-    },
-    onPageScroll(event) {
-        const ratio = Math.min(1, Math.max(0, (event.scrollTop || 0) / 160));
-        const white = ratio >= 0.55;
-        this.setData({
-            navDark: white,
-        });
+        capsuleHeight: 32
     },
     async onLoad(options) {
         const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;

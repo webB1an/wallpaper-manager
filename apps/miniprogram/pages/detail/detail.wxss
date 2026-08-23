@@ -15,15 +15,6 @@
   height: 96rpx;
   padding: calc(env(safe-area-inset-top) + 8rpx) 20rpx 0;
   background: transparent;
-  transition: background 0.2s ease;
-}
-
-.detail-topbar.solid {
-  background: #fbf7f0;
-}
-
-.detail-topbar.solid .detail-nav-title {
-  color: #2b211b;
 }
 
 .detail-back {
@@ -37,27 +28,9 @@
   background: rgba(0, 0, 0, 0.28);
 }
 
-.detail-back.is-dark {
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 4rpx 16rpx rgba(43, 33, 27, 0.12);
-}
-
 .detail-back-icon {
   width: 48rpx;
   height: 48rpx;
-}
-
-.detail-nav-title {
-  position: absolute;
-  left: 120rpx;
-  right: 220rpx;
-  overflow: hidden;
-  color: #ffffff;
-  font-size: 30rpx;
-  font-weight: 600;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .detail-visual {
