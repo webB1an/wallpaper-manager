@@ -211,7 +211,7 @@ function App() {
   };
 
   return (
-    <ConfigProvider locale={zhCN} theme={{ token: { borderRadius: 8, colorPrimary: "#2f6f5e", colorLink: "#2f6f5e", colorInfo: "#2f6f5e" } }}>
+    <ConfigProvider locale={zhCN} theme={{ token: { borderRadius: 8, colorPrimary: "#C05621", colorLink: "#C05621", colorInfo: "#C05621" } }}>
       <Layout className="app-shell">
         <Layout.Sider width={240} className="sider">
           <div className="brand">
@@ -344,7 +344,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
         <Statistic title="资源总数" value={overview?.wallpapers.total ?? "--"} />
         <Statistic title="已上架" value={overview?.wallpapers.published ?? "--"} />
         <Statistic title="待审核" value={overview?.wallpapers.pendingReview ?? "--"} />
-        <Statistic title="待处理项" value={overview ? issueCount : "--"} valueStyle={{ color: issueCount ? "#b45309" : "#2f6f5e" }} />
+        <Statistic title="待处理项" value={overview ? issueCount : "--"} valueStyle={{ color: issueCount ? "#b45309" : "#C05621" }} />
       </div>
       <div className="overview-grid">
         <div className="ops-panel">
@@ -835,7 +835,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
       >
         <Form form={bulkForm} layout="vertical">
           <Form.Item label="已选择资源">
-            <Tag color="green">{selectedRowKeys.length} 个</Tag>
+            <Tag color="gold">{selectedRowKeys.length} 个</Tag>
           </Form.Item>
           <Form.Item label="状态" name="status">
             <Select allowClear options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))} />
@@ -875,7 +875,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         />
         <Form form={processForm} layout="vertical">
           <Form.Item label="已选择资源">
-            <Tag color="green">{processTargetIds.length} 个</Tag>
+            <Tag color="gold">{processTargetIds.length} 个</Tag>
           </Form.Item>
           <Form.Item label="本次夸克同步账号" name="quarkAccountId">
             <Select
@@ -952,7 +952,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         {!channelLoading && !channelAccounts.length ? <Alert className="modal-alert" type="warning" showIcon message="还没有配置频道账号，请先在频道配置中新增账号。" /> : null}
         <Form form={publishForm} layout="vertical">
           <Form.Item label="本次发布资源">
-            <Tag color="green">{publishTargetIds.length} 个</Tag>
+            <Tag color="gold">{publishTargetIds.length} 个</Tag>
             <span className="form-hint">动态壁纸一次只能发 1 个，静态壁纸一次最多 18 张。</span>
           </Form.Item>
           <Form.Item label="频道账号" name="accountId" rules={[{ required: true, message: "请选择频道账号" }]}>
@@ -1326,7 +1326,7 @@ function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) 
       <Space className="toolbar">
         <Button type="primary" onClick={load} loading={loading}>重新检查</Button>
         <Button icon={<Copy size={14} />} onClick={copyReadinessReport} loading={reportLoading}>复制上线报告</Button>
-        <Tag color="green">正常 {okCount}</Tag>
+        <Tag color="gold">正常 {okCount}</Tag>
         <Tag color={warnCount ? "gold" : "default"}>提醒 {warnCount}</Tag>
         <Tag color={failCount ? "red" : "default"}>失败 {failCount}</Tag>
       </Space>
@@ -1495,7 +1495,7 @@ function Tasks() {
       <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。" />
       <Space className="toolbar">
         <Button onClick={() => void load()}>刷新</Button>
-        <Tag color="green">共 {data.total} 条</Tag>
+        <Tag color="gold">共 {data.total} 条</Tag>
         <Select
           allowClear
           placeholder="全部状态"
@@ -1727,7 +1727,7 @@ function Channels() {
           <div className="channel-readiness-meta">
             <Tag color={defaultAccount ? "green" : "gold"}>{defaultAccount ? `默认：${defaultAccount.label}` : "缺默认账号"}</Tag>
             <Tag color={items.length ? "green" : "default"}>{items.length ? `${items.length} 个账号` : "未新增"}</Tag>
-            <Tag color="green">静态最多 18 张 · 动态 1 个</Tag>
+            <Tag color="gold">静态最多 18 张 · 动态 1 个</Tag>
           </div>
           <Button size="small" type={defaultAccount ? "default" : "primary"} onClick={() => setActiveTab("new")}>新增频道账号</Button>
         </div>
@@ -1758,7 +1758,7 @@ function Channels() {
             { title: "Token", dataIndex: "tokenTail", render: (tail) => `******${tail}` },
             { title: "频道", dataIndex: "guildName" },
             { title: "版块", dataIndex: "channelName" },
-            { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="green">默认</Tag> : null },
+            { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="gold">默认</Tag> : null },
             {
               title: "操作",
               render: (_, row) => <Space>
@@ -1973,13 +1973,13 @@ function StorageAccounts() {
               { title: "名称", dataIndex: "label" },
               { title: "类型", dataIndex: "provider", render: providerText },
               { title: "授权账号", dataIndex: "accountName", render: (value) => value || <span className="muted-text">未识别</span> },
-              { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="green">默认</Tag> : null },
+              { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="gold">默认</Tag> : null },
               {
                 title: "状态",
                 render: (_, row) => row.lastProbeOk === undefined
                   ? <Tag>未探活</Tag>
                   : row.lastProbeOk
-                    ? <Tag color="green">可用</Tag>
+                    ? <Tag color="gold">可用</Tag>
                     : <Tag color="red">不可用</Tag>,
               },
               { title: "最近探活", render: (_, row) => <small>{row.lastProbeMessage || "暂无"}</small> },

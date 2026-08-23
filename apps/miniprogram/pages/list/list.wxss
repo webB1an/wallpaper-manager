@@ -19,13 +19,13 @@
   margin-right: 12rpx;
   border-radius: 14rpx;
   color: #ffffff;
-  background: #2f6f5e;
+  background: #c05621;
   font-size: 26rpx;
   font-weight: 820;
 }
 
 .list-title {
-  color: #1e2823;
+  color: #2b211b;
   font-size: 42rpx;
   font-weight: 860;
   line-height: 1.2;
@@ -34,13 +34,13 @@
 .list-subtitle {
   display: block;
   margin-top: 12rpx;
-  color: #6b7a72;
+  color: #8a7668;
   font-size: 24rpx;
 }
 
 .list-count {
   flex-shrink: 0;
-  color: #2f6f5e;
+  color: #c05621;
   font-size: 24rpx;
   font-weight: 760;
 }
@@ -62,7 +62,7 @@
 .poster-card {
   overflow: hidden;
   width: 100%;
-  border: 1rpx solid #e7ece7;
+  border: 1rpx solid #efe4d6;
   border-radius: 18rpx;
   background: #ffffff;
   box-shadow: 0 12rpx 30rpx rgba(31, 35, 28, 0.07);
@@ -72,7 +72,7 @@
   display: block;
   width: 100%;
   height: auto;
-  background: #e6ebe6;
+  background: #f0e4d6;
 }
 
 .poster-body {
@@ -83,7 +83,7 @@
   display: block;
   height: 68rpx;
   overflow: hidden;
-  color: #1e2823;
+  color: #2b211b;
   font-size: 25rpx;
   font-weight: 760;
   line-height: 34rpx;
@@ -95,13 +95,13 @@
   justify-content: space-between;
   gap: 8rpx;
   margin-top: 12rpx;
-  color: #6b7a72;
+  color: #8a7668;
   font-size: 21rpx;
 }
 
 .poster-pill {
   flex-shrink: 0;
-  color: #2f6f5e;
+  color: #c05621;
   font-weight: 760;
 }
 
@@ -111,7 +111,7 @@
   border-radius: 18rpx;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0)),
-    #e6ebe6;
+    #f0e4d6;
   background-size: 240rpx 100%, 100% 100%;
   animation: skeletonSweep 1.4s ease-in-out infinite;
 }

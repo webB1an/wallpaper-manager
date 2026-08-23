@@ -32,7 +32,7 @@ body {
 }
 
 .sider {
-  background: #15201b !important;
+  background: #241b16 !important;
   color: #fff;
   padding: 18px 12px;
 }
@@ -50,7 +50,7 @@ body {
   width: 42px;
   height: 42px;
   border-radius: 8px;
-  background: #d8f16a;
+  background: #f3c46b;
   color: #102018;
 }
 
@@ -90,14 +90,14 @@ body {
 }
 
 .sider .ant-menu-item-selected {
-  background: #244b38 !important;
+  background: #7a3e1f !important;
   color: #fff !important;
 }
 
 .content {
   padding: 30px;
   background:
-    linear-gradient(120deg, rgba(216, 241, 106, 0.12), transparent 34%),
+    linear-gradient(120deg, rgba(243, 196, 107, 0.12), transparent 34%),
     #f6f5ef;
 }
 
@@ -378,8 +378,8 @@ h1 {
 }
 
 .status-pills span.is-clickable:hover {
-  border-color: #b8cfc1;
-  background: #f2f7ee;
+  border-color: #d9b98c;
+  background: #faf1e3;
 }
 
 .status-pills strong {
@@ -408,11 +408,11 @@ h1 {
 }
 
 .issue-row.is-clickable:hover {
-  color: #2f6f5e;
+  color: #c05621;
 }
 
 .issue-row strong {
-  color: #2f6f5e;
+  color: #c05621;
   font-size: 18px;
 }
 
@@ -670,8 +670,8 @@ small {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: #eef5ed;
-  color: #2f6f5e;
+  background: #f7ebd8;
+  color: #c05621;
 }
 
 .final-step strong,
@@ -737,8 +737,8 @@ small {
   display: grid;
   place-items: center;
   background:
-    linear-gradient(140deg, rgba(31, 122, 90, 0.25), transparent 40%),
-    linear-gradient(25deg, rgba(216, 241, 106, 0.2), transparent 34%),
+    linear-gradient(140deg, rgba(176, 82, 33, 0.25), transparent 40%),
+    linear-gradient(25deg, rgba(243, 196, 107, 0.2), transparent 34%),
     #101915;
 }
 
@@ -762,7 +762,7 @@ small {
 }
 
 .login-art span {
-  color: #d8f16a;
+  color: #f3c46b;
   font-weight: 700;
 }
 

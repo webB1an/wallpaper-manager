@@ -11,7 +11,7 @@
   min-height: 188rpx;
   padding: 24rpx;
   overflow: hidden;
-  border: 1rpx solid #e7ece7;
+  border: 1rpx solid #efe4d6;
   border-radius: 22rpx;
   background: #ffffff;
   box-shadow: 0 12rpx 30rpx rgba(31, 35, 28, 0.06);
@@ -25,7 +25,7 @@
   height: 60rpx;
   border-radius: 18rpx;
   color: #ffffff;
-  background: #2f6f5e;
+  background: #c05621;
   font-size: 25rpx;
   font-weight: 840;
 }
@@ -38,7 +38,7 @@
 .type-card view text:first-child {
   display: block;
   overflow: hidden;
-  color: #1e2823;
+  color: #2b211b;
   font-size: 32rpx;
   font-weight: 840;
   text-overflow: ellipsis;
@@ -49,7 +49,7 @@
   display: block;
   margin-top: 10rpx;
   overflow: hidden;
-  color: #6b7a72;
+  color: #8a7668;
   font-size: 23rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -60,7 +60,7 @@
   max-width: 100%;
   margin-top: 18rpx;
   overflow: hidden;
-  color: #2f6f5e;
+  color: #c05621;
   font-size: 24rpx;
   font-weight: 780;
   text-overflow: ellipsis;
@@ -81,7 +81,7 @@
   border: 1rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 22rpx;
   color: #ffffff;
-  background: #1e2823;
+  background: #2b211b;
   box-shadow: 0 12rpx 30rpx rgba(31, 35, 28, 0.12);
 }
 
@@ -89,7 +89,7 @@
   display: block;
   width: 100%;
   height: 230rpx;
-  background: #e6ebe6;
+  background: #f0e4d6;
   filter: saturate(0.94) contrast(1);
 }
 
@@ -114,7 +114,7 @@
   padding: 0 12rpx;
   border-radius: 999rpx;
   color: #ffffff;
-  background: #d98a5b;
+  background: #e8b87b;
   font-size: 20rpx;
   font-weight: 800;
 }
@@ -151,7 +151,7 @@
   border-radius: 22rpx;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0)),
-    #e6ebe6;
+    #f0e4d6;
   background-size: 240rpx 100%, 100% 100%;
   animation: tagSkeletonSweep 1.4s ease-in-out infinite;
 }
