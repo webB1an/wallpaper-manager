@@ -31,14 +31,13 @@ export class PublicService {
           where,
           include: { tags: { include: { tag: true } } },
         }),
-        this.prisma.$queryRaw<Array<{ wallpaperId: string; count: bigint }>>`
-          SELECT "wallpaperId", COUNT(*) AS "count"
-          FROM "WallpaperClick"
-          WHERE "createdAt" >= ${since}
-          GROUP BY "wallpaperId"
-        `,
+        this.prisma.wallpaperClick.groupBy({
+          by: ["wallpaperId"],
+          where: { createdAt: { gte: since } },
+          _count: { _all: true },
+        }),
       ]);
-      const countMap = new Map(counts.map((row) => [row.wallpaperId, Number(row.count)]));
+      const countMap = new Map(counts.map((row) => [row.wallpaperId, row._count._all]));
       const sorted = allItems
         .sort((left, right) => {
           const diff = (countMap.get(right.id) || 0) - (countMap.get(left.id) || 0);
