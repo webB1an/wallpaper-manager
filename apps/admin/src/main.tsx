@@ -151,6 +151,11 @@ type AdminOverview = {
     total: number;
     defaultConfigured: boolean;
   };
+  storageAccounts: {
+    total: number;
+    defaultBaidu: boolean;
+    defaultQuark: boolean;
+  };
   tags: {
     total: number;
   };
@@ -301,6 +306,8 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
       + overview.storage.missingQuark
       + overview.storage.missingBaidu
       + overview.tasks.failedToday
+      + (overview.storageAccounts.defaultBaidu ? 0 : 1)
+      + (overview.storageAccounts.defaultQuark ? 0 : 1)
       + (overview.channelAccounts.defaultConfigured ? 0 : 1)
     : 0;
 
@@ -313,16 +320,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
         <Button onClick={() => onOpenLibrary()}>查看资源库</Button>
         <Button onClick={() => onNavigate("tasks")}>任务队列</Button>
       </Space>
-      {overview && !overview.channelAccounts.defaultConfigured && (
-        <Alert
-          className="page-alert"
-          type="warning"
-          showIcon
-          message="腾讯频道默认账号未配置"
-          description="上传后自动发帖和资源库手动发帖会停在账号选择前。"
-          action={<Button size="small" type="primary" onClick={() => onNavigate("channels")}>去配置</Button>}
-        />
-      )}
+      {overview && <LaunchChecklist overview={overview} onNavigate={onNavigate} onOpenLibrary={onOpenLibrary} />}
       <div className="stat-grid">
         <Statistic title="资源总数" value={overview?.wallpapers.total ?? "--"} />
         <Statistic title="已上架" value={overview?.wallpapers.published ?? "--"} />
@@ -362,6 +360,12 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
         </div>
         <div className="ops-panel">
           <h2>外部服务</h2>
+          <div className="issue-row">
+            <span>网盘账号</span>
+            <Tag color={overview?.storageAccounts.defaultBaidu && overview.storageAccounts.defaultQuark ? "green" : "gold"}>
+              {overview?.storageAccounts.total ?? 0} 个{overview?.storageAccounts.defaultBaidu ? " · 百度默认" : " · 缺百度默认"}{overview?.storageAccounts.defaultQuark ? " · 夸克默认" : " · 缺夸克默认"}
+            </Tag>
+          </div>
           <IssueRow label="夸克活跃链接" value={overview?.storage.activeQuark ?? 0} />
           <IssueRow label="百度活跃链接" value={overview?.storage.activeBaidu ?? 0} />
           <IssueRow label="缺夸克链接" value={overview?.storage.missingQuark ?? 0} danger={Boolean(overview?.storage.missingQuark)} onClick={() => onOpenLibrary({ storageFilter: "missing_quark" })} />
@@ -375,6 +379,86 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
         </div>
       </div>
     </section>
+  );
+}
+
+function LaunchChecklist({ overview, onNavigate, onOpenLibrary }: { overview: AdminOverview; onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
+  const items = [
+    {
+      key: "baidu",
+      title: "默认百度网盘账号",
+      done: overview.storageAccounts.defaultBaidu,
+      detail: overview.storageAccounts.defaultBaidu ? "已配置" : "用于备用网盘同步和短链入库",
+      actionText: "配置网盘",
+      action: () => onNavigate("storageAccounts"),
+    },
+    {
+      key: "quark",
+      title: "默认夸克网盘账号",
+      done: overview.storageAccounts.defaultQuark,
+      detail: overview.storageAccounts.defaultQuark ? "已配置" : "作为默认主源上传与分享",
+      actionText: "配置网盘",
+      action: () => onNavigate("storageAccounts"),
+    },
+    {
+      key: "channel",
+      title: "默认腾讯频道账号",
+      done: overview.channelAccounts.defaultConfigured,
+      detail: overview.channelAccounts.defaultConfigured ? "已配置" : "用于上传后自动发帖和资源库手动发帖",
+      actionText: "配置频道",
+      action: () => onNavigate("channels"),
+    },
+    {
+      key: "ai",
+      title: "AI 审核清空",
+      done: overview.ai.unreviewed === 0,
+      detail: overview.ai.unreviewed === 0 ? "没有未识别资源" : `${overview.ai.unreviewed} 个资源等待识别`,
+      actionText: "查看资源",
+      action: () => onOpenLibrary({ aiReview: "unreviewed" }),
+    },
+    {
+      key: "short",
+      title: "上架资源短链完整",
+      done: overview.storage.missingActiveLinks === 0 && overview.storage.missingShortLinks === 0,
+      detail: overview.storage.missingActiveLinks || overview.storage.missingShortLinks
+        ? `缺活跃链接 ${overview.storage.missingActiveLinks}，缺短链 ${overview.storage.missingShortLinks}`
+        : "短链状态正常",
+      actionText: "查看问题",
+      action: () => onOpenLibrary({ storageFilter: overview.storage.missingActiveLinks ? "missing_active" : "missing_short" }),
+    },
+    {
+      key: "legacy",
+      title: "下架资源无活跃短链",
+      done: overview.storage.unpublishedActiveShortLinks === 0,
+      detail: overview.storage.unpublishedActiveShortLinks ? `${overview.storage.unpublishedActiveShortLinks} 个下架资源仍有活跃短链` : "已清理",
+      actionText: "处理短链",
+      action: () => onOpenLibrary({ storageFilter: "unpublished_active_short" }),
+    },
+  ];
+  const remaining = items.filter((item) => !item.done).length;
+
+  return (
+    <div className="launch-checklist">
+      <div className="launch-head">
+        <div>
+          <strong>上线待办</strong>
+          <span>{remaining ? `还有 ${remaining} 项需要处理` : "关键链路已就绪"}</span>
+        </div>
+        <Button size="small" onClick={() => onNavigate("diagnostics")}>打开诊断</Button>
+      </div>
+      <div className="launch-items">
+        {items.map((item) => (
+          <div key={item.key} className={`launch-item${item.done ? " is-done" : ""}`}>
+            <Tag color={item.done ? "green" : "gold"}>{item.done ? "完成" : "待办"}</Tag>
+            <div>
+              <strong>{item.title}</strong>
+              <span>{item.detail}</span>
+            </div>
+            {item.done ? null : <Button size="small" type="primary" ghost onClick={item.action}>{item.actionText}</Button>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

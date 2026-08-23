@@ -166,6 +166,8 @@ requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");
 requireContains("scripts/smoke-admin.mjs", "item.command");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/overview");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/storage-accounts");
+requireContains("scripts/smoke-admin.mjs", "overview.storageAccounts.defaultBaidu");
+requireContains("scripts/smoke-admin.mjs", "overview.storageAccounts.defaultQuark");
 requireContains("scripts/smoke-admin.mjs", "diagnostics");
 requireContains("scripts/smoke-channel-accounts.mjs", "codex-smoke-channel-");
 requireContains("scripts/smoke-channel-accounts.mjs", "/api/admin/channels");

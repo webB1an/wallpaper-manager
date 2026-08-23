@@ -183,6 +183,9 @@ export class AdminService {
       unpublishedActiveShortLinks,
       channelAccounts,
       defaultChannelAccounts,
+      storageAccounts,
+      defaultBaiduStorageAccounts,
+      defaultQuarkStorageAccounts,
       tagTotal,
       tasks,
     ] = await Promise.all([
@@ -219,6 +222,9 @@ export class AdminService {
       }),
       this.prisma.channelAccount.count(),
       this.prisma.channelAccount.count({ where: { isDefault: true } }),
+      this.prisma.storageAccount.count({ where: { isActive: true } }),
+      this.prisma.storageAccount.count({ where: { provider: StorageProvider.baidu, isActive: true, isDefault: true } }),
+      this.prisma.storageAccount.count({ where: { provider: StorageProvider.quark, isActive: true, isDefault: true } }),
       this.prisma.tag.count(),
       this.tasks.summary(),
     ]);
@@ -263,6 +269,11 @@ export class AdminService {
       channelAccounts: {
         total: channelAccounts,
         defaultConfigured: defaultChannelAccounts > 0,
+      },
+      storageAccounts: {
+        total: storageAccounts,
+        defaultBaidu: defaultBaiduStorageAccounts > 0,
+        defaultQuark: defaultQuarkStorageAccounts > 0,
       },
       tags: {
         total: tagTotal,

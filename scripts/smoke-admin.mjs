@@ -46,6 +46,8 @@ const [me, overview, diagnostics, settings, storageAccounts] = await Promise.all
 assert(me.ok === true, "admin /me must return ok");
 assert(typeof overview.wallpapers?.published === "number", "overview must include published wallpaper count");
 assert(typeof overview.storage?.missingActiveLinks === "number", "overview must include storage health counts");
+assert(typeof overview.storageAccounts?.defaultBaidu === "boolean", "overview must include default Baidu storage account state");
+assert(typeof overview.storageAccounts?.defaultQuark === "boolean", "overview must include default Quark storage account state");
 assert(Array.isArray(diagnostics) && diagnostics.length > 0, "diagnostics must be a non-empty array");
 assert(typeof settings.defaultAutoProcess === "boolean", "settings must include defaultAutoProcess");
 assert(Array.isArray(storageAccounts), "storage accounts must be an array");
@@ -93,8 +95,8 @@ console.log(JSON.stringify({
   },
   storageAccounts: {
     total: storageAccounts.length,
-    defaultBaidu: storageAccounts.some((item) => item.provider === "baidu" && item.isDefault),
-    defaultQuark: storageAccounts.some((item) => item.provider === "quark" && item.isDefault),
+    defaultBaidu: overview.storageAccounts.defaultBaidu,
+    defaultQuark: overview.storageAccounts.defaultQuark,
   },
 }, null, 2));
 

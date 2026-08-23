@@ -114,6 +114,74 @@ h1 {
   margin-bottom: 18px;
 }
 
+.launch-checklist {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #dfe6dc;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.launch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.launch-head strong,
+.launch-head span {
+  display: block;
+}
+
+.launch-head strong {
+  font-size: 17px;
+}
+
+.launch-head span {
+  margin-top: 3px;
+  color: #66746b;
+  font-size: 13px;
+}
+
+.launch-items {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.launch-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid #f0dfb4;
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.launch-item.is-done {
+  border-color: #dce8da;
+  background: #f7fbf5;
+}
+
+.launch-item strong,
+.launch-item span {
+  display: block;
+}
+
+.launch-item strong {
+  color: #17201b;
+}
+
+.launch-item span {
+  margin-top: 4px;
+  color: #66746b;
+  font-size: 12px;
+}
+
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
