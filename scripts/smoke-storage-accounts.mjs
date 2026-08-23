@@ -39,22 +39,35 @@ const runId = `codex-smoke-${Date.now()}`;
 const providers = ["baidu", "quark"];
 const created = [];
 const authResults = [];
+const defaultHandoff = {};
 
 await cleanupSmokeAccounts();
+const before = await request("/api/admin/storage-accounts", { headers });
+const canTestDefaultHandoff = Object.fromEntries(
+  providers.map((provider) => [provider, before.filter((account) => account.provider === provider).length === 0]),
+);
 
 try {
   for (const provider of providers) {
-    const account = await request("/api/admin/storage-accounts", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        provider,
-        label: `${runId}-${provider}`,
-        isDefault: false,
-      }),
-    });
-    assert(account.id && account.provider === provider, `${provider} storage account must be created`);
-    created.push(account);
+    for (const index of [1, 2]) {
+      const account = await request("/api/admin/storage-accounts", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          provider,
+          label: `${runId}-${provider}-${index}`,
+          isDefault: false,
+        }),
+      });
+      assert(account.id && account.provider === provider, `${provider} storage account must be created`);
+      if (canTestDefaultHandoff[provider] && index === 1) {
+        assert(account.isDefault === true, `first ${provider} storage account must automatically become default`);
+      }
+      if (canTestDefaultHandoff[provider] && index === 2) {
+        assert(account.isDefault === false, `second ${provider} storage account must not replace default unless requested`);
+      }
+      created.push(account);
+    }
   }
 
   const listed = await request("/api/admin/storage-accounts", { headers });
@@ -67,6 +80,22 @@ try {
       const result = await request(`/api/admin/storage-accounts/${account.id}/auth/start`, { method: "POST", headers });
       authResults.push(summarizeAuthResult(account.provider, result));
     }
+  }
+
+  for (const provider of providers) {
+    if (!canTestDefaultHandoff[provider]) {
+      defaultHandoff[provider] = false;
+      continue;
+    }
+    const providerAccounts = created.filter((account) => account.provider === provider);
+    const selected = await request(`/api/admin/storage-accounts/${providerAccounts[1].id}/default`, { method: "POST", headers });
+    assert(selected.isDefault === true, `${provider} storage account must be settable as default`);
+    await request(`/api/admin/storage-accounts/${selected.id}`, { method: "DELETE", headers });
+    created.splice(created.findIndex((account) => account.id === selected.id), 1);
+    const afterDefaultDelete = await request("/api/admin/storage-accounts", { headers });
+    const firstAccount = afterDefaultDelete.find((account) => account.id === providerAccounts[0].id);
+    assert(firstAccount?.isDefault === true, `deleting default ${provider} account must promote another account`);
+    defaultHandoff[provider] = true;
   }
 } finally {
   for (const account of created) {
@@ -85,6 +114,7 @@ console.log(JSON.stringify({
   ok: true,
   adminOrigin,
   created: created.map((account) => ({ id: account.id, provider: account.provider, becameDefault: account.isDefault })),
+  defaultHandoff,
   authStart,
   authResults,
   remainingAccounts: after.length,

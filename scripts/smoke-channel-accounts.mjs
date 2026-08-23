@@ -36,8 +36,11 @@ assert(typeof login.token === "string" && login.token.length > 20, "admin login 
 const headers = { Authorization: `Bearer ${login.token}`, "Content-Type": "application/json" };
 const runId = `codex-smoke-channel-${Date.now()}`;
 const created = [];
+let testedDefaultHandoff = false;
 
 await cleanupSmokeAccounts();
+const before = await request("/api/admin/channels", { headers });
+const canTestDefaultHandoff = before.length === 0;
 
 try {
   for (const index of [1, 2]) {
@@ -57,6 +60,12 @@ try {
     });
     assert(account.id, "channel account must be created");
     assert(account.tokenTail === token.slice(-6), "channel token tail must be persisted without exposing the token");
+    if (canTestDefaultHandoff && index === 1) {
+      assert(account.isDefault === true, "first channel account must automatically become default");
+    }
+    if (canTestDefaultHandoff && index === 2) {
+      assert(account.isDefault === false, "second channel account must not replace default unless requested");
+    }
     created.push(account);
   }
 
@@ -65,8 +74,16 @@ try {
     assert(listed.some((item) => item.id === account.id), "created channel account must be listed");
   }
 
-  const selected = await request(`/api/admin/channels/${created.at(-1).id}/default`, { method: "POST", headers });
-  assert(selected.isDefault === true, "channel account must be settable as default");
+  if (canTestDefaultHandoff) {
+    const selected = await request(`/api/admin/channels/${created.at(-1).id}/default`, { method: "POST", headers });
+    assert(selected.isDefault === true, "channel account must be settable as default");
+    await request(`/api/admin/channels/${selected.id}`, { method: "DELETE", headers });
+    created.splice(created.findIndex((account) => account.id === selected.id), 1);
+    const afterDefaultDelete = await request("/api/admin/channels", { headers });
+    const firstAccount = afterDefaultDelete.find((account) => account.id === created[0].id);
+    assert(firstAccount?.isDefault === true, "deleting default channel account must promote another account");
+    testedDefaultHandoff = true;
+  }
 } finally {
   for (const account of created) {
     await request(`/api/admin/channels/${account.id}`, { method: "DELETE", headers }).catch((error) => {
@@ -84,6 +101,7 @@ console.log(JSON.stringify({
   ok: true,
   adminOrigin,
   created: created.map((account) => ({ id: account.id, becameDefault: account.isDefault, tokenTail: account.tokenTail })),
+  testedDefaultHandoff,
   remainingAccounts: after.length,
 }, null, 2));
 
