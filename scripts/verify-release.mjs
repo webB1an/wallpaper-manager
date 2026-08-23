@@ -276,6 +276,7 @@ requireContains("apps/api/src/main.ts", "DATABASE_URL 必须使用真实数据�
 requireContains("apps/api/src/main.ts", "PUBLIC_API_ORIGIN");
 requireContains("apps/api/src/main.ts", "ADMIN_ORIGIN");
 requireContains("apps/api/src/main.ts", "SHORT_LINK_ORIGIN");
+requireContains("apps/api/src/main.ts", 'app.set("trust proxy", 1)');
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkMiniprogramReleaseConfig");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "微信小程序发布");

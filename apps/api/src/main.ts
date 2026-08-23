@@ -2,6 +2,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { config as loadEnv } from "dotenv";
+import type { Express } from "express";
 import { AppModule } from "./app.module";
 import { enableJsonBigIntSerialization } from "./common/json";
 
@@ -15,6 +16,7 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule, { cors: false });
+  (app.getHttpAdapter().getInstance() as Express).set("trust proxy", 1);
   const config = app.get(ConfigService);
   const adminOrigin = config.get<string>("ADMIN_ORIGIN") || "http://127.0.0.1:5173";
 
