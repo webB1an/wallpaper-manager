@@ -73,6 +73,7 @@ export class StorageAccountService {
     const linkCount = await this.prisma.storageLink.count({ where: { storageAccountId: id } });
     if (linkCount > 0) {
       await this.prisma.storageAccount.update({ where: { id }, data: { isActive: false, isDefault: false } });
+      await this.removeProfile(account.profileDir);
     } else {
       await this.prisma.storageAccount.delete({ where: { id } });
       await this.removeProfile(account.profileDir);
