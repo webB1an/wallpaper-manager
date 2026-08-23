@@ -15,7 +15,18 @@ Page({
         error: "",
         id: "",
         capsuleTop: 48,
-        capsuleHeight: 32
+        capsuleHeight: 32,
+        topbarBg: "rgba(251,247,240,0)",
+        navColor: "#ffffff"
+    },
+    onPageScroll(event) {
+        const ratio = Math.min(1, Math.max(0, (event.scrollTop || 0) / 160));
+        const alpha = (ratio * 0.96).toFixed(2);
+        const white = ratio >= 0.55;
+        this.setData({
+            topbarBg: `rgba(251,247,240,${alpha})`,
+            navColor: white ? "#2b211b" : "#ffffff",
+        });
     },
     async onLoad(options) {
         const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;

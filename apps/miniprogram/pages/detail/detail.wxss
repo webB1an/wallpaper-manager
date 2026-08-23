@@ -5,7 +5,7 @@
 }
 
 .detail-topbar {
-  position: absolute;
+  position: fixed;
   z-index: 10;
   top: 0;
   right: 0;
@@ -14,7 +14,8 @@
   align-items: center;
   height: 96rpx;
   padding: calc(env(safe-area-inset-top) + 8rpx) 20rpx 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+  background: transparent;
+  transition: background 0.2s ease;
 }
 
 .detail-back {
@@ -25,7 +26,7 @@
   justify-content: center;
   border-radius: 999rpx;
   color: #ffffff;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .detail-back-icon {
@@ -370,14 +371,15 @@
 
 .related-card text {
   display: block;
-  height: 68rpx;
-  padding: 12rpx;
+  height: 44rpx;
+  padding: 0 12rpx;
   overflow: hidden;
   color: #2b211b;
   font-size: 23rpx;
   font-weight: 720;
-  line-height: 34rpx;
-  white-space: normal;
+  line-height: 44rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-loading {
