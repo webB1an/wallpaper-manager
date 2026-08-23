@@ -47,12 +47,12 @@ Page({
 
   openTag(event: WechatMiniprogram.TouchEvent) {
     const tag = String(event.currentTarget.dataset.tag || "");
-    wx.navigateTo({ url: `/pages/index/index?tag=${encodeURIComponent(tag)}` });
+    openIndexWithQuery(`tag=${encodeURIComponent(tag)}`);
   },
 
   openType(event: WechatMiniprogram.TouchEvent) {
     const type = String(event.currentTarget.dataset.type || "");
-    wx.navigateTo({ url: `/pages/index/index?type=${encodeURIComponent(type)}` });
+    openIndexWithQuery(`type=${encodeURIComponent(type)}`);
   },
 
   onShareAppMessage() {
@@ -68,3 +68,7 @@ Page({
     };
   }
 });
+
+function openIndexWithQuery(query: string) {
+  wx.reLaunch({ url: `/pages/index/index?${query}` });
+}

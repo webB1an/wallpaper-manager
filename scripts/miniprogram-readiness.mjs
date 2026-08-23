@@ -12,6 +12,7 @@ const domains = readJson("deploy/wechat-miniprogram-domains.json");
 const sitemap = readJson("apps/miniprogram/sitemap.json");
 const apiText = readText("apps/miniprogram/utils/api.ts");
 const appTs = readText("apps/miniprogram/app.ts");
+const categoryTs = readText("apps/miniprogram/pages/category/category.ts");
 
 const appid = String(project.appid || "").trim();
 if (!appid) {
@@ -89,6 +90,14 @@ add(
   "微信分享",
   "已启用分享给好友和朋友圈",
   "保持 app.ts 初始化分享能力。",
+);
+
+add(
+  categoryTs.includes("wx.reLaunch") && !categoryTs.includes("wx.navigateTo({ url: `/pages/index/index"),
+  "category_tab_jump",
+  "分类跳转",
+  "分类页可以携带筛选条件打开首页 tab",
+  "首页是 tabBar 页面，分类页跳转必须使用 wx.reLaunch 或等价方案，不能用 wx.navigateTo 打开首页。",
 );
 
 const summary = checks.reduce((acc, item) => {
