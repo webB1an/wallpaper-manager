@@ -1,7 +1,7 @@
 .detail-page {
   position: relative;
   min-height: 100vh;
-  background: #2b211b;
+  background: #fbf7f0;
 }
 
 .detail-topbar {
