@@ -79,6 +79,18 @@ export class PublicService {
     };
   }
 
+  async click(id: string) {
+    const item = await this.prisma.wallpaper.findFirst({
+      where: { id, status: WallpaperStatus.published },
+      select: { id: true },
+    });
+    if (!item) throw new NotFoundException("壁纸不存在或未上架");
+    await this.prisma.wallpaper.update({
+      where: { id },
+      data: { downloadCount: { increment: 1 } },
+    });
+  }
+
   async tags() {
     const tags = await this.prisma.tag.findMany({
       orderBy: { name: "asc" },

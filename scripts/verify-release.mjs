@@ -140,11 +140,14 @@ requireContains("apps/miniprogram/pages/category/category.wxss", "tagSkeletonSwe
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "detail-panel-skeleton");
 requireContains("apps/miniprogram/pages/detail/detail.wxss", "detailSkeletonSweep");
 requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall-api.wdbzk.com/api"');
+requireContains("apps/miniprogram/utils/api.ts", "export function post");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primaryPasscode");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "download-passcode");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "data-passcode");
 requireContains("apps/miniprogram/pages/detail/detail.ts", "formatClipboardText");
+requireContains("apps/miniprogram/pages/detail/detail.ts", "recordDownloadClick");
+requireContains("apps/miniprogram/pages/detail/detail.ts", "/click");
 requireContains("apps/miniprogram/pages/detail/detail.wxss", "primary-passcode");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "openDetail");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "showModal");
@@ -282,6 +285,9 @@ requireContains("apps/api/src/modules/public/public.service.ts", "compareShortLi
 requireContains("apps/api/src/modules/public/public.service.ts", "storageLink.isPrimary");
 requireContains("apps/api/src/modules/public/public.service.ts", "assertRedirectUrl");
 requireContains("apps/api/src/modules/public/public.service.ts", "link.wallpaper.status !== WallpaperStatus.published");
+requireContains("apps/api/src/modules/public/public.service.ts", "async click(id: string)");
+requireContains("apps/api/src/modules/public/public.service.ts", "downloadCount: { increment: 1 }");
+requireContains("apps/api/src/modules/public/public.controller.ts", "this.service.click(id)");
 requireContains("scripts/smoke-admin.mjs", "STRICT_ADMIN_SMOKE");
 requireContains("scripts/smoke-admin.mjs", "--strict");
 requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");

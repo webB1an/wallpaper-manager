@@ -27,7 +27,7 @@ export class PublicController {
 
   @Post("wallpapers/:id/click")
   async click(@Param("id") id: string) {
-    await this.service.detail(id);
+    await this.service.click(id);
     return { code: 200, data: { ok: true } };
   }
 

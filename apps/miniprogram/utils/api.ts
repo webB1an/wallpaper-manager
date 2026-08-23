@@ -1,6 +1,14 @@
 const API_BASE = "https://wall-api.wdbzk.com/api";
 
 export function request<T>(path: string, data?: Record<string, string | number | undefined>): Promise<T> {
+  return requestWithMethod<T>("GET", path, data);
+}
+
+export function post<T>(path: string, data?: Record<string, string | number | undefined>): Promise<T> {
+  return requestWithMethod<T>("POST", path, data);
+}
+
+function requestWithMethod<T>(method: "GET" | "POST", path: string, data?: Record<string, string | number | undefined>): Promise<T> {
   const query = data
     ? "?" + Object.entries(data)
       .filter(([, value]) => value !== undefined && value !== "")
@@ -10,7 +18,7 @@ export function request<T>(path: string, data?: Record<string, string | number |
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${API_BASE}${path}${query}`,
-      method: "GET",
+      method,
       success(response) {
         const body = response.data as { code?: number; data?: T; message?: string };
         if (response.statusCode >= 200 && response.statusCode < 300 && body.code === 200) {

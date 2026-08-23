@@ -1,4 +1,4 @@
-import { request, WallpaperDetail } from "../../utils/api";
+import { post, request, WallpaperDetail } from "../../utils/api";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -85,6 +85,7 @@ Page({
       data: formatClipboardText(url, passcode),
       success: () => {
         saveHistory(this.data.item, url, label, passcode);
+        recordDownloadClick(this.data.item?.id);
         wx.showToast({ title: passcode ? "短链和提取码已复制" : "短链已复制", icon: "success" });
       }
     });
@@ -141,6 +142,11 @@ function readHistory(): Array<{ id?: string; title: string; coverUrl: string; la
 
 function formatClipboardText(url: string, passcode?: string) {
   return passcode ? `链接：${url}\n提取码：${passcode}` : url;
+}
+
+function recordDownloadClick(id?: string) {
+  if (!id) return;
+  post<{ ok: boolean }>(`/wallpapers/${id}/click`).catch(() => undefined);
 }
 
 function formatBytes(value: number) {

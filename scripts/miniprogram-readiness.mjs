@@ -13,6 +13,7 @@ const sitemap = readJson("apps/miniprogram/sitemap.json");
 const apiText = readText("apps/miniprogram/utils/api.ts");
 const appTs = readText("apps/miniprogram/app.ts");
 const categoryTs = readText("apps/miniprogram/pages/category/category.ts");
+const detailTs = readText("apps/miniprogram/pages/detail/detail.ts");
 
 const appid = String(project.appid || "").trim();
 if (!appid) {
@@ -98,6 +99,14 @@ add(
   "分类跳转",
   "分类页可以携带筛选条件打开首页 tab",
   "首页是 tabBar 页面，分类页跳转必须使用 wx.reLaunch 或等价方案，不能用 wx.navigateTo 打开首页。",
+);
+
+add(
+  apiText.includes("export function post") && detailTs.includes("recordDownloadClick") && detailTs.includes("/click`).catch"),
+  "download_click",
+  "下载统计",
+  "复制短链后会上报下载点击，用于热门排序",
+  "详情页复制短链成功后需要调用 /wallpapers/:id/click，保持热门排序和下载次数可信。",
 );
 
 const summary = checks.reduce((acc, item) => {
