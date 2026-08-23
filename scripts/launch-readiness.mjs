@@ -80,9 +80,23 @@ function runSection(key, label, args) {
     ok: Boolean(parsed.ok),
     exitCode: output.status ?? 0,
     summary: parsed.diagnostics || parsed.summary || { ok: 0, warn: 0, fail: parsed.ok ? 0 : 1 },
-    actions: parsed.actions || [],
+    actions: normalizeActions(key, label, parsed),
     details: summarizeDetails(parsed),
   };
+}
+
+function normalizeActions(key, label, parsed) {
+  if (parsed.actions?.length) return parsed.actions;
+  if (parsed.ok !== false || !parsed.error) return [];
+  return [{
+    key: `${key}_readiness`,
+    status: "fail",
+    label,
+    message: parsed.error,
+    nextStep: parsed.error.includes("ADMIN_PASSWORD")
+      ? "在服务器项目目录运行 readiness，或在本地环境提供 ADMIN_PASSWORD 后重新运行。线上 GitHub workflow 和服务器 .env 已使用服务器环境变量。"
+      : "按错误信息处理后重新运行 readiness。",
+  }];
 }
 
 function parseJson(value) {

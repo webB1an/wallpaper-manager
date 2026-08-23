@@ -153,7 +153,22 @@ function printHuman(data) {
 }
 
 function failEarly(message) {
-  if (json) console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+  if (json) {
+    console.log(JSON.stringify({
+      ok: false,
+      error: message,
+      diagnostics: { ok: 0, warn: 0, fail: 1 },
+      actions: [{
+        key: "production_readiness",
+        status: "fail",
+        label: "后台与线上服务",
+        message,
+        nextStep: message.includes("ADMIN_PASSWORD")
+          ? "在服务器项目目录运行 readiness，或在本地环境提供 ADMIN_PASSWORD 后重新运行。"
+          : "按错误信息处理后重新运行本检查。",
+      }],
+    }, null, 2));
+  }
   else console.error(message);
   process.exit(1);
 }
