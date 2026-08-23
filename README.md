@@ -6,6 +6,7 @@
 - 后端：资源、短链、队列、AI 分类审核、网盘同步、wdbzk 入库、腾讯频道发帖。
 - 管理端：批量上传、上传后自动处理、任务状态、批量编辑、上下架、手动补网盘链接、系统默认设置、上线诊断、账号与频道配置、老站封面迁移。
 - 网盘账号：百度和夸克都在管理端授权，支持多账号和按类型设置默认同步账号。
+- 腾讯频道账号：Token 在管理端保存，支持多账号；上传批次、资源库单条/批量发帖都可以临时选择账号。
 
 ## Domains
 
@@ -57,6 +58,9 @@ npm run readiness:miniprogram
 ```
 
 Storage authorization is completed in the admin web console. Open `网盘账号`, add one or more Baidu/Quark accounts, authorize each account, then choose the default account per provider.
+For per-batch routing, the upload page and resource-library processing dialog can override the default Baidu/Quark accounts.
+
+Tencent Channel authorization is also completed in the admin web console. Open `腾讯频道`, add one or more tokens, choose guild/channel, and set a default account for system defaults. Upload batches can choose a channel account for auto-posting, and manual channel publishing can choose an account per post.
 
 To verify the managed multi-account storage flow through the admin API:
 

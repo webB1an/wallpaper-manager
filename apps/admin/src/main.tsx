@@ -1584,7 +1584,7 @@ function Channels() {
 
   return (
     <section>
-      <Header title="腾讯频道" subtitle="支持多个 Token 账号，保存后上传批次可以选择默认账号自动发帖。" />
+      <Header title="腾讯频道" subtitle="支持多个 Token 账号，上传批次和资源库手动发帖都可以选择频道账号。" />
       <div className="channel-readiness">
         <div className={`channel-readiness-card${defaultAccount ? " is-ready" : ""}`}>
           <div>

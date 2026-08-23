@@ -204,6 +204,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");
 requireContains("apps/admin/src/main.tsx", "defaultChannelReady");
 requireContains("apps/admin/src/main.tsx", "本次发帖频道账号");
 requireContains("apps/admin/src/main.tsx", "未设置默认频道账号");
+requireContains("apps/admin/src/main.tsx", "上传批次和资源库手动发帖都可以选择频道账号");
 requireContains("apps/admin/src/main.tsx", "默认频道账号");
 requireContains("apps/admin/src/main.tsx", "静态最多 18 张 · 动态 1 个");
 requireContains("apps/admin/src/main.tsx", "发帖内容不带网盘链接");
@@ -356,6 +357,8 @@ requireContains("docs/deployment.md", "不要勾选“不校验合法域名”")
 requireContains("docs/deployment.md", "网盘授权");
 requireContains("docs/deployment.md", "网盘账号");
 requireContains("docs/deployment.md", "支持多账号");
+requireContains("docs/deployment.md", "本次发帖频道账号");
+requireContains("README.md", "Upload batches can choose a channel account");
 requireContains("docs/deployment.md", "未同步过资源的账号会直接移除");
 requireContains("docs/deployment.md", "清理授权文件");
 requireContains("docs/deployment.md", "腾讯频道配置");
