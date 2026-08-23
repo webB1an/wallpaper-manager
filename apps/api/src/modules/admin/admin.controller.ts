@@ -93,8 +93,8 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/:id/process")
-  async process(@Param("id") id: string) {
-    return { code: 200, data: await this.admin.enqueueProcessWallpaper(id) };
+  async process(@Param("id") id: string, @Body() body?: { quarkAccountId?: string; baiduAccountId?: string }) {
+    return { code: 200, data: await this.admin.enqueueProcessWallpaper(id, cleanStorageSelection(body || {})) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -166,8 +166,8 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/bulk/process")
-  async bulkProcess(@Body() body: { ids: string[] }) {
-    return { code: 200, data: await this.admin.enqueueProcessWallpapers(body.ids || []) };
+  async bulkProcess(@Body() body?: { ids?: string[]; quarkAccountId?: string; baiduAccountId?: string }) {
+    return { code: 200, data: await this.admin.enqueueProcessWallpapers(body?.ids || [], cleanStorageSelection(body || {})) };
   }
 
   @UseGuards(AdminAuthGuard)

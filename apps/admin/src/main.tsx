@@ -113,6 +113,11 @@ type SystemSettings = {
   defaultAutoPublish: boolean;
 };
 
+type StorageSelectionForm = {
+  quarkAccountId?: string;
+  baiduAccountId?: string;
+};
+
 type DiagnosticItem = {
   key: string;
   label: string;
@@ -503,9 +508,14 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   const [bulkEditing, setBulkEditing] = useState(false);
   const [form] = Form.useForm();
   const [bulkForm] = Form.useForm<{ status?: string; tags?: string }>();
+  const [processForm] = Form.useForm<StorageSelectionForm>();
   const [publishForm] = Form.useForm<{ accountId?: string }>();
   const [publishTargetIds, setPublishTargetIds] = useState<React.Key[]>([]);
   const [channelAccounts, setChannelAccounts] = useState<ChannelAccount[]>([]);
+  const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>([]);
+  const [processModalOpen, setProcessModalOpen] = useState(false);
+  const [processLoading, setProcessLoading] = useState(false);
+  const [storageLoading, setStorageLoading] = useState(false);
   const [channelLoading, setChannelLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
@@ -548,6 +558,21 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   const reloadFromFirstPage = () => {
     setSelectedRowKeys([]);
     void load(1);
+  };
+
+  const openBatchProcess = async () => {
+    if (!selectedRowKeys.length) {
+      message.warning("先选择资源");
+      return;
+    }
+    processForm.resetFields();
+    setProcessModalOpen(true);
+    setStorageLoading(true);
+    try {
+      setStorageAccounts(await request<StorageAccount[]>("/api/admin/storage-accounts"));
+    } finally {
+      setStorageLoading(false);
+    }
   };
 
   const openChannelPublish = async (ids: React.Key[]) => {
@@ -662,7 +687,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           style={{ width: 160 }}
         />
         <Button onClick={reloadFromFirstPage}>搜索</Button>
-        <Button type="primary" onClick={() => processBatch(selectedRowKeys, load)}>批量处理</Button>
+        <Button type="primary" onClick={openBatchProcess}>批量处理</Button>
         <Button onClick={() => {
           if (!selectedRowKeys.length) {
             message.warning("先选择资源");
@@ -814,6 +839,64 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           </Form.Item>
           <Form.Item label="标签" name="tags">
             <Input placeholder="留空不修改；多个标签用逗号分隔，填写后会替换所选资源标签" />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="批量处理"
+        open={processModalOpen}
+        confirmLoading={processLoading}
+        onCancel={() => {
+          setProcessModalOpen(false);
+          processForm.resetFields();
+        }}
+        onOk={async () => {
+          const values = await processForm.validateFields();
+          setProcessLoading(true);
+          try {
+            await processBatch(selectedRowKeys, values, load);
+            setProcessModalOpen(false);
+            processForm.resetFields();
+          } finally {
+            setProcessLoading(false);
+          }
+        }}
+      >
+        <Alert
+          className="modal-alert"
+          type="info"
+          showIcon
+          message="可以为本次补处理临时指定网盘账号；留空时使用对应网盘的默认账号。"
+        />
+        <Form form={processForm} layout="vertical">
+          <Form.Item label="已选择资源">
+            <Tag color="blue">{selectedRowKeys.length} 个</Tag>
+          </Form.Item>
+          <Form.Item label="本次夸克同步账号" name="quarkAccountId">
+            <Select
+              allowClear
+              loading={storageLoading}
+              placeholder="使用默认夸克账号"
+              options={storageAccounts
+                .filter((account) => account.provider === "quark")
+                .map((account) => ({
+                  value: account.id,
+                  label: `${account.label}${account.isDefault ? " · 默认" : ""}${account.accountName ? ` · ${account.accountName}` : ""}`,
+                }))}
+            />
+          </Form.Item>
+          <Form.Item label="本次百度同步账号" name="baiduAccountId">
+            <Select
+              allowClear
+              loading={storageLoading}
+              placeholder="使用默认百度账号"
+              options={storageAccounts
+                .filter((account) => account.provider === "baidu")
+                .map((account) => ({
+                  value: account.id,
+                  label: `${account.label}${account.isDefault ? " · 默认" : ""}${account.accountName ? ` · ${account.accountName}` : ""}`,
+                }))}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -1879,14 +1962,14 @@ async function processWallpaper(id: string, reload: () => void) {
   reload();
 }
 
-async function processBatch(ids: React.Key[], reload: () => void) {
+async function processBatch(ids: React.Key[], selection: StorageSelectionForm, reload: () => void) {
   if (!ids.length) {
     message.warning("先选择资源");
     return;
   }
   const result = await request<{ queued: number }>("/api/admin/wallpapers/bulk/process", {
     method: "POST",
-    body: JSON.stringify({ ids }),
+    body: JSON.stringify({ ids, ...selection }),
   });
   message.success(`已加入 ${result.queued} 个处理任务`);
   reload();

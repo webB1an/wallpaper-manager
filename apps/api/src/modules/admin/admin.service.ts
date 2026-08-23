@@ -533,10 +533,10 @@ export class AdminService {
     return { queued: true, taskId: task.id };
   }
 
-  async enqueueProcessWallpapers(ids: string[]) {
+  async enqueueProcessWallpapers(ids: string[], storageSelection?: StorageSelection) {
     const queued = [];
     for (const id of ids) {
-      queued.push(await this.enqueueProcessWallpaper(id));
+      queued.push(await this.enqueueProcessWallpaper(id, storageSelection));
     }
     return { queued: queued.length, tasks: queued };
   }
