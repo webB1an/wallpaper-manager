@@ -138,9 +138,13 @@ npm run package:release
 
 生成 `wallpaper-manager-deploy-YYYYMMDDHHmmss.tar.gz` 后上传到宝塔服务器并解压到 `/www/wwwroot/wallpaper-manager`。
 
-## 7. 网盘授权
+## 7. 网盘账号与授权
 
-首次部署、换服务器、重装 `bdpan` 或夸克 skill 后，都需要在服务器上完成一次授权。授权完成前，管理端“上线诊断”会把对应命令展示出来，并提供“复制命令”按钮。
+首次部署、换服务器、重装 `bdpan` 或夸克 skill 后，都需要在管理端完成一次授权。打开“网盘账号”，分别新增百度和夸克账号，点击“授权”获取链接，授权完成后把页面返回的授权码粘贴回后台。每个网盘类型都支持多账号，并各自设置一个默认账号；上传处理默认使用该类型的默认账号同步网盘。
+
+后台会为每个网盘账号使用独立 profile 目录，百度通过 `bdpan --config-path` 隔离授权态，夸克 skill 通过独立运行环境隔离授权态。授权码只用于完成登录，不会写入数据库。
+
+服务器侧兜底命令仍可用于排查：
 
 也可以在服务器项目目录使用统一授权助手：
 
@@ -153,7 +157,7 @@ npm run auth:storage -- quark-login
 npm run auth:storage -- quark-whoami
 ```
 
-百度网盘登录：
+百度网盘登录排查：
 
 ```bash
 '/root/.local/bin/bdpan' login --accept-disclaimer --get-auth-url
@@ -171,7 +175,7 @@ npm run auth:storage -- quark-whoami
 '/root/.local/bin/bdpan' whoami
 ```
 
-夸克 skill 登录：
+夸克 skill 登录排查：
 
 ```bash
 cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login
@@ -183,7 +187,7 @@ cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scrip
 cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs get-user-info
 ```
 
-两个网盘授权都完成后，打开管理端“上线诊断”重新检查，`百度网盘 bdpan` 和 `夸克 skill` 都应显示“正常”。如果只完成其中一个，上传处理仍可能继续使用另一个成功源，但会在任务结果里留下同步失败提醒。
+两个网盘授权都完成并设为默认后，打开管理端“上线诊断”重新检查，`百度网盘账号` 和 `夸克网盘账号` 都应显示“正常”。如果只完成其中一个，上传处理仍可能继续使用另一个成功源，但会在任务结果里留下同步失败提醒。
 
 ## 8. Nginx
 
@@ -244,6 +248,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 百度、夸克、腾讯频道授权配置完成后，`npm run smoke:production:strict` 通过。
 - PM2 中 `wallpaper-api` 为 `online`。
 - 管理端“上线诊断”中数据库、Redis、ffmpeg、DeepSeek、panapi、bdpan、夸克 skill、腾讯频道 CLI 都为正常。
+- 管理端“网盘账号”中至少有一个默认百度账号和一个默认夸克账号，且探活可用。
 - 管理端至少存在一个默认腾讯频道账号。
 - 资源库里已上架资源都有可用 `r.wdbzk.com` 短链。
 - `npm run cleanup:unpublished-links` 返回 `Matched wallpapers: 0`，或已确认并执行过 `--apply`。

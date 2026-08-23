@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { lastResult, parseNdjson, runCli } from "../../common/cli";
+import { ManagedStorageAccount, quarkAccountEnv } from "./storage-account.service";
 
 export interface QuarkUploadResult {
   fids: string[];
@@ -19,14 +20,14 @@ export interface QuarkShareResult {
 export class QuarkStorageService {
   constructor(private readonly config: ConfigService) {}
 
-  async upload(filePath: string): Promise<QuarkUploadResult> {
+  async upload(filePath: string, account?: ManagedStorageAccount): Promise<QuarkUploadResult> {
     const skillDir = this.requireSkillDir();
     const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
     const args = [cliPath, "upload", filePath, "--session-input", "wallpaper-manager upload", "--session-id", this.sessionId()];
     const parentFid = this.config.get<string>("QUARK_UPLOAD_PARENT_FID")?.trim();
     if (parentFid) args.splice(3, 0, "--parent-fid", parentFid);
 
-    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 60 * 60_000, env: quarkAgentEnv() });
+    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 60 * 60_000, env: quarkAccountEnv(account) });
     const final = lastResult(result.stdout);
     const code = Number(final?.code ?? (result.ok ? 0 : -1));
     if (!result.ok || code !== 0) {
@@ -41,7 +42,7 @@ export class QuarkStorageService {
     };
   }
 
-  async share(fids: string[], title: string): Promise<QuarkShareResult> {
+  async share(fids: string[], title: string, account?: ManagedStorageAccount): Promise<QuarkShareResult> {
     const skillDir = this.requireSkillDir();
     const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
     const args = [
@@ -59,7 +60,7 @@ export class QuarkStorageService {
       "--session-id",
       this.sessionId(),
     ];
-    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 120_000, env: quarkAgentEnv() });
+    const result = await runCli(process.execPath, args, { cwd: skillDir, timeoutMs: 120_000, env: quarkAccountEnv(account) });
     const final = lastResult(result.stdout);
     const code = Number(final?.code ?? (result.ok ? 0 : -1));
     if (!result.ok || code !== 0) {
@@ -70,11 +71,11 @@ export class QuarkStorageService {
     return { url: data.share_url, passcode: data.passcode };
   }
 
-  async probe(): Promise<{ ok: boolean; message: string }> {
+  async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {
     try {
       const skillDir = this.requireSkillDir();
       const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
-      const result = await runCli(process.execPath, [cliPath, "get-user-info"], { cwd: skillDir, timeoutMs: 60_000, env: quarkAgentEnv() });
+      const result = await runCli(process.execPath, [cliPath, "get-user-info"], { cwd: skillDir, timeoutMs: 60_000, env: quarkAccountEnv(account) });
       const final = parseNdjson(result.stdout).at(-1);
       return {
         ok: result.ok && Number(final?.code ?? 0) === 0,
@@ -96,11 +97,4 @@ export class QuarkStorageService {
   private sessionId(): string {
     return `${Math.floor(Date.now() / 1000)}-wmgr01`;
   }
-}
-
-function quarkAgentEnv(): NodeJS.ProcessEnv {
-  return {
-    CODEX_ENV: "1",
-    AI_AGENT: "codex",
-  };
 }

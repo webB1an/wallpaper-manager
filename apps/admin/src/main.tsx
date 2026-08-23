@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Alert, Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadProps } from "antd";
-import { Activity, CloudUpload, Copy, GalleryVerticalEnd, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
+import { Activity, CloudUpload, Copy, GalleryVerticalEnd, HardDrive, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
 import "./styles.css";
 
@@ -81,6 +81,19 @@ type ChannelAccount = {
   guildName?: string;
   channelName?: string;
   isDefault: boolean;
+};
+
+type StorageAccount = {
+  id: string;
+  provider: "quark" | "baidu";
+  label: string;
+  accountName?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  lastProbeOk?: boolean;
+  lastProbeMessage?: string;
+  lastProbeAt?: string;
+  createdAt: string;
 };
 
 type TencentGuildOption = {
@@ -204,6 +217,7 @@ function App() {
               { key: "upload", icon: <UploadCloud size={18} />, label: "批量上传" },
               { key: "tasks", icon: <ListChecks size={18} />, label: "任务队列" },
               { key: "import", icon: <CloudUpload size={18} />, label: "老封面迁移" },
+              { key: "storageAccounts", icon: <HardDrive size={18} />, label: "网盘账号" },
               { key: "channels", icon: <RadioTower size={18} />, label: "腾讯频道" },
               { key: "settings", icon: <SettingsIcon size={18} />, label: "系统设置" },
               { key: "diagnostics", icon: <Activity size={18} />, label: "上线诊断" },
@@ -216,6 +230,7 @@ function App() {
           {active === "upload" && <Uploader />}
           {active === "tasks" && <Tasks />}
           {active === "import" && <OldImport />}
+          {active === "storageAccounts" && <StorageAccounts />}
           {active === "channels" && <Channels />}
           {active === "settings" && <Settings />}
           {active === "diagnostics" && <Diagnostics />}
@@ -1326,6 +1341,159 @@ function Channels() {
           </Form>,
         },
       ]} />
+    </section>
+  );
+}
+
+function StorageAccounts() {
+  const [items, setItems] = useState<StorageAccount[]>([]);
+  const [activeTab, setActiveTab] = useState("accounts");
+  const [form] = Form.useForm();
+  const [authCodeForm] = Form.useForm<{ code: string }>();
+  const [authTarget, setAuthTarget] = useState<StorageAccount | null>(null);
+  const [authUrl, setAuthUrl] = useState("");
+  const [loadingAuth, setLoadingAuth] = useState(false);
+  const load = () => request<StorageAccount[]>("/api/admin/storage-accounts").then(setItems);
+  useEffect(() => { void load(); }, []);
+
+  const startAuth = async (account: StorageAccount) => {
+    setLoadingAuth(true);
+    try {
+      const result = await request<{ authUrl?: string; message?: string } | StorageAccount>(`/api/admin/storage-accounts/${account.id}/auth/start`, { method: "POST" });
+      if ("authUrl" in result && result.authUrl) {
+        setAuthTarget(account);
+        setAuthUrl(result.authUrl);
+        authCodeForm.resetFields();
+      } else {
+        message.success("账号已授权");
+        await load();
+      }
+    } finally {
+      setLoadingAuth(false);
+    }
+  };
+
+  const finishAuth = async (values: { code: string }) => {
+    if (!authTarget) return;
+    await request(`/api/admin/storage-accounts/${authTarget.id}/auth/finish`, {
+      method: "POST",
+      body: JSON.stringify({ code: values.code }),
+    });
+    message.success("网盘账号授权完成");
+    setAuthTarget(null);
+    setAuthUrl("");
+    await load();
+  };
+
+  const probe = async (account: StorageAccount) => {
+    await request(`/api/admin/storage-accounts/${account.id}/probe`, { method: "POST" });
+    message.success("探活完成");
+    await load();
+  };
+
+  return (
+    <section>
+      <Header title="网盘账号" subtitle="百度和夸克都在后台完成授权，支持多账号并按网盘类型设置默认同步账号。" />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        {
+          key: "accounts",
+          label: "账号列表",
+          children: <>
+            {!items.length && (
+              <Alert
+                className="page-alert"
+                type="warning"
+                showIcon
+                message="还没有网盘账号"
+                description="新增百度或夸克账号后，在后台完成授权并设为默认，上传处理才会使用对应账号同步网盘。"
+                action={<Button size="small" type="primary" onClick={() => setActiveTab("new")}>新增账号</Button>}
+              />
+            )}
+            <Table rowKey="id" dataSource={items} columns={[
+              { title: "名称", dataIndex: "label" },
+              { title: "类型", dataIndex: "provider", render: providerText },
+              { title: "授权账号", dataIndex: "accountName", render: (value) => value || <span className="muted-text">未识别</span> },
+              { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="green">默认</Tag> : null },
+              {
+                title: "状态",
+                render: (_, row) => row.lastProbeOk === undefined
+                  ? <Tag>未探活</Tag>
+                  : row.lastProbeOk
+                    ? <Tag color="green">可用</Tag>
+                    : <Tag color="red">不可用</Tag>,
+              },
+              { title: "最近探活", render: (_, row) => <small>{row.lastProbeMessage || "暂无"}</small> },
+              {
+                title: "操作",
+                width: 360,
+                render: (_, row) => <Space wrap>
+                  {row.isDefault ? null : <Button size="small" onClick={async () => {
+                    await request(`/api/admin/storage-accounts/${row.id}/default`, { method: "POST" });
+                    await load();
+                  }}>设为默认</Button>}
+                  <Button size="small" loading={loadingAuth && authTarget?.id === row.id} onClick={() => startAuth(row)}>授权</Button>
+                  <Button size="small" onClick={() => probe(row)}>探活</Button>
+                  <Popconfirm title="删除这个网盘账号？" description="账号会被停用，已有资源链接不会被删除。" okText="删除" cancelText="取消" onConfirm={async () => {
+                    await request(`/api/admin/storage-accounts/${row.id}`, { method: "DELETE" });
+                    message.success("网盘账号已删除");
+                    await load();
+                  }}>
+                    <Button size="small" danger>删除</Button>
+                  </Popconfirm>
+                </Space>,
+              },
+            ]} />
+          </>,
+        },
+        {
+          key: "new",
+          label: "新增账号",
+          children: <Form form={form} layout="vertical" className="form-grid" initialValues={{ provider: "quark", isDefault: false }} onFinish={async (values) => {
+            await request("/api/admin/storage-accounts", { method: "POST", body: JSON.stringify(values) });
+            form.resetFields();
+            await load();
+            setActiveTab("accounts");
+            message.success("网盘账号已创建，请继续授权");
+          }}>
+            <Form.Item label="网盘类型" name="provider" rules={[{ required: true }]}>
+              <Select options={[
+                { value: "quark", label: "夸克" },
+                { value: "baidu", label: "百度" },
+              ]} />
+            </Form.Item>
+            <Form.Item label="账号名称" name="label" rules={[{ required: true }]}><Input placeholder="例如：夸克主号、百度备用号" /></Form.Item>
+            <Form.Item label="设为默认" name="isDefault" valuePropName="checked"><Switch /></Form.Item>
+            <Button htmlType="submit" type="primary">保存账号</Button>
+          </Form>,
+        },
+      ]} />
+      <Modal
+        title={authTarget ? `${providerText(authTarget.provider)}账号授权` : "网盘账号授权"}
+        open={Boolean(authTarget)}
+        onCancel={() => {
+          setAuthTarget(null);
+          setAuthUrl("");
+        }}
+        footer={null}
+      >
+        <Alert
+          className="modal-alert"
+          type="info"
+          showIcon
+          message="打开授权链接后，把页面返回的授权码粘贴到下面。"
+        />
+        <Space className="toolbar" wrap>
+          <Button type="primary" onClick={() => window.open(authUrl, "_blank", "noopener,noreferrer")}>打开授权链接</Button>
+          <Button icon={<Copy size={14} />} onClick={() => copyText(authUrl, "授权链接已复制")}>复制链接</Button>
+        </Space>
+        <code className="auth-url">{authUrl}</code>
+        <Form form={authCodeForm} layout="vertical" onFinish={finishAuth}>
+          <Form.Item label="授权码" name="code" rules={[{ required: true, message: "请粘贴授权码" }]}>
+            <Input.TextArea rows={3} placeholder="粘贴授权后得到的 code / 授权码" />
+          </Form.Item>
+          <Button htmlType="submit" type="primary">完成授权</Button>
+        </Form>
+      </Modal>
     </section>
   );
 }

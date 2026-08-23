@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaiduStorageService } from "./baidu-storage.service";
 import { QuarkStorageService } from "./quark-storage.service";
+import { StorageAccountService } from "./storage-account.service";
 
 @Injectable()
 export class StorageCoordinatorService {
@@ -11,22 +12,25 @@ export class StorageCoordinatorService {
     private readonly prisma: PrismaService,
     private readonly quark: QuarkStorageService,
     private readonly baidu: BaiduStorageService,
+    private readonly accounts: StorageAccountService,
   ) {}
 
   async syncWallpaper(wallpaperId: string, filePath: string, title: string) {
-    const results: Array<{ provider: StorageProvider; ok: boolean; url?: string; passcode?: string; remoteFileId?: string; remotePath?: string; error?: string }> = [];
+    const results: Array<{ provider: StorageProvider; ok: boolean; url?: string; passcode?: string; remoteFileId?: string; remotePath?: string; storageAccountId?: string; error?: string }> = [];
+    const quarkAccount = await this.accounts.getDefaultAccount(StorageProvider.quark);
+    const baiduAccount = await this.accounts.getDefaultAccount(StorageProvider.baidu);
 
     try {
-      const upload = await this.quark.upload(filePath);
-      const share = await this.quark.share(upload.fids, title);
-      results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath });
+      const upload = await this.quark.upload(filePath, quarkAccount || undefined);
+      const share = await this.quark.share(upload.fids, title, quarkAccount || undefined);
+      results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath, storageAccountId: quarkAccount?.id });
     } catch (error) {
       results.push({ provider: StorageProvider.quark, ok: false, error: (error as Error).message });
     }
 
     try {
-      const share = await this.baidu.uploadAndShare(filePath);
-      results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath });
+      const share = await this.baidu.uploadAndShare(filePath, baiduAccount || undefined);
+      results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount?.id });
     } catch (error) {
       results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
     }
@@ -49,6 +53,7 @@ export class StorageCoordinatorService {
           passcode: result.passcode,
           remoteFileId: result.remoteFileId,
           remotePath: result.remotePath,
+          storageAccountId: result.storageAccountId,
           isPrimary: result.provider === primaryProvider,
         },
       });

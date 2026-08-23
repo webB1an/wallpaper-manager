@@ -203,6 +203,49 @@ export class AdminController {
   async deleteChannel(@Param("id") id: string) {
     return { code: 200, data: await this.admin.deleteChannel(id) };
   }
+
+  @UseGuards(AdminAuthGuard)
+  @Get("storage-accounts")
+  async storageAccounts() {
+    return { code: 200, data: await this.admin.listStorageAccounts() };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("storage-accounts")
+  async saveStorageAccount(@Body() body: { provider: StorageProvider; label: string; isDefault?: boolean }) {
+    const provider = requiredEnum(body.provider, StorageProvider, "网盘类型");
+    return { code: 200, data: await this.admin.saveStorageAccount({ ...body, provider }) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("storage-accounts/:id/default")
+  async defaultStorageAccount(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.setDefaultStorageAccount(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("storage-accounts/:id/auth/start")
+  async startStorageAuth(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.startStorageAuth(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("storage-accounts/:id/auth/finish")
+  async finishStorageAuth(@Param("id") id: string, @Body() body: { code: string }) {
+    return { code: 200, data: await this.admin.finishStorageAuth(id, body.code || "") };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("storage-accounts/:id/probe")
+  async probeStorageAccount(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.probeStorageAccount(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Delete("storage-accounts/:id")
+  async deleteStorageAccount(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.deleteStorageAccount(id) };
+  }
 }
 
 function uploadMaxBytes() {

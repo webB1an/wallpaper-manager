@@ -94,6 +94,7 @@ model WallpaperTag {
 model StorageLink {
   id             String          @id @default(cuid())
   wallpaperId    String
+  storageAccountId String?
   provider       StorageProvider
   url            String          @db.Text
   passcode       String?
@@ -105,10 +106,32 @@ model StorageLink {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   wallpaper      Wallpaper       @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  storageAccount StorageAccount? @relation(fields: [storageAccountId], references: [id], onDelete: SetNull)
   shortLinks     ShortLink[]
 
   @@index([provider, isActive])
   @@index([wallpaperId])
+  @@index([storageAccountId])
+}
+
+model StorageAccount {
+  id             String          @id @default(cuid())
+  provider       StorageProvider
+  label          String
+  profileDir     String          @db.VarChar(512)
+  configPath     String?         @db.VarChar(512)
+  accountName    String?
+  isDefault      Boolean         @default(false)
+  isActive       Boolean         @default(true)
+  lastProbeOk    Boolean?
+  lastProbeMessage String?       @db.Text
+  lastProbeAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  storageLinks   StorageLink[]
+
+  @@index([provider, isDefault])
+  @@index([provider, isActive])
 }
 
 model ShortLink {

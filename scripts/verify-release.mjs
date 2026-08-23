@@ -99,14 +99,25 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigi
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkQuarkStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorage");
+requireContains("apps/api/src/modules/admin/admin.controller.ts", "storage-accounts");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "startBaiduAuth");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "finishQuarkAuth");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "--config-path");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "XDG_CONFIG_HOME");
+requireContains("apps/api/prisma/schema.prisma", "model StorageAccount");
+requireContains("apps/api/prisma/schema.prisma", "storageAccountId");
+requireContains("apps/admin/src/main.tsx", "function StorageAccounts");
+requireContains("apps/admin/src/main.tsx", "网盘账号");
+requireContains("apps/admin/src/main.tsx", "auth/start");
+requireContains("apps/admin/src/main.tsx", "auth/finish");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "quarkLoginCommand");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "--get-auth-url");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "--set-code <授权码>");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "command?: string");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "CODEX_ENV=1 AI_AGENT=codex");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "primaryProvider");
-requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "quarkAgentEnv");
-requireContains("apps/api/src/modules/storage/quark-storage.service.ts", 'CODEX_ENV: "1"');
+requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "quarkAccountEnv");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", 'CODEX_ENV: "1"');
 requireContains("apps/api/src/modules/channel/channel.service.ts", "PUBLIC_CHANNEL_ACCOUNT_SELECT");
 requireContains("apps/api/src/modules/channel/channel.service.ts", "select: PUBLIC_CHANNEL_ACCOUNT_SELECT");
 requireContains("apps/api/src/modules/channel/channel.service.ts", "accountCount === 0");
@@ -145,6 +156,7 @@ requireContains("scripts/smoke-admin.mjs", "--strict");
 requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");
 requireContains("scripts/smoke-admin.mjs", "item.command");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/overview");
+requireContains("scripts/smoke-admin.mjs", "/api/admin/storage-accounts");
 requireContains("scripts/smoke-admin.mjs", "diagnostics");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
 requireContains("scripts/smoke-public.mjs", "health endpoint must return ok");
@@ -156,6 +168,7 @@ requireContains("scripts/production-readiness.mjs", "bdpan");
 requireContains("scripts/production-readiness.mjs", "quark_skill");
 requireContains("scripts/production-readiness.mjs", "channel_accounts");
 requireContains("scripts/production-readiness.mjs", "unpublished_active_short_links");
+requireContains("scripts/production-readiness.mjs", "网盘账号");
 requireContains("scripts/production-readiness.mjs", "--json");
 requireContains("scripts/production-readiness.mjs", "--strict");
 requireContains("scripts/storage-auth.mjs", "baidu-url");
@@ -191,6 +204,7 @@ const requiredEnv = [
   "OLD_WALLPAPER_ROOT",
   "QUARK_SKILL_DIR",
   "BDPAN_PATH",
+  "STORAGE_ACCOUNT_ROOT",
   "TENCENT_CHANNEL_RUN_ROOT",
 ];
 for (const key of requiredEnv) {
@@ -211,6 +225,8 @@ requireContains("docs/deployment.md", "https://wall-api.wdbzk.com");
 requireContains("docs/deployment.md", "r.wdbzk.com");
 requireContains("docs/deployment.md", "不要勾选“不校验合法域名”");
 requireContains("docs/deployment.md", "网盘授权");
+requireContains("docs/deployment.md", "网盘账号");
+requireContains("docs/deployment.md", "支持多账号");
 requireContains("docs/deployment.md", "腾讯频道配置");
 requireContains("docs/deployment.md", "发布前验收清单");
 requireContains("docs/deployment.md", "npm run smoke:production");

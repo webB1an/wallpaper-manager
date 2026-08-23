@@ -35,11 +35,12 @@ const login = await request("/api/admin/auth/login", {
 assert(typeof login.token === "string" && login.token.length > 20, "admin login must return a token");
 
 const headers = { Authorization: `Bearer ${login.token}`, "Content-Type": "application/json" };
-const [me, overview, diagnostics, settings] = await Promise.all([
+const [me, overview, diagnostics, settings, storageAccounts] = await Promise.all([
   request("/api/admin/me", { headers }),
   request("/api/admin/overview", { headers }),
   request("/api/admin/diagnostics", { headers }),
   request("/api/admin/settings", { headers }),
+  request("/api/admin/storage-accounts", { headers }),
 ]);
 
 assert(me.ok === true, "admin /me must return ok");
@@ -47,6 +48,7 @@ assert(typeof overview.wallpapers?.published === "number", "overview must includ
 assert(typeof overview.storage?.missingActiveLinks === "number", "overview must include storage health counts");
 assert(Array.isArray(diagnostics) && diagnostics.length > 0, "diagnostics must be a non-empty array");
 assert(typeof settings.defaultAutoProcess === "boolean", "settings must include defaultAutoProcess");
+assert(Array.isArray(storageAccounts), "storage accounts must be an array");
 
 const diagnosticCounts = diagnostics.reduce((acc, item) => {
   acc[item.status] = (acc[item.status] || 0) + 1;
@@ -88,6 +90,11 @@ console.log(JSON.stringify({
   settings: {
     defaultAutoProcess: settings.defaultAutoProcess,
     defaultAutoPublish: settings.defaultAutoPublish,
+  },
+  storageAccounts: {
+    total: storageAccounts.length,
+    defaultBaidu: storageAccounts.some((item) => item.provider === "baidu" && item.isDefault),
+    defaultQuark: storageAccounts.some((item) => item.provider === "quark" && item.isDefault),
   },
 }, null, 2));
 

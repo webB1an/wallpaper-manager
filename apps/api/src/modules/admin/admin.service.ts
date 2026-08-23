@@ -17,6 +17,7 @@ import { ChannelService } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaiduStorageService } from "../storage/baidu-storage.service";
 import { QuarkStorageService } from "../storage/quark-storage.service";
+import { StorageAccountService } from "../storage/storage-account.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
@@ -69,6 +70,7 @@ export class AdminService {
     private readonly channel: ChannelService,
     private readonly quarkStorage: QuarkStorageService,
     private readonly baiduStorage: BaiduStorageService,
+    private readonly storageAccounts: StorageAccountService,
     private readonly storage: StorageCoordinatorService,
     private readonly wdbzk: WdbzkService,
     private readonly tasks: TasksService,
@@ -662,6 +664,34 @@ export class AdminService {
     return result;
   }
 
+  listStorageAccounts() {
+    return this.storageAccounts.listAccounts();
+  }
+
+  saveStorageAccount(input: Parameters<StorageAccountService["createAccount"]>[0]) {
+    return this.storageAccounts.createAccount(input);
+  }
+
+  setDefaultStorageAccount(id: string) {
+    return this.storageAccounts.setDefaultAccount(id);
+  }
+
+  deleteStorageAccount(id: string) {
+    return this.storageAccounts.deleteAccount(id);
+  }
+
+  startStorageAuth(id: string) {
+    return this.storageAccountAction(id, "start-auth");
+  }
+
+  finishStorageAuth(id: string, code: string) {
+    return this.storageAccountAction(id, "finish-auth", code);
+  }
+
+  probeStorageAccount(id: string) {
+    return this.storageAccounts.probeAccount(id);
+  }
+
   private async persistFile(file: Express.Multer.File) {
     const dir = join(process.cwd(), "storage", "public", "originals");
     await mkdir(dir, { recursive: true });
@@ -844,23 +874,31 @@ export class AdminService {
 
   private async checkBaiduStorage(): Promise<DiagnosticItem> {
     try {
-      const result = await this.baiduStorage.probe();
+      const result = await this.storageAccounts.probeDefault(StorageProvider.baidu);
+      const label = "account" in result ? result.account?.label || "" : "";
       return result.ok
-        ? ok("bdpan", "百度网盘 bdpan", "bdpan 已登录且可用")
-        : fail("bdpan", "百度网盘 bdpan", `bdpan 不可用：${shortError(result.message)}。复制命令获取授权链接，打开授权后在服务器执行 ${this.baiduSetCodeCommand()}`, this.baiduLoginCommand());
+        ? ok("bdpan", "百度网盘账号", `默认账号 ${label} 已登录且可用`)
+        : fail("bdpan", "百度网盘账号", `百度网盘不可用：${shortError(result.message)}。请在管理端“网盘账号”中新增或重新授权百度账号`);
     } catch (error) {
-      return fail("bdpan", "百度网盘 bdpan", `bdpan 探测失败：${shortError(error)}。可复制命令重新获取授权链接`, this.baiduLoginCommand());
+      const result = await this.baiduStorage.probe().catch((legacyError) => ({ ok: false, message: (legacyError as Error).message }));
+      return result.ok
+        ? warn("bdpan", "百度网盘账号", "服务器级 bdpan 已登录，但尚未迁移到管理端多账号配置")
+        : fail("bdpan", "百度网盘账号", `百度网盘探测失败：${shortError(error)}。请在管理端“网盘账号”中配置默认百度账号`);
     }
   }
 
   private async checkQuarkStorage(): Promise<DiagnosticItem> {
     try {
-      const result = await this.quarkStorage.probe();
+      const result = await this.storageAccounts.probeDefault(StorageProvider.quark);
+      const label = "account" in result ? result.account?.label || "" : "";
       return result.ok
-        ? ok("quark_skill", "夸克 skill", "夸克 skill 已登录且可用")
-        : fail("quark_skill", "夸克 skill", `夸克 skill 不可用：${shortError(result.message)}`, this.quarkLoginCommand());
+        ? ok("quark_skill", "夸克网盘账号", `默认账号 ${label} 已登录且可用`)
+        : fail("quark_skill", "夸克网盘账号", `夸克网盘不可用：${shortError(result.message)}。请在管理端“网盘账号”中新增或重新授权夸克账号`);
     } catch (error) {
-      return fail("quark_skill", "夸克 skill", `夸克 skill 探测失败：${shortError(error)}`);
+      const result = await this.quarkStorage.probe().catch((legacyError) => ({ ok: false, message: (legacyError as Error).message }));
+      return result.ok
+        ? warn("quark_skill", "夸克网盘账号", "服务器级夸克 skill 已登录，但尚未迁移到管理端多账号配置")
+        : fail("quark_skill", "夸克网盘账号", `夸克网盘探测失败：${shortError(error)}。请在管理端“网盘账号”中配置默认夸克账号`);
     }
   }
 
@@ -940,6 +978,19 @@ export class AdminService {
   private quarkLoginCommand() {
     const skillDir = this.config.get<string>("QUARK_SKILL_DIR")?.trim() || "/www/server/quarkclouddrive-1.0.14";
     return `cd ${quoteShell(skillDir)} && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login`;
+  }
+
+  private async storageAccountAction(id: string, action: "start-auth" | "finish-auth", code?: string) {
+    const account = await this.prisma.storageAccount.findUnique({ where: { id } });
+    if (!account) throw new BadRequestException("网盘账号不存在");
+    if (account.provider === StorageProvider.baidu) {
+      return action === "start-auth"
+        ? this.storageAccounts.startBaiduAuth(id)
+        : this.storageAccounts.finishBaiduAuth(id, code || "");
+    }
+    return action === "start-auth"
+      ? this.storageAccounts.startQuarkAuth(id)
+      : this.storageAccounts.finishQuarkAuth(id, code || "");
   }
 
   private assertLoginAllowed(key: string) {

@@ -91,16 +91,15 @@ function toAction(item) {
     nextStep: "",
   };
   if (item.key === "bdpan") {
-    const setCode = item.command?.replace("--get-auth-url", "--set-code <授权码>");
     return {
       ...base,
-      nextStep: `在宝塔终端执行授权链接命令，打开返回的 URL 授权后，再执行 ${setCode || "bdpan login --accept-disclaimer --set-code <授权码>"}`,
+      nextStep: "打开管理端“网盘账号”，新增或选择百度账号，点击授权，打开链接后把授权码粘贴回后台并设为默认账号。",
     };
   }
   if (item.key === "quark_skill") {
     return {
       ...base,
-      nextStep: "在宝塔终端执行夸克登录命令，并按 skill 提示完成账号授权。",
+      nextStep: "打开管理端“网盘账号”，新增或选择夸克账号，点击授权，打开链接后把 code 授权码粘贴回后台并设为默认账号。",
     };
   }
   if (item.key === "channel_accounts") {

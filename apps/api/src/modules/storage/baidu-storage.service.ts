@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { statSync } from "node:fs";
 import { basename } from "node:path";
 import { runCli } from "../../common/cli";
+import { baiduArgs, ManagedStorageAccount } from "./storage-account.service";
 
 export interface BaiduShareResult {
   remotePath: string;
@@ -14,25 +15,25 @@ export interface BaiduShareResult {
 export class BaiduStorageService {
   constructor(private readonly config: ConfigService) {}
 
-  async uploadAndShare(filePath: string): Promise<BaiduShareResult> {
-    const remotePath = await this.upload(filePath);
-    const share = await this.share(remotePath);
+  async uploadAndShare(filePath: string, account?: ManagedStorageAccount): Promise<BaiduShareResult> {
+    const remotePath = await this.upload(filePath, account);
+    const share = await this.share(remotePath, account);
     return { remotePath, ...share };
   }
 
-  async upload(filePath: string): Promise<string> {
+  async upload(filePath: string, account?: ManagedStorageAccount): Promise<string> {
     const remoteBase = this.config.get<string>("BAIDU_REMOTE_BASE") || "/apps/bdpan/wallpapers";
     const remotePath = `${remoteBase.replace(/\/$/, "")}/${sanitizeRemoteName(basename(filePath))}`;
     const size = statSync(filePath).size;
     const timeoutMs = Math.max(3_600_000, Math.ceil(size / 40_000) * 1500);
-    const result = await runCli(this.bdpan(), ["upload", filePath, remotePath], { timeoutMs });
+    const result = await runCli(this.bdpan(), [...baiduArgs(account), "upload", filePath, remotePath], { timeoutMs });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘上传失败");
     return remotePath;
   }
 
-  async share(remotePath: string): Promise<{ url: string; passcode?: string }> {
+  async share(remotePath: string, account?: ManagedStorageAccount): Promise<{ url: string; passcode?: string }> {
     const period = String(this.config.get("BAIDU_SHARE_PERIOD_DAYS") || 0);
-    const result = await runCli(this.bdpan(), ["share", remotePath, "--period", period, "--json"], { timeoutMs: 120_000 });
+    const result = await runCli(this.bdpan(), [...baiduArgs(account), "share", remotePath, "--period", period, "--json"], { timeoutMs: 120_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘分享失败");
     try {
       const body = JSON.parse(result.stdout) as { link?: string; url?: string; pwd?: string; password?: string };
@@ -46,8 +47,8 @@ export class BaiduStorageService {
     }
   }
 
-  async probe(): Promise<{ ok: boolean; message: string }> {
-    const result = await runCli(this.bdpan(), ["whoami"], { timeoutMs: 15_000 });
+  async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {
+    const result = await runCli(this.bdpan(), [...baiduArgs(account), "whoami"], { timeoutMs: 15_000 });
     const output = `${result.stdout}\n${result.stderr}`.trim();
     return { ok: result.ok && output.includes("已登录"), message: output || "bdpan 未登录" };
   }
