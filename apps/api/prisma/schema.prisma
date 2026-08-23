@@ -61,6 +61,7 @@ model Wallpaper {
   tags            WallpaperTag[]
   storageLinks    StorageLink[]
   shortLinks      ShortLink[]
+  clicks          WallpaperClick[]
   aiAnalysis      AiAnalysis?
   matchKey        String?         @db.VarChar(512)
   matchConfidence Float?
@@ -73,6 +74,15 @@ model Wallpaper {
 
   @@index([status, sortOrder])
   @@index([matchKey])
+}
+
+model WallpaperClick {
+  id          String   @id @default(cuid())
+  wallpaperId String
+  wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt, wallpaperId])
 }
 
 model Tag {

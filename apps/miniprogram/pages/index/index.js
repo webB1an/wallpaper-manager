@@ -14,6 +14,7 @@ Page({
         keyword: "",
         tag: "",
         sort: "latest",
+        sectionTitle: "最新壁纸",
         loading: false,
         error: ""
     },
@@ -44,7 +45,8 @@ Page({
         this.load();
     },
     switchSort(event) {
-        this.setData({ sort: event.currentTarget.dataset.sort || "latest", page: 1, items: [], leftItems: [], rightItems: [] });
+        const sort = event.currentTarget.dataset.sort || "latest";
+        this.setData({ sort, sectionTitle: sectionTitleFor(sort), page: 1, items: [], leftItems: [], rightItems: [] });
         this.load();
     },
     async load(append = false) {
@@ -56,7 +58,7 @@ Page({
                 pageSize: 20,
                 keyword: this.data.keyword,
                 tag: this.data.tag,
-                sort: this.data.sort === "hot" ? "hot" : ""
+                sort: this.data.sort === "latest" ? "" : this.data.sort
             });
             if (token !== requestToken)
                 return;
@@ -145,6 +147,15 @@ function splitMasonry(items) {
 }
 function formatTypeLabel(value) {
     return value === "live" ? "动态" : "静态";
+}
+function sectionTitleFor(sort) {
+    if (sort === "hot")
+        return "热门壁纸";
+    if (sort === "week")
+        return "周榜壁纸";
+    if (sort === "month")
+        return "月榜壁纸";
+    return "最新壁纸";
 }
 function shareTitle(tag) {
     if (tag)

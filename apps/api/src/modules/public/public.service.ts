@@ -23,6 +23,31 @@ export class PublicService {
       ...(type ? { type } : {}),
       ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
     };
+    const period = periodDays(query.sort);
+    if (period) {
+      const since = new Date(Date.now() - period * 24 * 60 * 60 * 1000);
+      const [allItems, counts] = await Promise.all([
+        this.prisma.wallpaper.findMany({
+          where,
+          include: { tags: { include: { tag: true } } },
+        }),
+        this.prisma.$queryRaw<Array<{ wallpaperId: string; count: bigint }>>`
+          SELECT "wallpaperId", COUNT(*) AS "count"
+          FROM "WallpaperClick"
+          WHERE "createdAt" >= ${since}
+          GROUP BY "wallpaperId"
+        `,
+      ]);
+      const countMap = new Map(counts.map((row) => [row.wallpaperId, Number(row.count)]));
+      const sorted = allItems
+        .sort((left, right) => {
+          const diff = (countMap.get(right.id) || 0) - (countMap.get(left.id) || 0);
+          return diff || right.downloadCount - left.downloadCount;
+        });
+      const total = sorted.length;
+      const items = sorted.slice((page - 1) * pageSize, page * pageSize).map(wallpaperCard);
+      return { list: items, total, page, pageSize };
+    }
     const orderBy = query.sort === "hot"
       ? [{ downloadCount: "desc" as const }, { viewCount: "desc" as const }]
       : [{ sortOrder: "desc" as const }, { createdAt: "desc" as const }];
@@ -89,6 +114,7 @@ export class PublicService {
       where: { id },
       data: { downloadCount: { increment: 1 } },
     });
+    await this.prisma.wallpaperClick.create({ data: { wallpaperId: id } });
   }
 
   async tags() {
@@ -233,6 +259,12 @@ function optionalWallpaperType(value: string | undefined) {
   if (!value) return undefined;
   if (Object.values(WallpaperType).includes(value as WallpaperType)) return value as WallpaperType;
   throw new BadRequestException("壁纸类型不正确");
+}
+
+function periodDays(sort: string | undefined) {
+  if (sort === "week") return 7;
+  if (sort === "month") return 30;
+  return 0;
 }
 
 function cleanSearchText(value: string | undefined) {

@@ -57,11 +57,13 @@
   <view class="filter-row">
     <view class="filter {{sort === 'latest' ? 'active' : ''}}" data-sort="latest" bindtap="switchSort"><text>🕐</text>最新</view>
     <view class="filter {{sort === 'hot' ? 'active' : ''}}" data-sort="hot" bindtap="switchSort"><text>🔥</text>热门</view>
+    <view class="filter {{sort === 'week' ? 'active' : ''}}" data-sort="week" bindtap="switchSort"><text>📅</text>周榜</view>
+    <view class="filter {{sort === 'month' ? 'active' : ''}}" data-sort="month" bindtap="switchSort"><text>🗓️</text>月榜</view>
     <view wx:if="{{tag}}" class="tag-filter">#{{tag}}</view>
   </view>
 
   <view class="section-title gallery-head">
-    <text>{{sort === 'hot' ? '热门壁纸' : '最新壁纸'}}</text>
+    <text>{{sectionTitle}}</text>
     <text class="muted">{{total}} 张</text>
   </view>
 
