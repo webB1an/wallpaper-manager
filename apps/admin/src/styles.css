@@ -162,13 +162,22 @@ h1 {
 }
 
 .storage-readiness-card strong {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .storage-readiness-card span {
   margin-top: 4px;
-  color: #66746b;
-  font-size: 13px;
+  color: #4f5f56;
+  font-size: 15px;
+}
+
+.storage-readiness-card .ant-tag {
+  font-size: 14px;
+}
+
+.storage-readiness-card .ant-btn {
+  height: 34px;
+  font-size: 14px;
 }
 
 .storage-readiness-meta {
@@ -205,13 +214,22 @@ h1 {
 }
 
 .channel-readiness-card strong {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .channel-readiness-card span {
   margin-top: 4px;
-  color: #66746b;
-  font-size: 13px;
+  color: #4f5f56;
+  font-size: 15px;
+}
+
+.channel-readiness-card .ant-tag {
+  font-size: 14px;
+}
+
+.channel-readiness-card .ant-btn {
+  height: 34px;
+  font-size: 14px;
 }
 
 .channel-readiness-meta {
