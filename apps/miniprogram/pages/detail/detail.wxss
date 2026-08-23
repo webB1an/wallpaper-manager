@@ -52,7 +52,17 @@
   margin-top: -32rpx;
   padding: 34rpx 28rpx 60rpx;
   border-radius: 28rpx 28rpx 0 0;
-  background: #f4f6f1;
+  background: #f5f4ee;
+}
+
+.detail-panel::before {
+  display: block;
+  width: 64rpx;
+  height: 8rpx;
+  margin: -10rpx auto 24rpx;
+  border-radius: 999rpx;
+  content: "";
+  background: #d9d8cf;
 }
 
 .detail-title {
@@ -108,14 +118,14 @@
   border-radius: 18rpx;
   color: #fff;
   background:
-    linear-gradient(135deg, rgba(255, 209, 102, 0.16), transparent 44%),
+    linear-gradient(135deg, rgba(255, 214, 121, 0.18), transparent 44%),
     #111820;
   box-shadow: 0 14rpx 34rpx rgba(17, 24, 32, 0.14);
 }
 
 .primary-download view text:first-child {
   display: block;
-  color: #ffd166;
+  color: #ffd679;
   font-size: 23rpx;
   font-weight: 780;
 }
@@ -136,7 +146,7 @@
   padding: 0;
   border-radius: 14rpx;
   color: #111820;
-  background: #ffd166;
+  background: #ffd679;
   font-size: 25rpx;
   font-weight: 820;
   line-height: 72rpx;
@@ -162,14 +172,26 @@
 }
 
 .download-card {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 136rpx;
   gap: 14rpx;
   align-items: center;
   padding: 18rpx;
   border: 2rpx solid #dce4e8;
-  border-radius: 14rpx;
+  border-radius: 10rpx;
   background: #fff;
+}
+
+.download-card::before {
+  position: absolute;
+  top: 18rpx;
+  left: 0;
+  width: 6rpx;
+  height: 70rpx;
+  border-radius: 0 999rpx 999rpx 0;
+  content: "";
+  background: #245167;
 }
 
 .download-empty {
@@ -214,9 +236,9 @@
 .download-button {
   height: 70rpx;
   padding: 0;
-  border-radius: 14rpx;
+  border-radius: 10rpx;
   color: #fff;
-  background: #d85a3a;
+  background: #dd6b45;
   font-size: 27rpx;
   font-weight: 760;
   line-height: 70rpx;

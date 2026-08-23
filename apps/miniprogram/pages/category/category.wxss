@@ -5,15 +5,42 @@
 }
 
 .type-card {
+  position: relative;
   display: flex;
   justify-content: space-between;
   gap: 14rpx;
   min-height: 150rpx;
   padding: 22rpx;
+  overflow: hidden;
   border: 2rpx solid #dbe4e8;
-  border-radius: 14rpx;
+  border-radius: 10rpx;
   background: #fff;
   box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
+}
+
+.type-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12rpx;
+  height: 100%;
+  background: #dd6b45;
+}
+
+.type-card-live .type-mark {
+  background: #dd6b45;
+}
+
+.type-card-static .type-mark {
+  background: #245167;
+}
+
+.type-card-mobile .type-mark {
+  background: #e0a922;
+}
+
+.type-card-desktop .type-mark {
+  background: #111820;
 }
 
 .type-card view text:first-child {
@@ -30,27 +57,27 @@
   font-size: 23rpx;
 }
 
-.type-card:nth-child(1) {
+.type-card-live {
   border-color: rgba(216, 90, 58, 0.42);
 }
 
-.type-card:nth-child(1) view text:first-child {
+.type-card-live view text:first-child {
   color: #d85a3a;
 }
 
-.type-card:nth-child(2) {
+.type-card-static {
   border-color: rgba(37, 70, 90, 0.38);
 }
 
-.type-card:nth-child(2) view text:first-child {
+.type-card-static view text:first-child {
   color: #25465a;
 }
 
-.type-card:nth-child(3) {
+.type-card-mobile {
   border-color: rgba(232, 181, 67, 0.56);
 }
 
-.type-card:nth-child(3) view text:first-child {
+.type-card-mobile view text:first-child {
   color: #b37a12;
 }
 
@@ -62,7 +89,7 @@
   font-weight: 780;
 }
 
-.type-card:nth-child(4) {
+.type-card-desktop {
   border-color: rgba(17, 24, 32, 0.32);
 }
 
@@ -74,13 +101,15 @@
 }
 
 .category-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   justify-content: flex-end;
   min-height: 172rpx;
   padding: 22rpx;
-  border-radius: 14rpx;
+  overflow: hidden;
+  border-radius: 10rpx;
   color: #fff;
   background:
     linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
@@ -89,14 +118,33 @@
   font-weight: 800;
 }
 
-.category-card text:first-child {
+.category-card::before {
+  position: absolute;
+  top: 18rpx;
+  left: 18rpx;
+  width: 52rpx;
+  height: 52rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.24);
+  content: "";
+}
+
+.category-index {
+  position: absolute;
+  top: 24rpx;
+  left: 24rpx;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 20rpx;
+  font-weight: 760;
+}
+
+.category-name {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.category-card text:last-child {
+.category-count {
   margin-top: 10rpx;
   color: rgba(255, 255, 255, 0.74);
   font-size: 22rpx;

@@ -1,40 +1,52 @@
 page {
   min-height: 100vh;
-  background: #f4f6f1;
+  background: #f5f4ee;
   color: #111820;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .page {
   min-height: 100vh;
-  padding: 28rpx 26rpx 52rpx;
+  padding: 28rpx 26rpx 60rpx;
 }
 
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 36rpx 30rpx;
+  padding: 38rpx 30rpx;
   border-radius: 18rpx;
   color: #fff;
   background:
-    linear-gradient(90deg, rgba(255, 209, 102, 0.14), transparent 42%),
-    linear-gradient(135deg, #111820 0%, #18384c 52%, #d85a3a 145%);
-  box-shadow: 0 18rpx 44rpx rgba(17, 24, 32, 0.16);
+    linear-gradient(90deg, rgba(255, 214, 121, 0.18), transparent 42%),
+    linear-gradient(135deg, #101820 0%, #245167 56%, #dd6b45 145%);
+  box-shadow: 0 18rpx 44rpx rgba(17, 24, 32, 0.15);
+}
+
+.hero::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: 0.22;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0 2rpx, transparent 2rpx 24rpx),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0 1rpx, transparent 1rpx 28rpx);
 }
 
 .hero-title {
   display: block;
   margin-top: 10rpx;
-  font-size: 44rpx;
+  font-size: 46rpx;
   font-weight: 800;
   letter-spacing: 0;
+  line-height: 1.16;
 }
 
 .hero-subtitle {
   display: block;
   margin-top: 12rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.76);
   font-size: 24rpx;
+  line-height: 1.5;
 }
 
 .section-title {
@@ -58,8 +70,8 @@ page {
   padding: 0 18rpx;
   margin: 0 12rpx 12rpx 0;
   border-radius: 999rpx;
-  color: #25465a;
-  background: #dfe9ef;
+  color: #245167;
+  background: #deeaeb;
   font-size: 23rpx;
 }
 

@@ -40,13 +40,19 @@
     <text class="muted">{{total}} 张</text>
   </view>
 
+  <view class="gallery-labels">
+    <text>精选缩略图</text>
+    <text>短链直达</text>
+    <text>AI 标签</text>
+  </view>
+
   <view class="masonry">
     <block wx:for="{{items}}" wx:key="id">
       <view class="wall-card" bindtap="openDetail" data-id="{{item.id}}">
         <text wx:if="{{item.type === 'live'}}" class="live-ribbon">LIVE</text>
         <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
         <view class="wall-info">
-          <text>{{item.title}}</text>
+          <text class="wall-title">{{item.title}}</text>
           <view>
             <text wx:if="{{item.type === 'live'}}" class="pill">动态</text>
             <text wx:elif="{{item.type === 'static'}}" class="pill">静态</text>

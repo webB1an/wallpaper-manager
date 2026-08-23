@@ -29,8 +29,8 @@
     </view>
     <view class="download-list">
       <view class="download-heading">
-        <text>可用网盘</text>
-        <text>复制后到浏览器或网盘打开</text>
+        <text>短链清单</text>
+        <text>主链优先</text>
       </view>
       <block wx:for="{{item.shortLinks}}" wx:key="url">
         <view class="download-card">

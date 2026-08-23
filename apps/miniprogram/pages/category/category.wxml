@@ -10,7 +10,8 @@
   </view>
   <view class="type-grid">
     <block wx:for="{{types}}" wx:key="key">
-      <view class="type-card" bindtap="openType" data-type="{{item.key}}">
+      <view class="type-card type-card-{{item.key}}" bindtap="openType" data-type="{{item.key}}">
+        <text class="type-mark"></text>
         <view>
           <text>{{item.title}}</text>
           <text>{{item.subtitle}}</text>
@@ -27,8 +28,9 @@
   <view class="category-grid">
     <block wx:for="{{tags}}" wx:key="name">
       <view class="category-card" bindtap="openTag" data-tag="{{item.name}}">
-        <text>{{item.name}}</text>
-        <text>{{item.count}} 张</text>
+        <text class="category-index">#{{index + 1}}</text>
+        <text class="category-name">{{item.name}}</text>
+        <text class="category-count">{{item.count}} 张</text>
       </view>
     </block>
   </view>

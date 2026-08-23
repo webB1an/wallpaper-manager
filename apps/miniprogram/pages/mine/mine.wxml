@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero">
     <text class="hero-title">服务中心</text>
-    <text class="hero-subtitle">短链复制后请在浏览器或网盘 App 中打开</text>
+    <text class="hero-subtitle">最近领取过的壁纸短链</text>
   </view>
 
   <view class="section-title">
