@@ -44,14 +44,32 @@ body {
 
 .brand span {
   margin-top: 3px;
-  color: #a8b8ad;
+  color: #c6d3cb;
   font-size: 12px;
 }
 
 .sider .ant-menu {
   background: transparent;
-  color: #c8d4cd;
+  color: #e2ebe4;
   border: 0;
+}
+
+.sider .ant-menu-item {
+  color: #e2ebe4 !important;
+  font-size: 15px !important;
+}
+
+.sider .ant-menu-item .anticon {
+  color: inherit !important;
+}
+
+.sider .ant-menu-title-content {
+  color: inherit !important;
+}
+
+.sider .ant-menu-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .sider .ant-menu-item-selected {
