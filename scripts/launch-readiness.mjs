@@ -30,7 +30,8 @@ sections.push(runSection("miniprogram", "微信小程序发布", [
   ...(allowEmptyAppid ? ["--allow-empty-appid"] : []),
 ]));
 
-const actionCount = sections.reduce((sum, section) => sum + (section.actions?.length || 0), 0);
+const normalizedSections = normalizeSections(sections);
+const actionCount = normalizedSections.reduce((sum, section) => sum + (section.actions?.length || 0), 0);
 const ok = sections.every((section) => section.ok);
 const result = {
   ok,
@@ -38,7 +39,7 @@ const result = {
   allowEmptyAppid,
   skipProduction,
   actionCount,
-  sections,
+  sections: normalizedSections,
 };
 
 if (json) {
@@ -107,6 +108,20 @@ function summarizeDetails(value) {
     };
   }
   return undefined;
+}
+
+function normalizeSections(value) {
+  if (!allowEmptyAppid) return value;
+  const miniprogramSection = value.find((section) => section.key === "miniprogram");
+  const hasAppidWarning = miniprogramSection?.actions?.some((action) => action.key === "appid");
+  if (!hasAppidWarning) return value;
+  return value.map((section) => {
+    if (section.key !== "production") return section;
+    return {
+      ...section,
+      actions: (section.actions || []).filter((action) => action.key !== "miniprogram_release"),
+    };
+  });
 }
 
 function printHuman(data) {
