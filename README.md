@@ -63,6 +63,12 @@ npm run smoke:storage-accounts
 npm run smoke:storage-accounts -- --auth-start
 ```
 
+To verify Tencent Channel multi-account configuration through the admin API:
+
+```bash
+npm run smoke:channel-accounts
+```
+
 To audit the remaining non-published resources that still have active short-link targets:
 
 ```bash

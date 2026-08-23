@@ -24,6 +24,7 @@
     "smoke:production": "npm run smoke:public && npm run smoke:admin",
     "smoke:production:strict": "node scripts/smoke-public.mjs && node scripts/smoke-admin.mjs --strict",
     "smoke:public": "node scripts/smoke-public.mjs",
+    "smoke:channel-accounts": "node scripts/smoke-channel-accounts.mjs",
     "smoke:storage-accounts": "node scripts/smoke-storage-accounts.mjs",
     "verify:release": "node scripts/verify-release.mjs"
   },
