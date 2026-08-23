@@ -183,7 +183,9 @@
 }
 
 .filter text {
-  font-size: 22rpx;
+  font-size: 30rpx;
+  line-height: 1;
+  margin-right: 4rpx;
 }
 
 .tag-filter {
