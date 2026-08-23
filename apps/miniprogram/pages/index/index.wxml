@@ -28,7 +28,7 @@
               <text class="hero-kicker">热门壁纸</text>
               <text class="hero-title">{{item.title}}</text>
               <view class="hero-meta">
-                <text>{{item.type === 'live' ? '▶ ' : ''}}{{item.typeLabel}}</text>
+                <text>{{item.typeLabel}}</text>
                 <text>{{item.downloadCount}} 次领取</text>
               </view>
             </view>
