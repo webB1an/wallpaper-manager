@@ -1,4 +1,8 @@
 <view class="detail-page" wx:if="{{item}}">
+  <view class="detail-topbar">
+    <view class="detail-back" catchtap="goBack">‹</view>
+    <text class="detail-nav-title">{{item.title}}</text>
+  </view>
   <view class="detail-visual">
     <image class="detail-cover" src="{{item.coverUrl}}" mode="aspectFill" />
     <view class="detail-visual-meta">
@@ -45,11 +49,19 @@
   </view>
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty state-card">
+  <view class="detail-topbar">
+    <view class="detail-back" catchtap="goBack">‹</view>
+    <text class="detail-nav-title">壁纸详情</text>
+  </view>
   <text>{{error}}</text>
   <button wx:if="{{id}}" class="retry-button" bindtap="retry">重试</button>
   <button wx:else class="retry-button" bindtap="goHome">回首页</button>
 </view>
 <view wx:else class="detail-page detail-loading">
+  <view class="detail-topbar">
+    <view class="detail-back" catchtap="goBack">‹</view>
+    <text class="detail-nav-title">壁纸详情</text>
+  </view>
   <view class="detail-cover-skeleton"></view>
   <view class="detail-panel detail-panel-skeleton">
     <view class="skeleton-line title"></view>

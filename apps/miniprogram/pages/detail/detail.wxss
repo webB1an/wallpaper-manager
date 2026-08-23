@@ -1,6 +1,46 @@
 .detail-page {
+  position: relative;
   min-height: 100vh;
   background: #2b211b;
+}
+
+.detail-topbar {
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: calc(env(safe-area-inset-top) + 8rpx) 20rpx 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+}
+
+.detail-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 52rpx;
+  line-height: 60rpx;
+  text-align: center;
+}
+
+.detail-nav-title {
+  flex: 1;
+  margin-right: 64rpx;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-visual {

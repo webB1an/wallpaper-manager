@@ -68,6 +68,15 @@ Page({
     goHome() {
         wx.switchTab({ url: "/pages/index/index" });
     },
+    goBack() {
+        const pages = getCurrentPages();
+        if (pages.length > 1) {
+            wx.navigateBack();
+        }
+        else {
+            wx.switchTab({ url: "/pages/index/index" });
+        }
+    },
     copyLink(event) {
         const url = String(event.currentTarget.dataset.url || "");
         const label = String(event.currentTarget.dataset.label || "下载短链");
