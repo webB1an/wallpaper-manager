@@ -1078,6 +1078,8 @@ function Uploader() {
   const autoPublishDisabled = !autoProcess || !channelAccounts.length;
   const quarkAccounts = storageAccounts.filter((account) => account.provider === "quark");
   const baiduAccounts = storageAccounts.filter((account) => account.provider === "baidu");
+  const hasAnyStorageAccount = Boolean(quarkAccounts.length || baiduAccounts.length);
+  const uploadDisabled = autoProcess && !hasAnyStorageAccount;
   const selectedStorageData = {
     autoProcess: String(autoProcess),
     autoPublish: String(autoPublish),
@@ -1092,6 +1094,7 @@ function Uploader() {
     action: `${API}/api/admin/uploads`,
     headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
     data: selectedStorageData,
+    disabled: uploadDisabled,
     onChange(info) {
       if (info.file.status === "done") {
         const response = info.file.response as { code?: number; message?: string; error?: string } | undefined;
@@ -1173,10 +1176,12 @@ function Uploader() {
       {!quarkAccounts.length || !baiduAccounts.length ? (
         <Alert
           className="page-alert"
-          type="warning"
+          type={hasAnyStorageAccount ? "warning" : "error"}
           showIcon
-          message="网盘默认账号未配置完整"
-          description="上传处理仍会执行，但缺少对应网盘账号时会在任务提醒里记录同步失败。请到“网盘账号”完成授权和默认账号配置。"
+          message={hasAnyStorageAccount ? "网盘默认账号未配置完整" : "未配置网盘账号"}
+          description={hasAnyStorageAccount
+            ? "上传处理会继续执行；缺少对应网盘账号时会在任务提醒里记录同步失败。请到“网盘账号”补齐授权和默认账号配置。"
+            : "自动处理至少需要一个百度或夸克账号。请先到“网盘账号”新增并授权，或关闭自动处理后先上传为草稿。"}
         />
       ) : null}
       <Upload.Dragger {...props} className="upload-dragger">

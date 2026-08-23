@@ -53,6 +53,7 @@ let uploadedWallpaper;
 await cleanupSmokeData();
 await assertCorruptUploadIsClean();
 await assertInvalidChannelAccountIsClean();
+await assertInvalidStorageAccountIsClean();
 
 try {
   for (const index of [1, 2]) {
@@ -185,6 +186,30 @@ async function assertInvalidChannelAccountIsClean() {
   assert(sameSet(before, after), "invalid channel upload must reject before writing original or cover files");
   const leaked = await prisma.wallpaper.count({ where: { originalName: fileName } });
   assert(leaked === 0, "invalid channel upload must not create wallpaper rows");
+}
+
+async function assertInvalidStorageAccountIsClean() {
+  const fileName = `${runId}-invalid-storage.jpg`;
+  const before = await publicFileSnapshot();
+  const form = new FormData();
+  form.set("autoProcess", "true");
+  form.set("autoPublish", "false");
+  form.set("quarkAccountId", `${runId}-missing-storage-account`);
+  form.append("files", new Blob([await smokeJpeg()], { type: "image/jpeg" }), fileName);
+
+  const response = await fetch(`${adminOrigin}/api/admin/uploads`, {
+    method: "POST",
+    headers: uploadHeaders,
+    body: form,
+  });
+  const body = await response.json().catch(() => ({}));
+  assert(response.status === 400, `invalid storage upload must return 400, got ${response.status}: ${body.message || body.error || "invalid response"}`);
+  assert(String(body.message || body.error || "").includes("网盘账号不存在"), "invalid storage upload must explain missing storage account");
+
+  const after = await publicFileSnapshot();
+  assert(sameSet(before, after), "invalid storage upload must reject before writing original or cover files");
+  const leaked = await prisma.wallpaper.count({ where: { originalName: fileName } });
+  assert(leaked === 0, "invalid storage upload must not create wallpaper rows");
 }
 
 async function cleanupSmokeData(ids = []) {

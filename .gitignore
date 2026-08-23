@@ -24,4 +24,3 @@ apps/admin/dist/
 *.tsbuildinfo
 apps/miniprogram/private.*
 apps/miniprogram/project.private.config.json
-apps/miniprogram/**/*.js

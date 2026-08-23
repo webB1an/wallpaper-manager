@@ -1,25 +1,25 @@
 page {
   min-height: 100vh;
-  background: #f5f4ee;
-  color: #111820;
+  background: #f7f4ec;
+  color: #171b1f;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .page {
   min-height: 100vh;
-  padding: 28rpx 26rpx 60rpx;
+  padding: 24rpx 24rpx 60rpx;
 }
 
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 38rpx 30rpx;
-  border-radius: 18rpx;
+  padding: 34rpx 30rpx;
+  border-radius: 24rpx;
   color: #fff;
   background:
-    linear-gradient(90deg, rgba(255, 214, 121, 0.18), transparent 42%),
-    linear-gradient(135deg, #101820 0%, #245167 56%, #dd6b45 145%);
-  box-shadow: 0 18rpx 44rpx rgba(17, 24, 32, 0.15);
+    linear-gradient(90deg, rgba(255, 214, 121, 0.14), transparent 42%),
+    linear-gradient(135deg, #17201e 0%, #176b5d 64%, #d66d4b 150%);
+  box-shadow: 0 18rpx 42rpx rgba(23, 32, 30, 0.14);
 }
 
 .hero::before {
@@ -35,7 +35,7 @@ page {
 .hero-title {
   display: block;
   margin-top: 10rpx;
-  font-size: 46rpx;
+  font-size: 48rpx;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.16;
@@ -53,13 +53,13 @@ page {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 34rpx 2rpx 18rpx;
+  margin: 34rpx 2rpx 16rpx;
   font-size: 32rpx;
   font-weight: 760;
 }
 
 .muted {
-  color: #6e7881;
+  color: #747b73;
   font-size: 24rpx;
 }
 
@@ -71,7 +71,7 @@ page {
   margin: 0 12rpx 12rpx 0;
   border-radius: 999rpx;
   color: #245167;
-  background: #deeaeb;
+  background: #e4efed;
   font-size: 23rpx;
 }
 
@@ -89,8 +89,8 @@ page {
   margin-top: 26rpx;
   padding: 56rpx 24rpx;
   border: 2rpx dashed #dce4e8;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .empty-subtitle {

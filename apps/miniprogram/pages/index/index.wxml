@@ -1,12 +1,12 @@
 <view class="page">
   <view class="hero">
     <view class="hero-copy">
-      <text class="hero-kicker">WDBZK Gallery</text>
-      <text class="hero-title">今日灵感墙</text>
-      <text class="hero-subtitle">精选动静态壁纸，短链直达原始资源</text>
+      <text class="hero-kicker">WDBZK WALLPAPERS</text>
+      <text class="hero-title">发现好看的屏幕封面</text>
+      <text class="hero-subtitle">只展示缩略图，原图资源复制短链领取</text>
       <view class="hero-meter">
         <text>{{total}}</text>
-        <text>已上架资源</text>
+        <text>可领取资源</text>
       </view>
     </view>
     <view wx:if="{{topCovers.length}}" class="hero-stack">
@@ -17,8 +17,8 @@
   </view>
 
   <view class="search-row">
-    <input class="search-input" placeholder="搜索角色、风景、游戏、风格" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="reload" />
-    <button class="search-button" bindtap="reload">搜索</button>
+    <input class="search-input" placeholder="搜角色、场景、风格" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="reload" />
+    <button class="search-button" bindtap="reload">查找</button>
   </view>
 
   <view class="filter-row">
@@ -35,15 +35,9 @@
     <view class="type-filter {{type === 'desktop' ? 'active' : ''}}" data-type="desktop" bindtap="switchType">电脑</view>
   </view>
 
-  <view class="section-title">
-    <text>推荐资源</text>
+  <view class="section-title gallery-head">
+    <text>{{sort === 'hot' ? '热门资源' : '最新资源'}}</text>
     <text class="muted">{{total}} 张</text>
-  </view>
-
-  <view class="gallery-labels">
-    <text>精选缩略图</text>
-    <text>短链直达</text>
-    <text>AI 标签</text>
   </view>
 
   <view class="masonry">

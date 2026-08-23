@@ -15,9 +15,12 @@ const project = readJson("apps/miniprogram/project.config.json");
 const domains = readJson("deploy/wechat-miniprogram-domains.json");
 const sitemap = readJson("apps/miniprogram/sitemap.json");
 const apiText = readText("apps/miniprogram/utils/api.ts");
+const apiJs = readText("apps/miniprogram/utils/api.js");
 const appTs = readText("apps/miniprogram/app.ts");
+const appJs = readText("apps/miniprogram/app.js");
 const categoryTs = readText("apps/miniprogram/pages/category/category.ts");
 const detailTs = readText("apps/miniprogram/pages/detail/detail.ts");
+const indexJs = readText("apps/miniprogram/pages/index/index.js");
 
 const envAppid = String(env.MINIPROGRAM_APPID || env.WECHAT_MINIPROGRAM_APPID || "").trim();
 const appid = String(project.appid || envAppid || "").trim();
@@ -70,11 +73,19 @@ add(
 );
 
 for (const page of app.pages || []) {
-  for (const extension of ["json", "ts", "wxml", "wxss"]) {
+  for (const extension of ["json", "ts", "js", "wxml", "wxss"]) {
     const file = `apps/miniprogram/${page}.${extension}`;
     add(existsSync(join(root, file)), `page_${page}_${extension}`, "页面文件", file, `补齐 ${file}。`);
   }
 }
+
+add(
+  appJs.includes("showShareMenu") && apiJs.includes("wall-api.wdbzk.com/api") && indexJs.includes("/wallpapers") && indexJs.includes("this.load"),
+  "runtime_js",
+  "运行 JS",
+  "微信开发工具会执行 .js 文件，首页 JS 已包含真实请求逻辑",
+  "执行 npm run build -w apps/miniprogram 生成 app.js、utils/api.js 和页面 js；不要保留开发工具生成的空模板。",
+);
 
 const tabs = new Set((app.tabBar?.list || []).map((item) => item.pagePath));
 for (const page of ["pages/index/index", "pages/category/category", "pages/mine/mine"]) {

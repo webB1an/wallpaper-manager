@@ -104,6 +104,9 @@ export class AdminService {
     if (autoPublish) {
       await this.assertChannelReady("未配置可用腾讯频道账号，不能开启上传后自动发帖", options?.channelAccountId);
     }
+    if (autoProcess) {
+      await this.assertStorageReady(options?.storageSelection);
+    }
     const created = [];
     for (const file of files) {
       this.assertUploadFile(file);
@@ -539,6 +542,7 @@ export class AdminService {
   }
 
   async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection, channelAccountId?: string) {
+    await this.assertStorageReady(storageSelection);
     const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) };
     const task = await this.tasks.create("upload_asset", payload, "开始处理壁纸");
     await this.wallpaperQueue.add(
@@ -878,6 +882,19 @@ export class AdminService {
   private async assertChannelReady(message: string, accountId?: string) {
     const account = await this.getChannelAccountForPublish(accountId);
     if (!account) throw new BadRequestException(message);
+  }
+
+  private async assertStorageReady(storageSelection?: StorageSelection) {
+    const [quark, baidu] = await Promise.allSettled([
+      this.storageAccounts.getAccountForProvider(StorageProvider.quark, storageSelection?.quarkAccountId),
+      this.storageAccounts.getAccountForProvider(StorageProvider.baidu, storageSelection?.baiduAccountId),
+    ]);
+    const selectedError = [quark, baidu].find((result) => result.status === "rejected" && storageSelection);
+    if (selectedError?.status === "rejected") throw selectedError.reason;
+    const hasAccount = (quark.status === "fulfilled" && quark.value) || (baidu.status === "fulfilled" && baidu.value);
+    if (!hasAccount) {
+      throw new BadRequestException("未配置可用网盘账号，不能开启自动处理。请先在管理端“网盘账号”新增、授权并至少设置一个默认账号");
+    }
   }
 
   private async getChannelAccountForPublish(accountId?: string) {

@@ -6,14 +6,14 @@
     "pages/mine/mine"
   ],
   "window": {
-    "navigationBarTitleText": "Wallpaper壁纸库",
-    "navigationBarBackgroundColor": "#111820",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#F4F6F1"
+    "navigationBarTitleText": "WDBZK 壁纸",
+    "navigationBarBackgroundColor": "#F7F4EC",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F4EC"
   },
   "tabBar": {
-    "color": "#7E8791",
-    "selectedColor": "#D85A3A",
+    "color": "#7A7F86",
+    "selectedColor": "#176B5D",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
