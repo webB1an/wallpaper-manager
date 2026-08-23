@@ -61,7 +61,10 @@ if (action === "baidu-url") {
 }
 
 function printHelp() {
-  console.log("Wallpaper Manager storage authorization helper");
+  console.log("Wallpaper Manager storage CLI diagnostic helper");
+  console.log("");
+  console.log("Business authorization must be completed in the admin console: 网盘账号 -> 新增账号 -> 授权.");
+  console.log("These commands only test server-level CLI availability and do not create managed storage accounts.");
   console.log("");
   console.log("Usage:");
   console.log("  npm run auth:storage -- baidu-url");

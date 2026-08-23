@@ -22,7 +22,7 @@
 - PM2
 - ffmpeg
 - `bdpan`
-- 夸克网盘 skill CLI，并完成授权
+- 夸克网盘 skill CLI
 - `tencent-channel-cli`，默认作为 API 生产依赖安装；也可配置固定路径
 
 ## 3. 宝塔数据库
@@ -145,48 +145,7 @@ npm run package:release
 
 后台会为每个网盘账号使用独立 profile 目录，百度通过 `bdpan --config-path` 隔离授权态，夸克 skill 通过独立运行环境隔离授权态。授权码只用于完成登录，不会写入数据库。
 
-服务器侧兜底命令仍可用于排查：
-
-也可以在服务器项目目录使用统一授权助手：
-
-```bash
-cd /www/wwwroot/wallpaper-manager
-npm run auth:storage -- baidu-url
-npm run auth:storage -- baidu-code <授权码>
-npm run auth:storage -- baidu-whoami
-npm run auth:storage -- quark-login
-npm run auth:storage -- quark-whoami
-```
-
-百度网盘登录排查：
-
-```bash
-'/root/.local/bin/bdpan' login --accept-disclaimer --get-auth-url
-```
-
-打开命令输出的授权链接，百度页面完成授权后会给一段授权码。把授权码回填到服务器：
-
-```bash
-'/root/.local/bin/bdpan' login --accept-disclaimer --set-code <授权码>
-```
-
-如果 `BDPAN_PATH` 配置为其他路径，以诊断页展示的命令为准。登录后验证：
-
-```bash
-'/root/.local/bin/bdpan' whoami
-```
-
-夸克 skill 登录排查：
-
-```bash
-cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login
-```
-
-夸克 skill CLI 会识别 Agent 环境；生产后端调用时也会带 `CODEX_ENV=1 AI_AGENT=codex`。登录后验证：
-
-```bash
-cd '/www/server/quarkclouddrive-1.0.14' && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs get-user-info
-```
+服务器侧命令只用于排查 `bdpan` 或夸克 skill CLI 是否安装可执行，不作为正式授权流程。正式业务同步只读取管理端创建的多账号授权态。
 
 两个网盘授权都完成并设为默认后，打开管理端“上线诊断”重新检查，`百度网盘账号` 和 `夸克网盘账号` 都应显示“正常”。如果只完成其中一个，上传处理仍可能继续使用另一个成功源，但会在任务结果里留下同步失败提醒。
 

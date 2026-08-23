@@ -40,7 +40,7 @@ Production deploys from GitHub Actions on every push to `main`.
 - Admin domain: `https://wall-admin.wdbzk.com`
 - Short links: `https://r.wdbzk.com`
 
-See `docs/deployment.md` for Baota database setup, GitHub Secrets, Nginx configuration, storage authorization commands, Tencent channel setup, and the release checklist.
+See `docs/deployment.md` for Baota database setup, GitHub Secrets, Nginx configuration, managed storage-account authorization, Tencent channel setup, and the release checklist.
 
 On the server, run this when you want the remaining launch work as copyable actions:
 
@@ -56,13 +56,7 @@ npm run miniprogram:appid -- wx你的AppID
 npm run readiness:miniprogram
 ```
 
-For storage login on the server, use:
-
-```bash
-npm run auth:storage -- baidu-url
-npm run auth:storage -- baidu-code <code>
-npm run auth:storage -- quark-login
-```
+Storage authorization is completed in the admin web console. Open `网盘账号`, add one or more Baidu/Quark accounts, authorize each account, then choose the default account per provider.
 
 To verify the managed multi-account storage flow through the admin API:
 

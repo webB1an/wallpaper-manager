@@ -1046,19 +1046,6 @@ export class AdminService {
     return warn("unpublished_active_short_links", "下架短链", `存在 ${count} 个非上架资源仍有关联活跃短链，公开跳转已拦截，可在资源库筛选后清理链接状态`);
   }
 
-  private baiduLoginCommand() {
-    return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login --accept-disclaimer --get-auth-url`;
-  }
-
-  private baiduSetCodeCommand() {
-    return `${quoteShell(this.config.get<string>("BDPAN_PATH")?.trim() || "bdpan")} login --accept-disclaimer --set-code <授权码>`;
-  }
-
-  private quarkLoginCommand() {
-    const skillDir = this.config.get<string>("QUARK_SKILL_DIR")?.trim() || "/www/server/quarkclouddrive-1.0.14";
-    return `cd ${quoteShell(skillDir)} && CODEX_ENV=1 AI_AGENT=codex node scripts/quark-drive.cjs login`;
-  }
-
   private async storageAccountAction(id: string, action: "start-auth" | "finish-auth", code?: string) {
     const account = await this.prisma.storageAccount.findUnique({ where: { id } });
     if (!account) throw new BadRequestException("网盘账号不存在");
@@ -1250,8 +1237,4 @@ function formatReadinessReport(data: {
 
 function shortError(error: unknown): string {
   return String(error instanceof Error ? error.message : error).replace(/\s+/g, " ").slice(0, 240);
-}
-
-function quoteShell(value: string): string {
-  return `'${value.replace(/'/g, "'\\''")}'`;
 }
