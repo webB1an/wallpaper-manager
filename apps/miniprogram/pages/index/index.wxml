@@ -10,7 +10,7 @@
       </view>
       <view class="card-tags" wx:if="{{item.tags.length}}">
         <block wx:for="{{item.tags}}" wx:for-item="tagName" wx:key="*this">
-          <text wx:if="{{index < 2}}">#{{tagName}}</text>
+          <text wx:if="{{index < 2}}" bindtap="openTag" data-tag="{{tagName}}">#{{tagName}}</text>
         </block>
       </view>
     </view>

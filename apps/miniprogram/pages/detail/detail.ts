@@ -106,6 +106,12 @@ Page({
     this.loadDetail(id);
   },
 
+  openTag(event: WechatMiniprogram.TouchEvent) {
+    const tag = String(event.currentTarget.dataset.tag || "").trim();
+    if (!tag) return;
+    wx.navigateTo({ url: `/pages/list/list?tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}` });
+  },
+
   onShareAppMessage() {
     const item = this.data.item;
     return {

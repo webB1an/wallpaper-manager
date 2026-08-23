@@ -98,6 +98,12 @@ Page({
     openDetail(event) {
         wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
     },
+    openTag(event) {
+        const tag = String(event.currentTarget.dataset.tag || "").trim();
+        if (!tag)
+            return;
+        wx.navigateTo({ url: `/pages/list/list?tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}` });
+    },
     onShareAppMessage() {
         return {
             title: shareTitle(this.data.tag),

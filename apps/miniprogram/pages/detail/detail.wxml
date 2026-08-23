@@ -15,7 +15,7 @@
     </view>
     <view class="tag-row">
       <block wx:for="{{item.tags}}" wx:key="*this">
-        <text class="tag">{{item}}</text>
+        <text class="tag" bindtap="openTag" data-tag="{{item}}">{{item}}</text>
       </block>
     </view>
     <button class="share-button" open-type="share">分享壁纸</button>
