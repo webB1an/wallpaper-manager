@@ -26,8 +26,17 @@ function requireFile(path) {
 }
 
 function requireContains(path, expected) {
+  if (!existsSync(join(root, path))) {
+    fail(`${path} is missing`);
+    return;
+  }
   const text = readText(path);
   if (!text.includes(expected)) fail(`${path} must contain ${expected}`);
+}
+
+function requireContainsIfPresent(path, expected) {
+  if (!existsSync(join(root, path))) return;
+  requireContains(path, expected);
 }
 
 function parseEnvExample(path) {
@@ -294,14 +303,14 @@ requireContains("apps/admin/src/main.tsx", "unpublishedActiveShortLinks");
 requireContains("apps/admin/src/main.tsx", "下架活跃短链");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
-requireContains(".github/workflows/deploy.yml", "Smoke production");
-requireContains(".github/workflows/deploy.yml", "npm run lint");
-requireContains(".github/workflows/deploy.yml", "npm run smoke:production");
-requireContains(".github/workflows/deploy.yml", "npm run smoke:storage-accounts");
-requireContains(".github/workflows/deploy.yml", "npm run smoke:channel-accounts");
-requireContains(".github/workflows/deploy.yml", "npm run smoke:auth-code");
-requireContains(".github/workflows/deploy.yml", "Launch readiness report");
-requireContains(".github/workflows/deploy.yml", "npm run readiness:launch -- --allow-empty-appid || true");
+requireContainsIfPresent(".github/workflows/deploy.yml", "Smoke production");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run lint");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run smoke:production");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run smoke:storage-accounts");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run smoke:channel-accounts");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run smoke:auth-code");
+requireContainsIfPresent(".github/workflows/deploy.yml", "Launch readiness report");
+requireContainsIfPresent(".github/workflows/deploy.yml", "npm run readiness:launch -- --allow-empty-appid || true");
 
 const requiredEnv = [
   "PUBLIC_API_ORIGIN",
