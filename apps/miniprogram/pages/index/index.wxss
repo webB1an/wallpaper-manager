@@ -250,7 +250,7 @@
   margin-top: 14rpx;
   margin-left: 10rpx;
   overflow: hidden;
-  color: #8a949b;
+  color: #88857b;
   font-size: 21rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -270,7 +270,7 @@
   padding: 0 10rpx;
   overflow: hidden;
   border-radius: 999rpx;
-  color: #66717b;
+  color: #74766d;
   background: #eff2ea;
   font-size: 20rpx;
   line-height: 34rpx;
@@ -306,7 +306,7 @@
   height: 22rpx;
   margin-top: 238rpx;
   border-radius: 999rpx;
-  background: rgba(17, 24, 32, 0.08);
+  background: rgba(32, 36, 31, 0.08);
 }
 
 .skeleton-card.tall text {

@@ -34,6 +34,55 @@ function requireContains(path, expected) {
   if (!text.includes(expected)) fail(`${path} must contain ${expected}`);
 }
 
+function requireNotContains(path, forbidden) {
+  if (!existsSync(join(root, path))) {
+    fail(`${path} is missing`);
+    return;
+  }
+  const text = readText(path);
+  if (text.includes(forbidden)) fail(`${path} must not contain ${forbidden}`);
+}
+
+function requireNoBluePurplePalette(paths) {
+  const hits = [];
+  for (const path of paths) {
+    const text = readText(path);
+    for (const match of text.matchAll(/#([0-9a-fA-F]{6})\b/g)) {
+      const value = Number.parseInt(match[1], 16);
+      collectBluePurpleHit(hits, path, match[0], (value >> 16) & 255, (value >> 8) & 255, value & 255);
+    }
+    for (const match of text.matchAll(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)) {
+      collectBluePurpleHit(hits, path, match[0], Number(match[1]), Number(match[2]), Number(match[3]));
+    }
+  }
+  if (hits.length) fail(`miniprogram palette must not use blue/purple colors: ${hits.join(", ")}`);
+}
+
+function collectBluePurpleHit(hits, path, raw, r, g, b) {
+  const { hue, saturation } = rgbToHsl(r, g, b);
+  if (saturation >= 0.06 && hue >= 190 && hue <= 290) hits.push(`${path}:${raw}`);
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let hue = 0;
+  let saturation = 0;
+  const lightness = (max + min) / 2;
+  if (max !== min) {
+    const delta = max - min;
+    saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    if (max === r) hue = (g - b) / delta + (g < b ? 6 : 0);
+    if (max === g) hue = (b - r) / delta + 2;
+    if (max === b) hue = (r - g) / delta + 4;
+    hue *= 60;
+  }
+  return { hue, saturation };
+}
+
 function requireBefore(path, earlier, later) {
   if (!existsSync(join(root, path))) {
     fail(`${path} is missing`);
@@ -164,6 +213,37 @@ requireContains("apps/miniprogram/pages/mine/mine.ts", "formatClipboardText");
 requireContains("apps/miniprogram/pages/mine/mine.wxml", "mine-meter");
 requireContains("apps/miniprogram/pages/mine/mine.wxml", "history-passcode");
 requireContains("apps/miniprogram/pages/index/index.wxml", "hero-stack");
+requireContains("apps/miniprogram/app.wxss", "box-sizing: border-box");
+requireContains("apps/miniprogram/app.wxss", "overflow-x: hidden");
+requireContains("apps/miniprogram/app.wxss", "button");
+requireContains("apps/miniprogram/app.wxss", "min-width: 0");
+requireContains("apps/miniprogram/pages/index/index.wxml", '<view class="search-button" bindtap="reload">搜索</view>');
+requireNotContains("apps/miniprogram/pages/index/index.wxml", '<button class="search-button"');
+requireContains("apps/miniprogram/pages/index/index.wxss", ".search-row");
+requireContains("apps/miniprogram/pages/index/index.wxss", "display: flex");
+requireContains("apps/miniprogram/pages/index/index.wxss", "overflow: hidden");
+requireContains("apps/miniprogram/pages/index/index.wxss", "flex: 0 0 108rpx");
+requireContains("apps/miniprogram/pages/index/index.wxss", "max-width: 108rpx");
+for (const path of [
+  "apps/miniprogram/app.json",
+  "apps/miniprogram/app.wxss",
+  "apps/miniprogram/pages/index/index.wxss",
+  "apps/miniprogram/pages/category/category.wxss",
+  "apps/miniprogram/pages/detail/detail.wxss",
+  "apps/miniprogram/pages/mine/mine.wxss",
+]) {
+  for (const color of ["#25465a", "#245167", "#176b5d", "#111820", "#d85a3a", "#dd6b45", "#ffd166", "#ffd679", "#f7f4ec", "#dce4e8", "#263840", "#17201e", "#d66d4b"]) {
+    requireNotContains(path, color);
+  }
+}
+requireNoBluePurplePalette([
+  "apps/miniprogram/app.json",
+  "apps/miniprogram/app.wxss",
+  "apps/miniprogram/pages/index/index.wxss",
+  "apps/miniprogram/pages/category/category.wxss",
+  "apps/miniprogram/pages/detail/detail.wxss",
+  "apps/miniprogram/pages/mine/mine.wxss",
+]);
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigins");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkMiniprogramReleaseConfig");

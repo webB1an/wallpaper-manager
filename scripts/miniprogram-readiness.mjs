@@ -20,6 +20,9 @@ const appTs = readText("apps/miniprogram/app.ts");
 const appJs = readText("apps/miniprogram/app.js");
 const categoryTs = readText("apps/miniprogram/pages/category/category.ts");
 const detailTs = readText("apps/miniprogram/pages/detail/detail.ts");
+const appWxss = readText("apps/miniprogram/app.wxss");
+const indexWxml = readText("apps/miniprogram/pages/index/index.wxml");
+const indexWxss = readText("apps/miniprogram/pages/index/index.wxss");
 const indexJs = readText("apps/miniprogram/pages/index/index.js");
 
 const envAppid = String(env.MINIPROGRAM_APPID || env.WECHAT_MINIPROGRAM_APPID || "").trim();
@@ -125,6 +128,35 @@ add(
   "详情页复制短链成功后需要调用 /wallpapers/:id/click，保持热门排序和下载次数可信。",
 );
 
+add(
+  indexWxml.includes('<view class="search-button" bindtap="reload">搜索</view>') &&
+    !indexWxml.includes('<button class="search-button"') &&
+    indexWxss.includes("display: flex") &&
+    indexWxss.includes("overflow: hidden") &&
+    indexWxss.includes("flex: 0 0 108rpx") &&
+    indexWxss.includes("max-width: 108rpx"),
+  "home_search_layout",
+  "首页搜索布局",
+  "搜索按钮使用内嵌 view 控件，避免微信原生 button 撑出屏幕",
+  "首页搜索按钮不要改回原生 button；保持 search-row 为 flex 且按钮固定在输入框内部。",
+);
+
+add(
+  appWxss.includes("box-sizing: border-box") && appWxss.includes("overflow-x: hidden") && appWxss.includes("min-width: 0"),
+  "layout_overflow_guard",
+  "布局溢出保护",
+  "全局 box-sizing 和按钮最小宽度已收束",
+  "保持 app.wxss 的全局 box-sizing、overflow-x 和 button min-width 规则，避免小屏按钮溢出。",
+);
+
+add(
+  !forbiddenPalette().length,
+  "palette_guard",
+  "小程序配色",
+  forbiddenPalette().length ? `仍有旧蓝紫/高饱和色：${forbiddenPalette().join(", ")}` : "未发现旧蓝紫/高饱和主色",
+  "保持墨绿、炭黑、浅石灰、暖铜这套低饱和配色，不要退回蓝紫 AI 感主色。",
+);
+
 const summary = checks.reduce((acc, item) => {
   acc[item.status] = (acc[item.status] || 0) + 1;
   return acc;
@@ -188,4 +220,57 @@ function printHuman(data) {
     console.log(`  ${action.message}`);
     console.log(`  Next: ${action.nextStep}`);
   }
+}
+
+function forbiddenPalette() {
+  const files = [
+    "apps/miniprogram/app.json",
+    "apps/miniprogram/app.wxss",
+    "apps/miniprogram/pages/index/index.wxss",
+    "apps/miniprogram/pages/category/category.wxss",
+    "apps/miniprogram/pages/detail/detail.wxss",
+    "apps/miniprogram/pages/mine/mine.wxss",
+  ];
+  const colors = ["#25465a", "#245167", "#176b5d", "#111820", "#d85a3a", "#dd6b45", "#ffd166", "#ffd679", "#f7f4ec", "#dce4e8", "#263840", "#17201e", "#d66d4b"];
+  const hits = new Set();
+  for (const file of files) {
+    const originalText = readText(file);
+    const text = originalText.toLowerCase();
+    for (const color of colors) {
+      if (text.includes(color)) hits.add(`${file}:${color}`);
+    }
+    for (const match of originalText.matchAll(/#([0-9a-fA-F]{6})\b/g)) {
+      const value = Number.parseInt(match[1], 16);
+      collectBluePurpleHit(hits, file, match[0], (value >> 16) & 255, (value >> 8) & 255, value & 255);
+    }
+    for (const match of originalText.matchAll(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)) {
+      collectBluePurpleHit(hits, file, match[0], Number(match[1]), Number(match[2]), Number(match[3]));
+    }
+  }
+  return [...hits];
+}
+
+function collectBluePurpleHit(hits, file, raw, r, g, b) {
+  const { hue, saturation } = rgbToHsl(r, g, b);
+  if (saturation >= 0.06 && hue >= 190 && hue <= 290) hits.add(`${file}:${raw}`);
+}
+
+function rgbToHsl(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let hue = 0;
+  let saturation = 0;
+  const lightness = (max + min) / 2;
+  if (max !== min) {
+    const delta = max - min;
+    saturation = lightness > 0.5 ? delta / (2 - max - min) : delta / (max + min);
+    if (max === r) hue = (g - b) / delta + (g < b ? 6 : 0);
+    if (max === g) hue = (b - r) / delta + 2;
+    if (max === b) hue = (r - g) / delta + 4;
+    hue *= 60;
+  }
+  return { hue, saturation };
 }

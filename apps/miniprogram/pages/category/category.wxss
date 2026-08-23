@@ -12,10 +12,10 @@
   min-height: 150rpx;
   padding: 22rpx;
   overflow: hidden;
-  border: 2rpx solid #dbe4e8;
+  border: 2rpx solid #deddd2;
   border-radius: 18rpx;
   background: #fff;
-  box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
+  box-shadow: 0 10rpx 30rpx rgba(32, 36, 31, 0.06);
 }
 
 .type-card view {
@@ -61,7 +61,7 @@
   display: block;
   margin-top: 12rpx;
   overflow: hidden;
-  color: #6e7881;
+  color: #77766e;
   font-size: 23rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -76,7 +76,7 @@
 }
 
 .type-card-static {
-  border-color: rgba(37, 70, 90, 0.38);
+  border-color: rgba(47, 75, 63, 0.38);
 }
 
 .type-card-static view text:first-child {
@@ -104,7 +104,7 @@
 }
 
 .type-card-desktop {
-  border-color: rgba(17, 24, 32, 0.32);
+  border-color: rgba(32, 36, 31, 0.32);
 }
 
 .type-card-other {

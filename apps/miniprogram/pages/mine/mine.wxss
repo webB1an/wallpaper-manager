@@ -47,10 +47,10 @@
   gap: 16rpx;
   align-items: center;
   padding: 16rpx;
-  border: 1rpx solid rgba(37, 70, 90, 0.08);
+  border: 1rpx solid rgba(47, 75, 63, 0.08);
   border-radius: 10rpx;
   background: #fff;
-  box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
+  box-shadow: 0 10rpx 30rpx rgba(32, 36, 31, 0.06);
 }
 
 .history-card image {
@@ -82,7 +82,7 @@
 
 .history-url {
   margin-top: 8rpx;
-  color: #68727c;
+  color: #77746b;
   font-size: 22rpx;
 }
 
@@ -99,7 +99,7 @@
   padding: 4rpx 10rpx;
   border-radius: 8rpx;
   color: #2f4b3f;
-  background: #edf4f0;
+  background: #eef1e8;
   font-size: 21rpx;
   font-weight: 760;
 }
@@ -124,7 +124,7 @@
   display: block;
   margin-top: 4rpx;
   overflow: hidden;
-  color: #8a949b;
+  color: #88857b;
   font-size: 21rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -166,7 +166,7 @@
 .empty-state text:last-child {
   display: block;
   margin-top: 12rpx;
-  color: #6e7881;
+  color: #77766e;
   font-size: 24rpx;
   line-height: 1.6;
 }
