@@ -645,7 +645,7 @@ export class AdminService {
     });
     if (!wallpaper) throw new BadRequestException("壁纸不存在");
     await this.assertWallpapersCanPublish([id]);
-    const content = buildChannelContent(wallpaper.title, wallpaper.tags.map(({ tag }) => tag.name));
+    const content = buildChannelContent(wallpaper.title);
     const absoluteAsset = wallpaper.assetPath ? join(process.cwd(), "storage", "public", wallpaper.assetPath) : undefined;
     const absoluteCover = wallpaper.coverPath ? join(process.cwd(), "storage", "public", wallpaper.coverPath) : undefined;
     const isVideo = wallpaper.mimeType?.startsWith("video/") || wallpaper.type === WallpaperType.live;
@@ -691,10 +691,7 @@ export class AdminService {
     })));
 
     const tags = unique(wallpapers.flatMap((item) => item.tags.map(({ tag }) => tag.name))).slice(0, 8);
-    const content = buildChannelContent(
-      wallpapers.length === 1 ? wallpapers[0].title : `${wallpapers[0].title} 等 ${wallpapers.length} 张壁纸`,
-      tags,
-    );
+    const content = buildChannelContent(wallpapers.length === 1 ? wallpapers[0].title : `${wallpapers[0].title} 等 ${wallpapers.length} 张壁纸`);
     const imagePaths = liveItems.length
       ? []
       : wallpapers
@@ -1142,9 +1139,8 @@ function detectType(mimeType: string, name: string): WallpaperType {
 }
 
 
-function buildChannelContent(title: string, tags: string[]): string {
-  const tagLine = tags.slice(0, 6).map((tag) => `#${tag}`).join(" ");
-  return [title, tagLine].filter(Boolean).join("\n").slice(0, 1000);
+function buildChannelContent(title: string): string {
+  return title.trim().slice(0, 1000);
 }
 
 function assertChannelMediaReady(items: Array<{ title: string; isVideo: boolean; coverPath?: string; assetPath?: string }>) {
