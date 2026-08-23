@@ -4,7 +4,7 @@
     <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
     <view class="poster-info">
       <text class="poster-title">{{item.title}}</text>
-      <view>
+      <view class="poster-meta-row">
         <text class="pill">{{item.typeLabel}}</text>
         <text class="count">{{item.downloadCount}} 次下载</text>
       </view>
@@ -45,7 +45,7 @@
 
   <view class="search-row">
     <input class="search-input" placeholder="搜角色、场景、风格" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="reload" />
-    <view class="search-button" bindtap="reload">⌕</view>
+    <view class="search-button" bindtap="reload">搜索</view>
   </view>
 
   <view wx:if="{{hotTags.length}}" class="hot-tags">

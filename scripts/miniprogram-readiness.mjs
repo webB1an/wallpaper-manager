@@ -129,7 +129,7 @@ add(
 );
 
 add(
-  indexWxml.includes('<view class="search-button" bindtap="reload">⌕</view>') &&
+  indexWxml.includes('<view class="search-button" bindtap="reload">') &&
     !indexWxml.includes('<button class="search-button"') &&
     indexWxss.includes("display: flex") &&
     indexWxss.includes("overflow: hidden") &&

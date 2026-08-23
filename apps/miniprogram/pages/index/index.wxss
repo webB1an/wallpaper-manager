@@ -132,8 +132,8 @@
   border-radius: 18rpx;
   color: #ffffff;
   background: #c05621;
-  font-size: 34rpx;
-  font-weight: 820;
+  font-size: 24rpx;
+  font-weight: 700;
   line-height: 68rpx;
   text-align: center;
 }
@@ -263,7 +263,7 @@
 
 .pill {
   display: inline-block;
-  margin-top: 12rpx;
+  margin-top: 0;
   padding: 5rpx 12rpx;
   border-radius: 999rpx;
   color: #c05621;
@@ -271,11 +271,18 @@
   font-size: 21rpx;
 }
 
+.poster-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 10rpx;
+}
+
 .count {
   display: inline-block;
   max-width: 170rpx;
-  margin-top: 14rpx;
-  margin-left: 10rpx;
+  margin-top: 0;
+  margin-left: 0;
   overflow: hidden;
   color: #8a7668;
   font-size: 21rpx;

@@ -221,7 +221,7 @@ requireContains("apps/miniprogram/app.wxss", "box-sizing: border-box");
 requireContains("apps/miniprogram/app.wxss", "overflow-x: hidden");
 requireContains("apps/miniprogram/app.wxss", "button");
 requireContains("apps/miniprogram/app.wxss", "min-width: 0");
-requireContains("apps/miniprogram/pages/index/index.wxml", '<view class="search-button" bindtap="reload">⌕</view>');
+requireContains("apps/miniprogram/pages/index/index.wxml", '<view class="search-button" bindtap="reload">');
 requireNotContains("apps/miniprogram/pages/index/index.wxml", '<button class="search-button"');
 requireContains("apps/miniprogram/pages/index/index.wxss", ".search-row");
 requireContains("apps/miniprogram/pages/index/index.wxss", "display: flex");
