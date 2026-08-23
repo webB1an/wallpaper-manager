@@ -93,15 +93,21 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
-  @Post("wallpapers/:id/process")
-  async process(@Param("id") id: string, @Body() body?: { quarkAccountId?: string; baiduAccountId?: string }) {
-    return { code: 200, data: await this.admin.enqueueProcessWallpaper(id, cleanStorageSelection(body || {})) };
+  @Post("wallpapers/bulk/process")
+  async bulkProcess(@Body() body?: { ids?: string[]; quarkAccountId?: string; baiduAccountId?: string }) {
+    return { code: 200, data: await this.admin.enqueueProcessWallpapers(body?.ids, cleanStorageSelection(body || {})) };
   }
 
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/:id/publish-channel")
   async publishChannel(@Param("id") id: string) {
     return { code: 200, data: await this.admin.publishWallpaperToChannel(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("wallpapers/:id/process")
+  async process(@Param("id") id: string, @Body() body?: { quarkAccountId?: string; baiduAccountId?: string }) {
+    return { code: 200, data: await this.admin.enqueueProcessWallpaper(id, cleanStorageSelection(body || {})) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -163,12 +169,6 @@ export class AdminController {
   async bulk(@Body() body?: { ids?: string[]; status?: WallpaperStatus; tags?: string[] }) {
     const status = optionalEnum(body?.status, WallpaperStatus, "壁纸状态");
     return { code: 200, data: await this.admin.bulkUpdate(body?.ids, { ...(body || {}), status }) };
-  }
-
-  @UseGuards(AdminAuthGuard)
-  @Post("wallpapers/bulk/process")
-  async bulkProcess(@Body() body?: { ids?: string[]; quarkAccountId?: string; baiduAccountId?: string }) {
-    return { code: 200, data: await this.admin.enqueueProcessWallpapers(body?.ids || [], cleanStorageSelection(body || {})) };
   }
 
   @UseGuards(AdminAuthGuard)

@@ -34,6 +34,19 @@ function requireContains(path, expected) {
   if (!text.includes(expected)) fail(`${path} must contain ${expected}`);
 }
 
+function requireBefore(path, earlier, later) {
+  if (!existsSync(join(root, path))) {
+    fail(`${path} is missing`);
+    return;
+  }
+  const text = readText(path);
+  const earlierIndex = text.indexOf(earlier);
+  const laterIndex = text.indexOf(later);
+  if (earlierIndex === -1 || laterIndex === -1 || earlierIndex > laterIndex) {
+    fail(`${path} must place ${earlier} before ${later}`);
+  }
+}
+
 function requireContainsIfPresent(path, expected) {
   if (!existsSync(join(root, path))) return;
   requireContains(path, expected);
@@ -194,6 +207,7 @@ requireContains("apps/admin/src/main.tsx", "processTargetIds");
 requireContains("apps/admin/src/main.tsx", "openProcess([row.id])");
 requireContains("apps/admin/src/main.tsx", "processBatch(processTargetIds, values, load)");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "bulkProcess(@Body() body?: { ids?: string[]; quarkAccountId?: string; baiduAccountId?: string })");
+requireBefore("apps/api/src/modules/admin/admin.controller.ts", '@Post("wallpapers/bulk/process")', '@Post("wallpapers/:id/process")');
 requireContains("apps/api/src/modules/admin/admin.service.ts", "async enqueueProcessWallpapers(ids: string[] | undefined, storageSelection?: StorageSelection)");
 requireContains("apps/admin/src/main.tsx", "auth/start");
 requireContains("apps/admin/src/main.tsx", "auth/finish");
