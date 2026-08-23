@@ -108,10 +108,14 @@ requireContains("apps/miniprogram/pages/detail/detail.wxss", "detailSkeletonSwee
 requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall-api.wdbzk.com/api"');
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "download-passcode");
+requireContains("apps/miniprogram/pages/detail/detail.wxml", "data-passcode");
+requireContains("apps/miniprogram/pages/detail/detail.ts", "formatClipboardText");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "openDetail");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "showModal");
 requireContains("apps/miniprogram/pages/mine/mine.ts", "goExplore");
+requireContains("apps/miniprogram/pages/mine/mine.ts", "formatClipboardText");
 requireContains("apps/miniprogram/pages/mine/mine.wxml", "mine-meter");
+requireContains("apps/miniprogram/pages/mine/mine.wxml", "history-passcode");
 requireContains("apps/miniprogram/pages/index/index.wxml", "hero-stack");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigins");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");

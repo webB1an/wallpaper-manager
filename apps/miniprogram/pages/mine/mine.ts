@@ -6,6 +6,7 @@ type DownloadRecord = {
   coverUrl: string;
   label: string;
   url: string;
+  passcode?: string;
   copiedAt: number;
   copiedAtText?: string;
 };
@@ -21,9 +22,10 @@ Page({
 
   copyLink(event: WechatMiniprogram.TouchEvent) {
     const url = String(event.currentTarget.dataset.url || "");
+    const passcode = String(event.currentTarget.dataset.passcode || "");
     wx.setClipboardData({
-      data: url,
-      success: () => wx.showToast({ title: "短链已复制", icon: "success" })
+      data: formatClipboardText(url, passcode),
+      success: () => wx.showToast({ title: passcode ? "短链和提取码已复制" : "短链已复制", icon: "success" })
     });
   },
 
@@ -68,4 +70,8 @@ function formatTime(value: number) {
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
   return `${month}-${day}`;
+}
+
+function formatClipboardText(url: string, passcode?: string) {
+  return passcode ? `链接：${url}\n提取码：${passcode}` : url;
 }

@@ -20,12 +20,13 @@
         <view class="history-main">
           <text class="history-title">{{item.title}}</text>
           <text class="history-url">{{item.url}}</text>
+          <text wx:if="{{item.passcode}}" class="history-passcode">提取码 {{item.passcode}}</text>
           <view class="history-meta-row">
             <text class="history-meta">{{item.label}}</text>
             <text class="history-time">{{item.copiedAtText}}</text>
           </view>
         </view>
-        <button data-url="{{item.url}}" catchtap="copyLink">复制</button>
+        <button data-url="{{item.url}}" data-passcode="{{item.passcode}}" catchtap="copyLink">复制</button>
       </view>
     </block>
   </view>

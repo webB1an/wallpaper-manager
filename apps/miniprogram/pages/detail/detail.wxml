@@ -39,7 +39,7 @@
             <text class="download-url">{{item.url}}</text>
             <text wx:if="{{item.passcode}}" class="download-passcode">提取码 {{item.passcode}}</text>
           </view>
-          <button class="download-button" data-url="{{item.url}}" data-label="{{item.label}}" bindtap="copyLink">复制</button>
+          <button class="download-button" data-url="{{item.url}}" data-label="{{item.label}}" data-passcode="{{item.passcode}}" bindtap="copyLink">复制</button>
         </view>
       </block>
       <view wx:if="{{item.shortLinks.length === 0}}" class="download-empty">暂无可用网盘短链</view>

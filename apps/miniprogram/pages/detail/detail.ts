@@ -65,7 +65,8 @@ Page({
   copyLink(event: WechatMiniprogram.TouchEvent) {
     const url = String(event.currentTarget.dataset.url || "");
     const label = String(event.currentTarget.dataset.label || "下载短链");
-    this.copyShortLink(url, label);
+    const passcode = String(event.currentTarget.dataset.passcode || "");
+    this.copyShortLink(url, label, passcode);
   },
 
   copyPrimaryLink() {
@@ -73,16 +74,16 @@ Page({
       wx.showToast({ title: "暂无短链", icon: "none" });
       return;
     }
-    this.copyShortLink(this.data.primaryLink.url, this.data.primaryLink.label);
+    this.copyShortLink(this.data.primaryLink.url, this.data.primaryLink.label, this.data.primaryLink.passcode);
   },
 
-  copyShortLink(url: string, label: string) {
+  copyShortLink(url: string, label: string, passcode?: string) {
     if (!url) return;
     wx.setClipboardData({
-      data: url,
+      data: formatClipboardText(url, passcode),
       success: () => {
-        saveHistory(this.data.item, url, label);
-        wx.showToast({ title: "短链已复制", icon: "success" });
+        saveHistory(this.data.item, url, label, passcode);
+        wx.showToast({ title: passcode ? "短链和提取码已复制" : "短链已复制", icon: "success" });
       }
     });
   },
@@ -113,7 +114,7 @@ Page({
   }
 });
 
-function saveHistory(item: WallpaperDetail | null, url: string, label: string) {
+function saveHistory(item: WallpaperDetail | null, url: string, label: string, passcode?: string) {
   if (!item || !url) return;
   const previous = readHistory();
   const next = [
@@ -123,6 +124,7 @@ function saveHistory(item: WallpaperDetail | null, url: string, label: string) {
       coverUrl: item.coverUrl,
       label,
       url,
+      passcode,
       copiedAt: Date.now()
     },
     ...previous.filter((record) => record.url !== url)
@@ -130,9 +132,13 @@ function saveHistory(item: WallpaperDetail | null, url: string, label: string) {
   wx.setStorageSync(HISTORY_KEY, next);
 }
 
-function readHistory(): Array<{ id?: string; title: string; coverUrl: string; label: string; url: string; copiedAt: number }> {
+function readHistory(): Array<{ id?: string; title: string; coverUrl: string; label: string; url: string; passcode?: string; copiedAt: number }> {
   const value = wx.getStorageSync(HISTORY_KEY);
   return Array.isArray(value) ? value : [];
+}
+
+function formatClipboardText(url: string, passcode?: string) {
+  return passcode ? `链接：${url}\n提取码：${passcode}` : url;
 }
 
 function formatBytes(value: number) {
