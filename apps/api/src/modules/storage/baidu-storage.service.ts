@@ -29,7 +29,8 @@ export class BaiduStorageService {
       .join("/");
     const size = statSync(filePath).size;
     const timeoutMs = Math.max(3_600_000, Math.ceil(size / 40_000) * 1500);
-    await this.ensureRemoteDir(account, remoteDir);
+    const parentRemote = remotePath.slice(0, Math.max(0, remotePath.lastIndexOf("/")));
+    await this.ensureRemoteDir(account, parentRemote);
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "upload", filePath, remotePath], { timeoutMs });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘上传失败");
     return remotePath;
