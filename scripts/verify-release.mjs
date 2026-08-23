@@ -82,7 +82,9 @@ for (const page of ["pages/index/index", "pages/category/category", "pages/mine/
   if (!tabPages.has(page)) fail(`app.json tabBar must include ${page}`);
 }
 
-if (project.appid !== "") fail("project.config.json appid must stay blank until the real WeChat AppID is assigned");
+if (project.appid && !/^wx[a-zA-Z0-9]{16,24}$/.test(project.appid)) {
+  fail("project.config.json appid must be blank or a valid WeChat Mini Program AppID");
+}
 if (project.setting?.urlCheck !== true) fail("project.config.json setting.urlCheck must stay true for production parity");
 if (!wechatDomains.request?.includes("https://wall-api.wdbzk.com")) fail("wechat request domain must include wall-api.wdbzk.com");
 if (!wechatDomains.downloadFile?.includes("https://wall-api.wdbzk.com")) fail("wechat downloadFile domain must include wall-api.wdbzk.com");
