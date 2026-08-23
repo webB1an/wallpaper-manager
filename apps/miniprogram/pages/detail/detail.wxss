@@ -18,11 +18,11 @@
 }
 
 .detail-back {
+  position: absolute;
+  left: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
   border-radius: 999rpx;
   color: #ffffff;
   background: rgba(0, 0, 0, 0.28);
@@ -32,8 +32,9 @@
 }
 
 .detail-nav-title {
-  flex: 1;
-  margin-right: 64rpx;
+  position: absolute;
+  left: 120rpx;
+  right: 220rpx;
   overflow: hidden;
   color: #ffffff;
   font-size: 30rpx;

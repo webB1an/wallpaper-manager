@@ -13,9 +13,15 @@ Page({
         typeText: "",
         loading: true,
         error: "",
-        id: ""
+        id: "",
+        capsuleTop: 48,
+        capsuleHeight: 32
     },
     async onLoad(options) {
+        const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
+        if (menu) {
+            this.setData({ capsuleTop: menu.top, capsuleHeight: menu.height });
+        }
         if (!options.id) {
             this.setData({ loading: false, error: "没有找到壁纸，请返回首页重新打开" });
             return;

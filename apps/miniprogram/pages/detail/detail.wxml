@@ -1,7 +1,7 @@
 <view class="detail-page" wx:if="{{item}}">
   <view class="detail-topbar">
-    <view class="detail-back" catchtap="goBack">‹</view>
-    <text class="detail-nav-title">{{item.title}}</text>
+    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;">‹</view>
+    <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;">{{item.title}}</text>
   </view>
   <view class="detail-visual">
     <image class="detail-cover" src="{{item.coverUrl}}" mode="aspectFill" />
@@ -50,8 +50,8 @@
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty state-card">
   <view class="detail-topbar">
-    <view class="detail-back" catchtap="goBack">‹</view>
-    <text class="detail-nav-title">壁纸详情</text>
+    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;">‹</view>
+    <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;">壁纸详情</text>
   </view>
   <text>{{error}}</text>
   <button wx:if="{{id}}" class="retry-button" bindtap="retry">重试</button>
@@ -59,8 +59,8 @@
 </view>
 <view wx:else class="detail-page detail-loading">
   <view class="detail-topbar">
-    <view class="detail-back" catchtap="goBack">‹</view>
-    <text class="detail-nav-title">壁纸详情</text>
+    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;">‹</view>
+    <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;">壁纸详情</text>
   </view>
   <view class="detail-cover-skeleton"></view>
   <view class="detail-panel detail-panel-skeleton">
