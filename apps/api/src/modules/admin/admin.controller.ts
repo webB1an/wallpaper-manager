@@ -137,7 +137,11 @@ export class AdminController {
   }) {
     const type = optionalEnum(body.type, WallpaperType, "壁纸类型");
     const status = optionalEnum(body.status, WallpaperStatus, "壁纸状态");
-    return { code: 200, data: await this.admin.updateWallpaper(id, { ...body, type, status }) };
+    const sortOrder = body.sortOrder === undefined ? undefined : Number(body.sortOrder);
+    if (sortOrder !== undefined && !Number.isFinite(sortOrder)) {
+      throw new BadRequestException("排序值不正确");
+    }
+    return { code: 200, data: await this.admin.updateWallpaper(id, { ...body, type, status, sortOrder }) };
   }
 
   @UseGuards(AdminAuthGuard)
