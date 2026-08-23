@@ -152,6 +152,8 @@ requireContains("apps/admin/src/main.tsx", "auth/start");
 requireContains("apps/admin/src/main.tsx", "auth/finish");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageSelection");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "getAccountForProvider");
+requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "missingManagedAccountError");
+requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "请先在管理端“网盘账号”新增、授权并设为默认账号");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "command?: string");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", 'CODEX_ENV: "1"');
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", 'AI_AGENT: "codex"');

@@ -20,19 +20,27 @@ export class StorageCoordinatorService {
     const quarkAccount = await this.accounts.getAccountForProvider(StorageProvider.quark, selection?.quarkAccountId);
     const baiduAccount = await this.accounts.getAccountForProvider(StorageProvider.baidu, selection?.baiduAccountId);
 
-    try {
-      const upload = await this.quark.upload(filePath, quarkAccount || undefined);
-      const share = await this.quark.share(upload.fids, title, quarkAccount || undefined);
-      results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath, storageAccountId: quarkAccount?.id });
-    } catch (error) {
-      results.push({ provider: StorageProvider.quark, ok: false, error: (error as Error).message });
+    if (!quarkAccount) {
+      results.push({ provider: StorageProvider.quark, ok: false, error: missingManagedAccountError(StorageProvider.quark) });
+    } else {
+      try {
+        const upload = await this.quark.upload(filePath, quarkAccount);
+        const share = await this.quark.share(upload.fids, title, quarkAccount);
+        results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath, storageAccountId: quarkAccount.id });
+      } catch (error) {
+        results.push({ provider: StorageProvider.quark, ok: false, error: (error as Error).message });
+      }
     }
 
-    try {
-      const share = await this.baidu.uploadAndShare(filePath, baiduAccount || undefined);
-      results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount?.id });
-    } catch (error) {
-      results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
+    if (!baiduAccount) {
+      results.push({ provider: StorageProvider.baidu, ok: false, error: missingManagedAccountError(StorageProvider.baidu) });
+    } else {
+      try {
+        const share = await this.baidu.uploadAndShare(filePath, baiduAccount);
+        results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount.id });
+      } catch (error) {
+        results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
+      }
     }
 
     const successful = results.filter((item) => item.ok && item.url);
@@ -73,4 +81,8 @@ export class StorageCoordinatorService {
 
     return results;
   }
+}
+
+function missingManagedAccountError(provider: StorageProvider) {
+  return `未配置默认${provider === StorageProvider.quark ? "夸克" : "百度"}网盘账号，请先在管理端“网盘账号”新增、授权并设为默认账号`;
 }
