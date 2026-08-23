@@ -88,6 +88,7 @@ PORT=4000
 PUBLIC_API_ORIGIN=https://wall-api.wdbzk.com
 ADMIN_ORIGIN=https://wall-admin.wdbzk.com
 SHORT_LINK_ORIGIN=https://r.wdbzk.com
+MINIPROGRAM_APPID=
 DATABASE_URL=mysql://wallpaper_manager_user:password@BAOTA_DB_HOST:3306/wallpaper_manager
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
@@ -229,7 +230,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 
 小程序源码在 `apps/miniprogram`，当前 `project.config.json` 的 `appid` 按需求留空。准备发布时：
 
-1. 在微信公众平台创建小程序，拿到 AppID 后执行 `npm run miniprogram:appid -- wx你的AppID` 写入 `apps/miniprogram/project.config.json`；需要恢复留空时执行 `npm run miniprogram:appid -- --clear`。
+1. 在微信公众平台创建小程序，拿到 AppID 后执行 `npm run miniprogram:appid -- wx你的AppID` 写入本机 `apps/miniprogram/project.config.json`；服务器 `.env` 也可填写 `MINIPROGRAM_APPID=wx你的AppID`，用于管理端上线诊断和 `readiness:launch`。
    - AppID 未填写时，可以先运行 `npm run readiness:miniprogram -- --allow-empty-appid` 检查页面、域名和短链策略。
    - 准备上传体验版或正式版前，运行 `npm run readiness:miniprogram`，此时 AppID 必须已填写。
 2. 在“小程序后台 > 开发管理 > 开发设置 > 服务器域名”按 `deploy/wechat-miniprogram-domains.json` 配置合法域名：

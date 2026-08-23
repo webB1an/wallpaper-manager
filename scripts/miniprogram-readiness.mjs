@@ -6,6 +6,10 @@ const json = process.argv.includes("--json");
 const allowEmptyAppid = process.argv.includes("--allow-empty-appid");
 
 const checks = [];
+const env = {
+  ...readDotenv("apps/api/.env"),
+  ...process.env,
+};
 const app = readJson("apps/miniprogram/app.json");
 const project = readJson("apps/miniprogram/project.config.json");
 const domains = readJson("deploy/wechat-miniprogram-domains.json");
@@ -15,13 +19,14 @@ const appTs = readText("apps/miniprogram/app.ts");
 const categoryTs = readText("apps/miniprogram/pages/category/category.ts");
 const detailTs = readText("apps/miniprogram/pages/detail/detail.ts");
 
-const appid = String(project.appid || "").trim();
+const envAppid = String(env.MINIPROGRAM_APPID || env.WECHAT_MINIPROGRAM_APPID || "").trim();
+const appid = String(project.appid || envAppid || "").trim();
 if (!appid) {
   add(allowEmptyAppid ? "warn" : "fail", "appid", "微信 AppID", "project.config.json 仍为空", "拿到真实 AppID 后填入 apps/miniprogram/project.config.json。");
 } else if (!/^wx[a-zA-Z0-9]{16,24}$/.test(appid)) {
   add("fail", "appid", "微信 AppID", `AppID 格式看起来不正确：${appid}`, "确认微信公众平台 AppID 后重新填写。");
 } else {
-  add("ok", "appid", "微信 AppID", "已填写", "");
+  add("ok", "appid", "微信 AppID", project.appid ? "已填写" : "已通过 MINIPROGRAM_APPID 配置", "");
 }
 
 add(
@@ -140,6 +145,21 @@ function readJson(path) {
 
 function readText(path) {
   return readFileSync(join(root, path), "utf8");
+}
+
+function readDotenv(path) {
+  const fullPath = join(root, path);
+  if (!existsSync(fullPath)) return {};
+  return Object.fromEntries(
+    readFileSync(fullPath, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .map((line) => {
+        const index = line.indexOf("=");
+        return index === -1 ? [line, ""] : [line.slice(0, index), line.slice(index + 1)];
+      }),
+  );
 }
 
 function printHuman(data) {

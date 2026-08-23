@@ -956,7 +956,9 @@ export class AdminService {
       const apiText = readFileSync(resolve(process.cwd(), "apps/miniprogram/utils/api.ts"), "utf8");
       const issues: string[] = [];
       const warnings: string[] = [];
-      if (!project.appid?.trim()) warnings.push("AppID 未填写");
+      const appid = project.appid?.trim() || this.config.get<string>("MINIPROGRAM_APPID")?.trim() || this.config.get<string>("WECHAT_MINIPROGRAM_APPID")?.trim();
+      if (!appid) warnings.push("AppID 未填写");
+      else if (!/^wx[a-zA-Z0-9]{16,24}$/.test(appid)) issues.push("AppID 格式不正确");
       if (project.setting?.urlCheck !== true) issues.push("urlCheck 未开启");
       if (!apiText.includes('const API_BASE = "https://wall-api.wdbzk.com/api"')) issues.push("API 地址不是 https://wall-api.wdbzk.com/api");
       if (!domains.request?.includes("https://wall-api.wdbzk.com")) issues.push("request 合法域名缺少 wall-api.wdbzk.com");
