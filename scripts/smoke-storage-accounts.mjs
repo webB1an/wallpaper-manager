@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 
 const env = {
@@ -42,6 +43,8 @@ const authResults = [];
 const defaultHandoff = {};
 
 await cleanupSmokeAccounts();
+const hiddenBefore = await countHiddenSmokeStorageAccounts();
+assert(hiddenBefore.total === 0, `hidden temporary storage accounts must be cleaned before smoke: ${JSON.stringify(hiddenBefore)}`);
 const before = await request("/api/admin/storage-accounts", { headers });
 const canTestDefaultHandoff = Object.fromEntries(
   providers.map((provider) => [provider, before.filter((account) => account.provider === provider).length === 0]),
@@ -109,6 +112,8 @@ try {
 const after = await request("/api/admin/storage-accounts", { headers });
 const leaked = after.filter((account) => String(account.label || "").startsWith("codex-smoke-"));
 assert(leaked.length === 0, `temporary storage accounts must be hidden after delete: ${leaked.map((item) => item.id).join(", ")}`);
+const hiddenAfter = await countHiddenSmokeStorageAccounts();
+assert(hiddenAfter.total === 0, `temporary storage accounts must be hard deleted after smoke: ${JSON.stringify(hiddenAfter)}`);
 
 console.log(JSON.stringify({
   ok: true,
@@ -117,6 +122,7 @@ console.log(JSON.stringify({
   defaultHandoff,
   authStart,
   authResults,
+  hiddenStorageAccounts: hiddenAfter,
   remainingAccounts: after.length,
 }, null, 2));
 
@@ -137,6 +143,24 @@ function summarizeAuthResult(provider, result) {
     message: result?.message ? String(result.message).slice(0, 160) : undefined,
     authorized: Boolean(result?.lastProbeOk),
   };
+}
+
+async function countHiddenSmokeStorageAccounts() {
+  if (!env.DATABASE_URL) return { total: 0, inactive: 0, noLinks: 0, skipped: true };
+  const requireFromApi = createRequire(join(process.cwd(), "apps/api/package.json"));
+  const { PrismaClient } = requireFromApi("@prisma/client");
+  const prisma = new PrismaClient({ datasources: { db: { url: env.DATABASE_URL } } });
+  try {
+    const where = { label: { startsWith: "codex-smoke-" } };
+    const [total, inactive, noLinks] = await Promise.all([
+      prisma.storageAccount.count({ where }),
+      prisma.storageAccount.count({ where: { ...where, isActive: false } }),
+      prisma.storageAccount.count({ where: { ...where, storageLinks: { none: {} } } }),
+    ]);
+    return { total, inactive, noLinks, skipped: false };
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 function readDotenv(path) {

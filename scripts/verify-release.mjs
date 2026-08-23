@@ -244,6 +244,8 @@ requireContains("scripts/smoke-storage-accounts.mjs", "/api/admin/storage-accoun
 requireContains("scripts/smoke-storage-accounts.mjs", "automatically become default");
 requireContains("scripts/smoke-storage-accounts.mjs", "promote another account");
 requireContains("scripts/smoke-storage-accounts.mjs", "finally");
+requireContains("scripts/smoke-storage-accounts.mjs", "countHiddenSmokeStorageAccounts");
+requireContains("scripts/smoke-storage-accounts.mjs", "hard deleted after smoke");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
 requireContains("scripts/smoke-public.mjs", "passcodedShortLinks");
 requireContains("scripts/smoke-public.mjs", "baidu short link must expose passcode");
