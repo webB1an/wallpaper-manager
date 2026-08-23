@@ -288,6 +288,7 @@ requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscod
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
 requireContains(".github/workflows/deploy.yml", "Smoke production");
 requireContains(".github/workflows/deploy.yml", "npm run smoke:production");
+requireContains(".github/workflows/deploy.yml", "npm run smoke:auth-code");
 requireContains(".github/workflows/deploy.yml", "Launch readiness report");
 requireContains(".github/workflows/deploy.yml", "npm run readiness:launch -- --allow-empty-appid || true");
 

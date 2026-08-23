@@ -41,6 +41,7 @@ jobs:
           npm run typecheck
           npm run build
           npm run smoke:json
+          npm run smoke:auth-code
           npm run verify:release
           npm audit --omit=dev
 
