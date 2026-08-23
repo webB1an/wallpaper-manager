@@ -32,6 +32,7 @@ export class StorageAccountService {
 
   async listAccounts() {
     return this.prisma.storageAccount.findMany({
+      where: { isActive: true },
       orderBy: [{ provider: "asc" }, { isDefault: "desc" }, { createdAt: "desc" }],
       select: PUBLIC_STORAGE_ACCOUNT_SELECT,
     });

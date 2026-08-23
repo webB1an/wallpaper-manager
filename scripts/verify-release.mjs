@@ -102,6 +102,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorag
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "storage-accounts");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "startBaiduAuth");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "finishQuarkAuth");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "where: { isActive: true }");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "--config-path");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "XDG_CONFIG_HOME");
 requireContains("apps/api/prisma/schema.prisma", "model StorageAccount");
