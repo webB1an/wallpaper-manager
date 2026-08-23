@@ -19,6 +19,7 @@
     "cleanup:unpublished-links": "node scripts/cleanup-unpublished-links.mjs",
     "readiness:production": "node scripts/production-readiness.mjs",
     "readiness:production:strict": "node scripts/production-readiness.mjs --strict",
+    "readiness:miniprogram": "node scripts/miniprogram-readiness.mjs",
     "smoke:admin": "node scripts/smoke-admin.mjs",
     "smoke:json": "npm run smoke:json -w apps/api",
     "smoke:production": "npm run smoke:public && npm run smoke:admin",

@@ -48,6 +48,12 @@ On the server, run this when you want the remaining launch work as copyable acti
 npm run readiness:production
 ```
 
+Before uploading the WeChat Mini Program release, run:
+
+```bash
+npm run readiness:miniprogram
+```
+
 For storage login on the server, use:
 
 ```bash

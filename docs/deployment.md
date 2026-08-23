@@ -266,6 +266,8 @@ npm run import:old-covers -w apps/api -- --limit=100
 小程序源码在 `apps/miniprogram`，当前 `project.config.json` 的 `appid` 按需求留空。准备发布时：
 
 1. 在微信公众平台创建小程序，拿到 AppID 后填入 `apps/miniprogram/project.config.json`。
+   - AppID 未填写时，可以先运行 `npm run readiness:miniprogram -- --allow-empty-appid` 检查页面、域名和短链策略。
+   - 准备上传体验版或正式版前，运行 `npm run readiness:miniprogram`，此时 AppID 必须已填写。
 2. 在“小程序后台 > 开发管理 > 开发设置 > 服务器域名”按 `deploy/wechat-miniprogram-domains.json` 配置合法域名：
    - request 合法域名：`https://wall-api.wdbzk.com`
    - downloadFile 合法域名：`https://wall-api.wdbzk.com`

@@ -74,6 +74,7 @@ if (rootPackage.scripts?.["smoke:channel-accounts"] !== "node scripts/smoke-chan
 if (rootPackage.scripts?.["smoke:storage-accounts"] !== "node scripts/smoke-storage-accounts.mjs") fail("root package must expose smoke:storage-accounts");
 if (rootPackage.scripts?.["readiness:production"] !== "node scripts/production-readiness.mjs") fail("root package must expose readiness:production");
 if (rootPackage.scripts?.["readiness:production:strict"] !== "node scripts/production-readiness.mjs --strict") fail("root package must expose readiness:production:strict");
+if (rootPackage.scripts?.["readiness:miniprogram"] !== "node scripts/miniprogram-readiness.mjs") fail("root package must expose readiness:miniprogram");
 if (rootPackage.scripts?.["auth:storage"] !== "node scripts/storage-auth.mjs") fail("root package must expose auth:storage");
 if (rootPackage.scripts?.["cleanup:unpublished-links"] !== "node scripts/cleanup-unpublished-links.mjs") fail("root package must expose cleanup:unpublished-links");
 
@@ -83,6 +84,7 @@ requireFile("scripts/smoke-admin.mjs");
 requireFile("scripts/smoke-public.mjs");
 requireFile("scripts/smoke-channel-accounts.mjs");
 requireFile("scripts/smoke-storage-accounts.mjs");
+requireFile("scripts/miniprogram-readiness.mjs");
 requireFile("scripts/production-readiness.mjs");
 requireFile("scripts/storage-auth.mjs");
 requireFile("scripts/cleanup-unpublished-links.mjs");
@@ -190,6 +192,9 @@ requireContains("scripts/production-readiness.mjs", "unpublished_active_short_li
 requireContains("scripts/production-readiness.mjs", "网盘账号");
 requireContains("scripts/production-readiness.mjs", "--json");
 requireContains("scripts/production-readiness.mjs", "--strict");
+requireContains("scripts/miniprogram-readiness.mjs", "--allow-empty-appid");
+requireContains("scripts/miniprogram-readiness.mjs", "https://wall-api.wdbzk.com");
+requireContains("scripts/miniprogram-readiness.mjs", "https://r.wdbzk.com");
 requireContains("scripts/storage-auth.mjs", "baidu-url");
 requireContains("scripts/storage-auth.mjs", "baidu-code");
 requireContains("scripts/storage-auth.mjs", "quark-login");
@@ -251,6 +256,7 @@ requireContains("docs/deployment.md", "发布前验收清单");
 requireContains("docs/deployment.md", "npm run smoke:production");
 requireContains("docs/deployment.md", "npm run smoke:production:strict");
 requireContains("docs/deployment.md", "npm run readiness:production");
+requireContains("docs/deployment.md", "npm run readiness:miniprogram");
 requireContains("docs/deployment.md", "npm run auth:storage -- baidu-url");
 requireContains("docs/deployment.md", "npm run cleanup:unpublished-links");
 requireContains("README.md", "npm run readiness:production");
