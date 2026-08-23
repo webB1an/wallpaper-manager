@@ -280,6 +280,9 @@ requireContains("scripts/smoke-upload-routing.mjs", "autoProcess=false upload mu
 requireContains("scripts/smoke-upload-routing.mjs", "assertCorruptUploadIsClean");
 requireContains("scripts/smoke-upload-routing.mjs", "corrupt upload must not leave original or cover files");
 requireContains("scripts/smoke-upload-routing.mjs", "无法生成封面");
+requireContains("scripts/smoke-upload-routing.mjs", "assertInvalidChannelAccountIsClean");
+requireContains("scripts/smoke-upload-routing.mjs", "invalid channel upload must reject before writing original or cover files");
+requireContains("scripts/smoke-upload-routing.mjs", "未配置可用腾讯频道账号");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
 requireContains("scripts/smoke-public.mjs", "passcodedShortLinks");
 requireContains("scripts/smoke-public.mjs", "baidu short link must expose passcode");

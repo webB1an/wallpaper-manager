@@ -52,6 +52,7 @@ let uploadedWallpaper;
 
 await cleanupSmokeData();
 await assertCorruptUploadIsClean();
+await assertInvalidChannelAccountIsClean();
 
 try {
   for (const index of [1, 2]) {
@@ -160,6 +161,30 @@ async function assertCorruptUploadIsClean() {
   assert(sameSet(before, after), "corrupt upload must not leave original or cover files");
   const leaked = await prisma.wallpaper.count({ where: { originalName: fileName } });
   assert(leaked === 0, "corrupt upload must not create wallpaper rows");
+}
+
+async function assertInvalidChannelAccountIsClean() {
+  const fileName = `${runId}-invalid-channel.jpg`;
+  const before = await publicFileSnapshot();
+  const form = new FormData();
+  form.set("autoProcess", "false");
+  form.set("autoPublish", "true");
+  form.set("channelAccountId", `${runId}-missing-channel-account`);
+  form.append("files", new Blob([await smokeJpeg()], { type: "image/jpeg" }), fileName);
+
+  const response = await fetch(`${adminOrigin}/api/admin/uploads`, {
+    method: "POST",
+    headers: uploadHeaders,
+    body: form,
+  });
+  const body = await response.json().catch(() => ({}));
+  assert(response.status === 400, `invalid channel upload must return 400, got ${response.status}: ${body.message || body.error || "invalid response"}`);
+  assert(String(body.message || body.error || "").includes("未配置可用腾讯频道账号"), "invalid channel upload must explain missing channel account");
+
+  const after = await publicFileSnapshot();
+  assert(sameSet(before, after), "invalid channel upload must reject before writing original or cover files");
+  const leaked = await prisma.wallpaper.count({ where: { originalName: fileName } });
+  assert(leaked === 0, "invalid channel upload must not create wallpaper rows");
 }
 
 async function cleanupSmokeData(ids = []) {
