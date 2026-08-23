@@ -18,6 +18,14 @@
   transition: background 0.2s ease;
 }
 
+.detail-topbar.solid {
+  background: #fbf7f0;
+}
+
+.detail-topbar.solid .detail-nav-title {
+  color: #2b211b;
+}
+
 .detail-back {
   position: absolute;
   left: 24rpx;
