@@ -133,6 +133,8 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorag
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "storage-accounts");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "startBaiduAuth");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "finishQuarkAuth");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "normalizeAuthCode");
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "完整回调 URL");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "const defaultAccount = await");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "if (defaultAccount) return defaultAccount");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "where: { isActive: true }");
@@ -152,6 +154,7 @@ requireContains("apps/admin/src/main.tsx", "本次夸克同步账号");
 requireContains("apps/admin/src/main.tsx", "本次百度同步账号");
 requireContains("apps/admin/src/main.tsx", "auth/start");
 requireContains("apps/admin/src/main.tsx", "auth/finish");
+requireContains("apps/admin/src/main.tsx", "授权码 / 回调 URL");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageSelection");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "getAccountForProvider");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "missingManagedAccountError");

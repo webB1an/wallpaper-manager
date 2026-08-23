@@ -1767,7 +1767,7 @@ function StorageAccounts() {
           className="modal-alert"
           type="info"
           showIcon
-          message="打开授权链接后，把页面返回的授权码粘贴到下面。"
+          message="打开授权链接后，把页面返回的授权码或完整回调 URL 粘贴到下面。"
         />
         <Space className="toolbar" wrap>
           <Button type="primary" onClick={() => window.open(authUrl, "_blank", "noopener,noreferrer")}>打开授权链接</Button>
@@ -1775,8 +1775,8 @@ function StorageAccounts() {
         </Space>
         <code className="auth-url">{authUrl}</code>
         <Form form={authCodeForm} layout="vertical" onFinish={finishAuth}>
-          <Form.Item label="授权码" name="code" rules={[{ required: true, message: "请粘贴授权码" }]}>
-            <Input.TextArea rows={3} placeholder="粘贴授权后得到的 code / 授权码" />
+          <Form.Item label="授权码 / 回调 URL" name="code" rules={[{ required: true, message: "请粘贴授权码或回调 URL" }]}>
+            <Input.TextArea rows={3} placeholder="粘贴授权后得到的 code、授权码或完整回调 URL" />
           </Form.Item>
           <Button htmlType="submit" type="primary">完成授权</Button>
         </Form>

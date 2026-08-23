@@ -107,12 +107,12 @@ export class StorageAccountService {
     const output = `${result.stdout}\n${result.stderr}`.trim();
     const authUrl = extractUrl(output);
     if (!authUrl) throw new BadRequestException(output || "百度授权链接生成失败");
-    return { authUrl, message: "打开授权链接，授权后把页面显示的授权码粘贴回后台。" };
+    return { authUrl, message: "打开授权链接，授权后把页面显示的授权码或完整回调 URL 粘贴回后台。" };
   }
 
   async finishBaiduAuth(id: string, code: string) {
     const account = await this.requireAccount(id, StorageProvider.baidu);
-    const authCode = code?.trim();
+    const authCode = normalizeAuthCode(code);
     if (!authCode) throw new BadRequestException("授权码不能为空");
     await this.ensureProfile(account);
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "login", "--accept-disclaimer", "--set-code-stdin"], {
@@ -130,12 +130,12 @@ export class StorageAccountService {
     if (result.ok) return this.probeAccount(id);
     const authUrl = extractUrl(output);
     if (!authUrl) throw new BadRequestException(shortOutput(output || "夸克授权链接生成失败"));
-    return { authUrl, message: "打开授权链接，完成授权后复制回调 URL 中的 code 参数，粘贴回后台。" };
+    return { authUrl, message: "打开授权链接，完成授权后把 code 参数或完整回调 URL 粘贴回后台。" };
   }
 
   async finishQuarkAuth(id: string, code: string) {
     const account = await this.requireAccount(id, StorageProvider.quark);
-    const authCode = code?.trim();
+    const authCode = normalizeAuthCode(code);
     if (!authCode) throw new BadRequestException("授权码不能为空");
     const result = await this.runQuark(account, ["login", "--token", authCode], 60_000);
     const final = safeLastResult(result.stdout);
@@ -265,6 +265,30 @@ function extractUrl(value: string) {
 function parseBaiduName(output: string) {
   const line = output.split(/\r?\n/).map((item) => item.trim()).find((item) => item && !item.includes("已登录"));
   return line || undefined;
+}
+
+function normalizeAuthCode(value: string | undefined) {
+  const text = value?.trim() || "";
+  if (!text) return "";
+  const direct = codeFromUrl(text);
+  if (direct) return direct;
+  const embeddedUrl = extractUrl(text);
+  if (embeddedUrl) {
+    const embedded = codeFromUrl(embeddedUrl);
+    if (embedded) return embedded;
+  }
+  const match = text.match(/(?:^|[?&#\s])(?:code|auth_code)=([^&#\s]+)/i);
+  return match ? decodeURIComponent(match[1]) : text;
+}
+
+function codeFromUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const hashCode = url.hash.match(/(?:^|[?&#])(?:code|auth_code)=([^&]+)/i)?.[1];
+    return url.searchParams.get("code") || url.searchParams.get("auth_code") || (hashCode ? decodeURIComponent(hashCode) : "");
+  } catch {
+    return "";
+  }
 }
 
 function shortOutput(value: string) {
