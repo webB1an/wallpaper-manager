@@ -495,9 +495,8 @@ export class AdminService {
     });
   }
 
-  async deactivateUnpublishedStorageLinks(ids: string[]) {
-    const wallpaperIds = unique(ids.map(String));
-    if (!wallpaperIds.length) throw new BadRequestException("请先选择资源");
+  async deactivateUnpublishedStorageLinks(ids: string[] | undefined) {
+    const wallpaperIds = requiredWallpaperIds(ids);
     const links = await this.prisma.storageLink.findMany({
       where: {
         wallpaperId: { in: wallpaperIds },
@@ -519,23 +518,24 @@ export class AdminService {
     };
   }
 
-  async bulkUpdate(ids: string[], data: { status?: WallpaperStatus; tags?: string[] }) {
+  async bulkUpdate(ids: string[] | undefined, data: { status?: WallpaperStatus; tags?: string[] }) {
+    const wallpaperIds = requiredWallpaperIds(ids);
     if (data.status === WallpaperStatus.published) {
-      await this.assertWallpapersCanPublish(ids);
+      await this.assertWallpapersCanPublish(wallpaperIds);
     }
     if (data.status) {
-      await this.prisma.wallpaper.updateMany({ where: { id: { in: ids } }, data: { status: data.status } });
+      await this.prisma.wallpaper.updateMany({ where: { id: { in: wallpaperIds } }, data: { status: data.status } });
     }
     if (data.tags) {
       const tags = await Promise.all(data.tags.map((name) => this.prisma.tag.upsert({ where: { name }, update: {}, create: { name } })));
-      for (const id of ids) {
+      for (const id of wallpaperIds) {
         await this.prisma.wallpaper.update({
           where: { id },
           data: { tags: { deleteMany: {}, create: tags.map((tag) => ({ tagId: tag.id })) } },
         });
       }
     }
-    return { updated: ids.length };
+    return { updated: wallpaperIds.length };
   }
 
   async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection, channelAccountId?: string) {
@@ -549,9 +549,10 @@ export class AdminService {
     return { queued: true, taskId: task.id };
   }
 
-  async enqueueProcessWallpapers(ids: string[], storageSelection?: StorageSelection) {
+  async enqueueProcessWallpapers(ids: string[] | undefined, storageSelection?: StorageSelection) {
+    const wallpaperIds = requiredWallpaperIds(ids);
     const queued = [];
-    for (const id of ids) {
+    for (const id of wallpaperIds) {
       queued.push(await this.enqueueProcessWallpaper(id, storageSelection));
     }
     return { queued: queued.length, tasks: queued };
@@ -658,8 +659,8 @@ export class AdminService {
     });
   }
 
-  async publishWallpapersToChannel(ids: string[], accountId?: string) {
-    const uniqueIds = unique(ids.map(String));
+  async publishWallpapersToChannel(ids: string[] | undefined, accountId?: string) {
+    const uniqueIds = requiredWallpaperIds(ids);
     const account = await this.getChannelAccountForPublish(accountId);
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpapers = await this.prisma.wallpaper.findMany({
@@ -1152,6 +1153,13 @@ function assertHttpUrl(value: string | undefined, label: string) {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function requiredWallpaperIds(ids: string[] | undefined): string[] {
+  if (!Array.isArray(ids)) throw new BadRequestException("请先选择资源");
+  const wallpaperIds = unique(ids.map((id) => String(id).trim()));
+  if (!wallpaperIds.length) throw new BadRequestException("请先选择资源");
+  return wallpaperIds;
 }
 
 function aiReviewWhere(value?: AiReviewFilter): Prisma.WallpaperWhereInput {

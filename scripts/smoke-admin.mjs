@@ -41,6 +41,7 @@ assert(typeof login.token === "string" && login.token.length > 20, "admin login 
 
 const headers = { Authorization: `Bearer ${login.token}`, "Content-Type": "application/json" };
 const invalidQueryGuards = await assertInvalidQueryGuards(headers);
+const invalidBulkGuards = await assertInvalidBulkGuards(headers);
 const [me, overview, diagnostics, settings, storageAccounts, readiness] = await Promise.all([
   request("/api/admin/me", { headers }),
   request("/api/admin/overview", { headers }),
@@ -110,6 +111,7 @@ console.log(JSON.stringify({
     defaultQuark: overview.storageAccounts.defaultQuark,
   },
   invalidQueryGuards,
+  invalidBulkGuards,
 }, null, 2));
 
 function readDotenv(path) {
@@ -136,6 +138,24 @@ async function assertInvalidQueryGuards(headers) {
   for (const target of targets) {
     const { response, body } = await rawRequest(target, { headers });
     assert(response.status === 400, `${target} must reject invalid query values with 400, got ${response.status}: ${body.message || body.error || "invalid response"}`);
+  }
+  return targets.length;
+}
+
+async function assertInvalidBulkGuards(headers) {
+  const targets = [
+    ["/api/admin/wallpapers/bulk", {}],
+    ["/api/admin/wallpapers/bulk/process", { ids: [] }],
+    ["/api/admin/wallpapers/bulk/deactivate-unpublished-links", { ids: [] }],
+    ["/api/admin/channels/publish", { ids: [] }],
+  ];
+  for (const [target, payload] of targets) {
+    const { response, body } = await rawRequest(target, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    assert(response.status === 400, `${target} must reject empty bulk selections with 400, got ${response.status}: ${body.message || body.error || "invalid response"}`);
   }
   return targets.length;
 }

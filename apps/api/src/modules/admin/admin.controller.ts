@@ -160,9 +160,9 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/bulk")
-  async bulk(@Body() body: { ids: string[]; status?: WallpaperStatus; tags?: string[] }) {
-    const status = optionalEnum(body.status, WallpaperStatus, "壁纸状态");
-    return { code: 200, data: await this.admin.bulkUpdate(body.ids, { ...body, status }) };
+  async bulk(@Body() body?: { ids?: string[]; status?: WallpaperStatus; tags?: string[] }) {
+    const status = optionalEnum(body?.status, WallpaperStatus, "壁纸状态");
+    return { code: 200, data: await this.admin.bulkUpdate(body?.ids, { ...(body || {}), status }) };
   }
 
   @UseGuards(AdminAuthGuard)
