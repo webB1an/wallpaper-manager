@@ -56,8 +56,16 @@ const detail = await get(`/api/wallpapers/${encodeURIComponent(first.id)}`);
 assert(detail.id === first.id, "detail id must match list item id");
 assertCoverUrl(detail.coverUrl, `detail ${detail.id}`);
 assert(Array.isArray(detail.shortLinks) && detail.shortLinks.length > 0, "detail must expose at least one short link");
+let passcodedShortLinks = 0;
 for (const link of detail.shortLinks) {
   assertShortUrl(link.url, `${detail.id} ${link.provider || "storage"}`);
+  assert(["quark", "baidu"].includes(link.provider), `${detail.id} short link provider must be quark or baidu`);
+  assert(typeof link.label === "string" && link.label.length > 0, `${detail.id} short link label is required`);
+  assert(link.passcode === undefined || typeof link.passcode === "string", `${detail.id} short link passcode must be a string when present`);
+  if (link.passcode) passcodedShortLinks += 1;
+  if (link.provider === "baidu") {
+    assert(typeof link.passcode === "string" && link.passcode.length > 0, `${detail.id} baidu short link must expose passcode`);
+  }
 }
 
 const facets = await get("/api/wallpapers/facets");
@@ -72,6 +80,7 @@ console.log(JSON.stringify({
   checkedListItems: list.list.length,
   detailId: detail.id,
   shortLinks: detail.shortLinks.length,
+  passcodedShortLinks,
   facetTypes: facets.types.length,
   facetTags: facets.tags.length,
 }, null, 2));

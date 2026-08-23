@@ -230,6 +230,8 @@ requireContains("scripts/smoke-storage-accounts.mjs", "automatically become defa
 requireContains("scripts/smoke-storage-accounts.mjs", "promote another account");
 requireContains("scripts/smoke-storage-accounts.mjs", "finally");
 requireContains("scripts/smoke-public.mjs", "checkedListItems");
+requireContains("scripts/smoke-public.mjs", "passcodedShortLinks");
+requireContains("scripts/smoke-public.mjs", "baidu short link must expose passcode");
 requireContains("scripts/smoke-public.mjs", "health endpoint must return ok");
 requireContains("scripts/smoke-public.mjs", "short link must be served from");
 requireContains("scripts/smoke-public.mjs", "SMOKE_REQUEST_RETRIES");
