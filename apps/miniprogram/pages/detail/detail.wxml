@@ -17,7 +17,6 @@
         <text class="tag" bindtap="openTag" data-tag="{{item}}">{{item}}</text>
       </block>
     </view>
-    <button class="share-button" open-type="share">分享壁纸</button>
     <view class="primary-download">
       <view>
         <text>原图短链</text>
