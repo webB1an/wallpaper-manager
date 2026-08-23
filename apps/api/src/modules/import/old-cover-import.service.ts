@@ -1,12 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { WallpaperStatus } from "@prisma/client";
+import { nanoid } from "nanoid";
 import { createWriteStream, existsSync } from "node:fs";
 import { copyFile, mkdir, readFile, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { candidateTitleFromCoverFile, legacyResourceMatchKey } from "../../common/match";
 import { publicAssetUrl } from "../../common/public-url";
+import { legacyShortCodeCandidates, normalizeLegacyResourceId } from "../../common/short-code";
 import { AiService } from "../ai/ai.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TasksService } from "../tasks/tasks.service";
@@ -256,7 +258,7 @@ export class OldCoverImportService {
     });
     await this.prisma.shortLink.create({
       data: {
-        code: resource.id.toString(36),
+        code: await this.nextLegacyShortCode(resource.id),
         wallpaperId: wallpaper.id,
         storageLinkId: storageLink.id,
         provider: storageLink.provider,
@@ -270,6 +272,14 @@ export class OldCoverImportService {
     const exact = indexed.byKey.get(key);
     if (exact) return { resource: exact, confidence: 1 };
     return undefined;
+  }
+
+  private async nextLegacyShortCode(resourceId: number): Promise<string> {
+    for (const code of legacyShortCodeCandidates(resourceId)) {
+      const existing = await this.prisma.shortLink.findUnique({ where: { code }, select: { id: true } });
+      if (!existing) return code;
+    }
+    return `${normalizeLegacyResourceId(resourceId)}-${nanoid(6)}`;
   }
 
   private async copyCover(coverFileName: string): Promise<string> {

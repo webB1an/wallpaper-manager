@@ -83,6 +83,7 @@ if (rootPackage.scripts?.["smoke:channel-accounts"] !== "node scripts/smoke-chan
 if (rootPackage.scripts?.["smoke:storage-accounts"] !== "node scripts/smoke-storage-accounts.mjs") fail("root package must expose smoke:storage-accounts");
 if (rootPackage.scripts?.["smoke:upload-routing"] !== "node scripts/smoke-upload-routing.mjs") fail("root package must expose smoke:upload-routing");
 if (rootPackage.scripts?.["smoke:auth-code"] !== "npm run smoke:auth-code -w apps/api") fail("root package must expose smoke:auth-code");
+if (rootPackage.scripts?.["smoke:short-code"] !== "npm run smoke:short-code -w apps/api") fail("root package must expose smoke:short-code");
 if (rootPackage.scripts?.["readiness:production"] !== "node scripts/production-readiness.mjs") fail("root package must expose readiness:production");
 if (rootPackage.scripts?.["readiness:production:strict"] !== "node scripts/production-readiness.mjs --strict") fail("root package must expose readiness:production:strict");
 if (rootPackage.scripts?.["readiness:miniprogram"] !== "node scripts/miniprogram-readiness.mjs") fail("root package must expose readiness:miniprogram");
@@ -99,6 +100,8 @@ requireFile("scripts/smoke-channel-accounts.mjs");
 requireFile("scripts/smoke-storage-accounts.mjs");
 requireFile("scripts/smoke-upload-routing.mjs");
 requireFile("apps/api/src/scripts/smoke-auth-code.ts");
+requireFile("apps/api/src/scripts/smoke-short-code.ts");
+requireFile("apps/api/src/common/short-code.ts");
 requireFile("scripts/miniprogram-readiness.mjs");
 requireFile("scripts/set-miniprogram-appid.mjs");
 requireFile("scripts/launch-readiness.mjs");
@@ -150,6 +153,8 @@ requireContains("apps/api/src/modules/storage/storage-account.service.ts", "norm
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "完整回调 URL");
 requireContains("apps/api/src/scripts/smoke-auth-code.ts", "hash-query-code");
 requireContains("apps/api/package.json", "smoke:auth-code");
+requireContains("apps/api/package.json", "smoke:short-code");
+requireContains("apps/api/src/scripts/smoke-short-code.ts", "Short code smoke passed");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "const defaultAccount = await");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "if (defaultAccount) return defaultAccount");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "storageLink.count");
@@ -204,6 +209,9 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", 'BadRequestExcept
 requireContains("apps/admin/src/main.tsx", "uploadErrorMessage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "无法生成封面");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "removeUploadedFile");
+requireContains("apps/api/src/modules/import/old-cover-import.service.ts", "nextLegacyShortCode");
+requireContains("apps/api/src/modules/import/old-cover-import.service.ts", "legacyShortCodeCandidates");
+requireContains("apps/api/src/modules/import/old-cover-import.service.ts", "nanoid(6)");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "存在没有可用网盘短链");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { isActive: true }");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");

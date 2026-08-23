@@ -43,6 +43,7 @@ jobs:
           npm run build
           npm run smoke:json
           npm run smoke:auth-code
+          npm run smoke:short-code
           npm run verify:release
           npm audit --omit=dev
 

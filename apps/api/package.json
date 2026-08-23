@@ -15,7 +15,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "import:old-covers": "tsx src/scripts/import-old-covers.ts",
     "smoke:json": "tsx src/scripts/smoke-json.ts",
-    "smoke:auth-code": "tsx src/scripts/smoke-auth-code.ts"
+    "smoke:auth-code": "tsx src/scripts/smoke-auth-code.ts",
+    "smoke:short-code": "tsx src/scripts/smoke-short-code.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.3",
