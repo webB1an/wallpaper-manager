@@ -2,6 +2,8 @@ import { post, request, WallpaperDetail } from "../../utils/api";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
+let requestToken = 0;
+
 Page({
   data: {
     item: null as WallpaperDetail | null,
@@ -31,9 +33,11 @@ Page({
   async loadDetail(id?: string) {
     const targetId = id || this.data.id;
     if (!targetId) return;
+    const token = ++requestToken;
     this.setData({ loading: true, error: "" });
     try {
       const item = await request<WallpaperDetail>(`/wallpapers/${targetId}`);
+      if (token !== requestToken) return;
       this.setData({
         item,
         primaryLink: item.shortLinks[0] || null,
@@ -44,11 +48,12 @@ Page({
       });
       wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
     } catch (error) {
+      if (token !== requestToken) return;
       const message = error instanceof Error ? error.message : "详情加载失败";
       this.setData({ error: message });
       wx.showToast({ title: "详情加载失败", icon: "none" });
     } finally {
-      this.setData({ loading: false });
+      if (token === requestToken) this.setData({ loading: false });
     }
   },
 
@@ -80,7 +85,10 @@ Page({
   },
 
   copyShortLink(url: string, label: string, passcode?: string) {
-    if (!url) return;
+    if (!url) {
+      wx.showToast({ title: "暂无短链", icon: "none" });
+      return;
+    }
     wx.setClipboardData({
       data: formatClipboardText(url, passcode),
       success: () => {

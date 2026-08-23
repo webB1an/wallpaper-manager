@@ -28,11 +28,9 @@
   </view>
 
   <view class="type-row">
-    <view class="type-filter {{type === '' ? 'active' : ''}}" data-type="" bindtap="switchType">全部</view>
-    <view class="type-filter {{type === 'live' ? 'active' : ''}}" data-type="live" bindtap="switchType">动态</view>
-    <view class="type-filter {{type === 'static' ? 'active' : ''}}" data-type="static" bindtap="switchType">静态</view>
-    <view class="type-filter {{type === 'mobile' ? 'active' : ''}}" data-type="mobile" bindtap="switchType">手机</view>
-    <view class="type-filter {{type === 'desktop' ? 'active' : ''}}" data-type="desktop" bindtap="switchType">电脑</view>
+    <block wx:for="{{typeOptions}}" wx:key="key">
+      <view class="type-filter {{type === item.key ? 'active' : ''}}" data-type="{{item.key}}" bindtap="switchType">{{item.title}}</view>
+    </block>
   </view>
 
   <view class="section-title gallery-head">
@@ -48,11 +46,7 @@
         <view class="wall-info">
           <text class="wall-title">{{item.title}}</text>
           <view>
-            <text wx:if="{{item.type === 'live'}}" class="pill">动态</text>
-            <text wx:elif="{{item.type === 'static'}}" class="pill">静态</text>
-            <text wx:elif="{{item.type === 'mobile'}}" class="pill">手机</text>
-            <text wx:elif="{{item.type === 'desktop'}}" class="pill">电脑</text>
-            <text wx:else class="pill">其他</text>
+            <text class="pill">{{item.typeLabel}}</text>
             <text class="count">{{item.downloadCount}} 次下载</text>
           </view>
           <view class="card-tags" wx:if="{{item.tags.length}}">

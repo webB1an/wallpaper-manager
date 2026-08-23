@@ -16,7 +16,7 @@
           <text>{{item.title}}</text>
           <text>{{item.subtitle}}</text>
         </view>
-        <text class="type-count">{{item.count}} 张</text>
+        <text class="type-count">{{item.count ? item.count + ' 张' : '暂无'}}</text>
       </view>
     </block>
   </view>

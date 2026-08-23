@@ -2,13 +2,16 @@ import { request, WallpaperFacets } from "../../utils/api";
 
 type TypeCard = { key: string; title: string; subtitle: string; count: number };
 
+let requestToken = 0;
+
 Page({
   data: {
     types: [
       { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", count: 0 },
       { key: "static", title: "静态壁纸", subtitle: "单张高清图片", count: 0 },
       { key: "mobile", title: "手机壁纸", subtitle: "竖屏优先", count: 0 },
-      { key: "desktop", title: "电脑壁纸", subtitle: "桌面场景", count: 0 }
+      { key: "desktop", title: "电脑壁纸", subtitle: "桌面场景", count: 0 },
+      { key: "other", title: "其他资源", subtitle: "待整理与混合类型", count: 0 }
     ] as TypeCard[],
     tags: [] as Array<{ name: string; count: number }>,
     loading: false,
@@ -24,20 +27,23 @@ Page({
   },
 
   async loadFacets() {
+    const token = ++requestToken;
     this.setData({ loading: true, error: "" });
     try {
       const facets = await request<WallpaperFacets>("/wallpapers/facets");
+      if (token !== requestToken) return;
       const countByType = new Map(facets.types.map((item) => [item.type, item.count]));
       this.setData({
         types: this.data.types.map((item) => ({ ...item, count: countByType.get(item.key) || 0 })),
         tags: facets.tags
       });
     } catch (error) {
+      if (token !== requestToken) return;
       const message = error instanceof Error ? error.message : "分类加载失败";
       this.setData({ error: message });
       wx.showToast({ title: "分类加载失败", icon: "none" });
     } finally {
-      this.setData({ loading: false });
+      if (token === requestToken) this.setData({ loading: false });
     }
   },
 

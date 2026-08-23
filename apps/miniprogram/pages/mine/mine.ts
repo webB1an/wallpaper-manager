@@ -23,6 +23,10 @@ Page({
   copyLink(event: WechatMiniprogram.TouchEvent) {
     const url = String(event.currentTarget.dataset.url || "");
     const passcode = String(event.currentTarget.dataset.passcode || "");
+    if (!url) {
+      wx.showToast({ title: "暂无短链", icon: "none" });
+      return;
+    }
     wx.setClipboardData({
       data: formatClipboardText(url, passcode),
       success: () => wx.showToast({ title: passcode ? "短链和提取码已复制" : "短链已复制", icon: "success" })

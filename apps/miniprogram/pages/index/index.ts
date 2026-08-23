@@ -1,9 +1,21 @@
 import { request, WallpaperCard } from "../../utils/api";
 
+const typeOptions = [
+  { key: "", title: "全部" },
+  { key: "live", title: "动态" },
+  { key: "static", title: "静态" },
+  { key: "mobile", title: "手机" },
+  { key: "desktop", title: "电脑" },
+  { key: "other", title: "其他" }
+];
+
+let requestToken = 0;
+
 Page({
   data: {
     items: [] as WallpaperCard[],
     topCovers: [] as WallpaperCard[],
+    typeOptions,
     total: 0,
     page: 1,
     keyword: "",
@@ -59,6 +71,7 @@ Page({
   },
 
   async load(append = false) {
+    const token = ++requestToken;
     this.setData({ loading: true, error: "" });
     try {
       const data = await request<{ list: WallpaperCard[]; total: number }>("/wallpapers", {
@@ -69,17 +82,20 @@ Page({
         type: this.data.type,
         sort: this.data.sort === "hot" ? "hot" : ""
       });
+      if (token !== requestToken) return;
+      const list = data.list.map(decorateCard);
       this.setData({
-        items: append ? [...this.data.items, ...data.list] : data.list,
-        topCovers: append ? this.data.topCovers : data.list.slice(0, 3),
+        items: append ? [...this.data.items, ...list] : list,
+        topCovers: append ? this.data.topCovers : list.slice(0, 3),
         total: data.total
       });
     } catch (error) {
+      if (token !== requestToken) return;
       const message = error instanceof Error ? error.message : "加载失败";
       this.setData({ error: message });
       wx.showToast({ title: "加载失败", icon: "none" });
     } finally {
-      this.setData({ loading: false });
+      if (token === requestToken) this.setData({ loading: false });
     }
   },
 
@@ -108,12 +124,28 @@ Page({
   }
 });
 
+function decorateCard(item: WallpaperCard): WallpaperCard {
+  return { ...item, typeLabel: formatTypeLabel(item.type) };
+}
+
+function formatTypeLabel(value: string) {
+  const map: Record<string, string> = {
+    live: "动态",
+    static: "静态",
+    mobile: "手机",
+    desktop: "电脑",
+    other: "其他"
+  };
+  return map[value] || "其他";
+}
+
 function formatTypeTitle(value: string) {
   const map: Record<string, string> = {
     live: "动态壁纸",
     static: "静态壁纸",
     mobile: "手机壁纸",
-    desktop: "电脑壁纸"
+    desktop: "电脑壁纸",
+    other: "其他资源"
   };
   return map[value] || "壁纸库";
 }

@@ -19,6 +19,7 @@ function requestWithMethod<T>(method: "GET" | "POST", path: string, data?: Recor
     wx.request({
       url: `${API_BASE}${path}${query}`,
       method,
+      timeout: 12000,
       success(response) {
         const body = response.data as { code?: number; data?: T; message?: string };
         if (response.statusCode >= 200 && response.statusCode < 300 && body.code === 200) {
@@ -28,16 +29,25 @@ function requestWithMethod<T>(method: "GET" | "POST", path: string, data?: Recor
         }
       },
       fail(error) {
-        reject(new Error(error.errMsg));
+        reject(new Error(formatRequestFailure(error.errMsg)));
       }
     });
   });
+}
+
+function formatRequestFailure(message = "") {
+  if (message.includes("url not in domain list") || message.includes("domain list")) {
+    return "请求被微信域名拦截，请在小程序后台加入 wall-api.wdbzk.com";
+  }
+  if (message.includes("timeout")) return "网络超时，请稍后重试";
+  return message || "网络请求失败";
 }
 
 export interface WallpaperCard {
   id: string;
   title: string;
   type: string;
+  typeLabel?: string;
   coverUrl: string;
   tags: string[];
   viewCount: number;

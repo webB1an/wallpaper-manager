@@ -13,9 +13,13 @@
   padding: 22rpx;
   overflow: hidden;
   border: 2rpx solid #dbe4e8;
-  border-radius: 10rpx;
+  border-radius: 18rpx;
   background: #fff;
   box-shadow: 0 10rpx 30rpx rgba(17, 24, 32, 0.06);
+}
+
+.type-card view {
+  min-width: 0;
 }
 
 .type-mark {
@@ -45,16 +49,22 @@
 
 .type-card view text:first-child {
   display: block;
+  overflow: hidden;
   color: #111820;
   font-size: 31rpx;
   font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .type-card view text:last-child {
   display: block;
   margin-top: 12rpx;
+  overflow: hidden;
   color: #6e7881;
   font-size: 23rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .type-card-live {
@@ -84,13 +94,25 @@
 .type-count {
   align-self: flex-end;
   flex-shrink: 0;
+  max-width: 112rpx;
+  overflow: hidden;
   color: #111820;
   font-size: 24rpx;
   font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .type-card-desktop {
   border-color: rgba(17, 24, 32, 0.32);
+}
+
+.type-card-other {
+  border-color: rgba(119, 129, 122, 0.34);
+}
+
+.type-card-other .type-mark {
+  background: #77817a;
 }
 
 .category-grid {
@@ -109,7 +131,7 @@
   min-height: 172rpx;
   padding: 22rpx;
   overflow: hidden;
-  border-radius: 10rpx;
+  border-radius: 18rpx;
   color: #fff;
   background:
     linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
@@ -118,13 +140,18 @@
   font-weight: 800;
 }
 
+.category-card text {
+  min-width: 0;
+}
+
 .category-card::before {
   position: absolute;
   top: 18rpx;
   left: 18rpx;
   width: 52rpx;
   height: 52rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.24);
+  border: 2rpx solid rgba(255, 255, 255, 0.24);
+  border-radius: 16rpx;
   content: "";
 }
 

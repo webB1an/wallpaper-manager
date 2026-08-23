@@ -43,7 +43,7 @@
 
 .history-card {
   display: grid;
-  grid-template-columns: 116rpx 1fr 104rpx;
+  grid-template-columns: 116rpx 1fr;
   gap: 16rpx;
   align-items: center;
   padding: 16rpx;
@@ -108,8 +108,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10rpx;
-  margin-top: 8rpx;
+  gap: 14rpx;
+  margin-top: 12rpx;
+}
+
+.history-meta-row view {
+  min-width: 0;
 }
 
 .history-meta-row .history-meta {
@@ -117,12 +121,19 @@
 }
 
 .history-time {
-  flex-shrink: 0;
+  display: block;
+  margin-top: 4rpx;
+  overflow: hidden;
   color: #8a949b;
   font-size: 21rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-card button {
+  flex-shrink: 0;
+  width: 96rpx;
+  max-width: 30vw;
   height: 64rpx;
   padding: 0;
   border-radius: 10rpx;
@@ -162,8 +173,9 @@
 
 .empty-state button {
   width: 210rpx;
+  max-width: 100%;
   height: 68rpx;
-  margin-top: 26rpx;
+  margin: 26rpx auto 0;
   padding: 0;
   border-radius: 12rpx;
   color: #fff;

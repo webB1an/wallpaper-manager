@@ -20,6 +20,7 @@ function requestWithMethod(method, path, data) {
         wx.request({
             url: `${API_BASE}${path}${query}`,
             method,
+            timeout: 12000,
             success(response) {
                 const body = response.data;
                 if (response.statusCode >= 200 && response.statusCode < 300 && body.code === 200) {
@@ -30,8 +31,16 @@ function requestWithMethod(method, path, data) {
                 }
             },
             fail(error) {
-                reject(new Error(error.errMsg));
+                reject(new Error(formatRequestFailure(error.errMsg)));
             }
         });
     });
+}
+function formatRequestFailure(message = "") {
+    if (message.includes("url not in domain list") || message.includes("domain list")) {
+        return "请求被微信域名拦截，请在小程序后台加入 wall-api.wdbzk.com";
+    }
+    if (message.includes("timeout"))
+        return "网络超时，请稍后重试";
+    return message || "网络请求失败";
 }
