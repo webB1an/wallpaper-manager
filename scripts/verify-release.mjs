@@ -169,6 +169,8 @@ requireContains("apps/admin/src/main.tsx", "复制报告");
 requireContains("apps/admin/src/main.tsx", "夸克主源");
 requireContains("apps/admin/src/main.tsx", "百度备用源");
 requireContains("apps/admin/src/main.tsx", "第一个账号会自动设为默认");
+requireContains("apps/admin/src/main.tsx", "管理端页面完成授权");
+requireContains("apps/admin/src/main.tsx", "每个账号使用独立授权态");
 requireContains("apps/admin/src/main.tsx", "本次夸克同步账号");
 requireContains("apps/admin/src/main.tsx", "本次百度同步账号");
 requireContains("apps/admin/src/main.tsx", "title=\"批量处理\"");
@@ -373,6 +375,7 @@ requireContains("docs/deployment.md", "不要勾选“不校验合法域名”")
 requireContains("docs/deployment.md", "网盘授权");
 requireContains("docs/deployment.md", "网盘账号");
 requireContains("docs/deployment.md", "支持多账号");
+requireContains("docs/deployment.md", "管理端页面完成业务账号授权");
 requireContains("docs/deployment.md", "本次发帖频道账号");
 requireContains("README.md", "Upload batches can choose a channel account");
 requireContains("docs/deployment.md", "未同步过资源的账号会直接移除");
@@ -390,6 +393,7 @@ requireContains("docs/deployment.md", "npm run cleanup:unpublished-links");
 requireContains("README.md", "npm run readiness:production");
 requireContains("README.md", "npm run miniprogram:appid -- wx你的AppID");
 requireContains("README.md", "Storage authorization is completed in the admin web console");
+requireContains("README.md", "not as a shared server login");
 requireContains("README.md", "npm run cleanup:unpublished-links");
 requireContains("README.md", "managed storage-account authorization");
 

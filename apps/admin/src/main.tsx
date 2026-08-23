@@ -1764,7 +1764,7 @@ function StorageAccounts() {
 
   return (
     <section>
-      <Header title="网盘账号" subtitle="百度和夸克都在后台完成授权，支持多账号并按网盘类型设置默认同步账号。" />
+      <Header title="网盘账号" subtitle="百度和夸克都在管理端页面完成授权，支持多账号并按网盘类型设置默认同步账号。" />
       <div className="storage-readiness">
         {storageReadiness.map((item) => (
           <div key={item.provider} className={`storage-readiness-card${item.defaultAccount && item.usable ? " is-ready" : ""}`}>
@@ -1786,7 +1786,7 @@ function StorageAccounts() {
         className="page-alert"
         type="info"
         showIcon
-        message="每种网盘的第一个账号会自动设为默认；多账号场景可以手动切换默认账号，上传批次也可以临时指定账号。"
+        message="每种网盘的第一个账号会自动设为默认；每个账号使用独立授权态，多账号场景可以手动切换默认账号，上传批次也可以临时指定账号。"
       />
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {
@@ -1799,7 +1799,7 @@ function StorageAccounts() {
                 type="warning"
                 showIcon
                 message="还没有网盘账号"
-                description="新增百度或夸克账号后，在后台完成授权并设为默认，上传处理才会使用对应账号同步网盘。"
+                description="新增百度或夸克账号后，在管理端页面完成授权并设为默认，上传处理才会使用对应账号同步网盘。"
                 action={<Button size="small" type="primary" onClick={() => setActiveTab("new")}>新增账号</Button>}
               />
             )}
