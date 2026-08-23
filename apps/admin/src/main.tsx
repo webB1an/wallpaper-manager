@@ -292,12 +292,18 @@ function Login({ onLogin }: { onLogin: () => void }) {
 
 function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessReport | null>(null);
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      setOverview(await request<AdminOverview>("/api/admin/overview"));
+      const [nextOverview, nextReadiness] = await Promise.all([
+        request<AdminOverview>("/api/admin/overview"),
+        request<ReadinessReport>("/api/admin/readiness"),
+      ]);
+      setOverview(nextOverview);
+      setReadiness(nextReadiness);
     } finally {
       setLoading(false);
     }
@@ -316,6 +322,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
       + (overview.storageAccounts.defaultBaidu ? 0 : 1)
       + (overview.storageAccounts.defaultQuark ? 0 : 1)
       + (overview.channelAccounts.defaultConfigured ? 0 : 1)
+      + (readiness?.actions.some((item) => item.key === "miniprogram_release") ? 1 : 0)
     : 0;
 
   return (
@@ -327,7 +334,7 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
         <Button onClick={() => onOpenLibrary()}>查看资源库</Button>
         <Button onClick={() => onNavigate("tasks")}>任务队列</Button>
       </Space>
-      {overview && <LaunchChecklist overview={overview} onNavigate={onNavigate} onOpenLibrary={onOpenLibrary} />}
+      {overview && <LaunchChecklist overview={overview} readiness={readiness} onNavigate={onNavigate} onOpenLibrary={onOpenLibrary} />}
       <div className="stat-grid">
         <Statistic title="资源总数" value={overview?.wallpapers.total ?? "--"} />
         <Statistic title="已上架" value={overview?.wallpapers.published ?? "--"} />
@@ -389,8 +396,17 @@ function Dashboard({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) =>
   );
 }
 
-function LaunchChecklist({ overview, onNavigate, onOpenLibrary }: { overview: AdminOverview; onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
+function LaunchChecklist({ overview, readiness, onNavigate, onOpenLibrary }: { overview: AdminOverview; readiness: ReadinessReport | null; onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
+  const miniProgramAction = readiness?.actions.find((item) => item.key === "miniprogram_release");
   const items = [
+    {
+      key: "miniprogram",
+      title: "微信小程序 AppID 与域名",
+      done: !miniProgramAction,
+      detail: miniProgramAction?.message || "发布配置通过",
+      actionText: "发布文档",
+      action: () => window.open("https://github.com/webB1an/wallpaper-manager/blob/main/docs/deployment.md#14-%E5%BE%AE%E4%BF%A1%E5%B0%8F%E7%A8%8B%E5%BA%8F%E5%8F%91%E5%B8%83", "_blank"),
+    },
     {
       key: "baidu",
       title: "默认百度网盘账号",
@@ -451,7 +467,10 @@ function LaunchChecklist({ overview, onNavigate, onOpenLibrary }: { overview: Ad
           <strong>上线待办</strong>
           <span>{remaining ? `还有 ${remaining} 项需要处理` : "关键链路已就绪"}</span>
         </div>
-        <Button size="small" onClick={() => onNavigate("diagnostics")}>打开诊断</Button>
+        <Space size={8}>
+          {readiness?.report ? <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(readiness.report, "上线报告已复制")}>复制报告</Button> : null}
+          <Button size="small" onClick={() => onNavigate("diagnostics")}>打开诊断</Button>
+        </Space>
       </div>
       <div className="launch-items">
         {items.map((item) => (
