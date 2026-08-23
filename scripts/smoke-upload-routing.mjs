@@ -20,6 +20,7 @@ if (!env.DATABASE_URL) {
 
 const requireFromApi = createRequire(join(process.cwd(), "apps/api/package.json"));
 const { PrismaClient } = requireFromApi("@prisma/client");
+const sharp = requireFromApi("sharp");
 const prisma = new PrismaClient({ datasources: { db: { url: env.DATABASE_URL } } });
 
 async function request(path, init = {}) {
@@ -72,12 +73,12 @@ try {
   }
 
   const selectedAccount = createdAccounts.at(-1);
-  const fileName = `${runId}.png`;
+  const fileName = `${runId}.jpg`;
   const form = new FormData();
   form.set("autoProcess", "false");
   form.set("autoPublish", "true");
   form.set("channelAccountId", selectedAccount.id);
-  form.append("files", new Blob([tinyPng()], { type: "image/png" }), fileName);
+  form.append("files", new Blob([await smokeJpeg()], { type: "image/jpeg" }), fileName);
 
   const uploaded = await request("/api/admin/uploads", {
     method: "POST",
@@ -99,7 +100,7 @@ try {
   const relatedTasks = await prisma.task.count({
     where: {
       payload: {
-        path: ["wallpaperId"],
+        path: "$.wallpaperId",
         equals: uploadedWallpaper.id,
       },
     },
@@ -163,11 +164,15 @@ async function removePublicFile(relativePath) {
   await rm(target, { force: true }).catch(() => undefined);
 }
 
-function tinyPng() {
-  return Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/axTdXcAAAAASUVORK5CYII=",
-    "base64",
-  );
+function smokeJpeg() {
+  return sharp({
+    create: {
+      width: 16,
+      height: 16,
+      channels: 3,
+      background: "#f8faf5",
+    },
+  }).jpeg({ quality: 90 }).toBuffer();
 }
 
 function readDotenv(path) {
