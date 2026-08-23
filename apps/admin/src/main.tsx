@@ -513,6 +513,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   const [publishTargetIds, setPublishTargetIds] = useState<React.Key[]>([]);
   const [channelAccounts, setChannelAccounts] = useState<ChannelAccount[]>([]);
   const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>([]);
+  const [processTargetIds, setProcessTargetIds] = useState<React.Key[]>([]);
   const [processModalOpen, setProcessModalOpen] = useState(false);
   const [processLoading, setProcessLoading] = useState(false);
   const [storageLoading, setStorageLoading] = useState(false);
@@ -560,11 +561,12 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
     void load(1);
   };
 
-  const openBatchProcess = async () => {
-    if (!selectedRowKeys.length) {
+  const openProcess = async (ids: React.Key[]) => {
+    if (!ids.length) {
       message.warning("先选择资源");
       return;
     }
+    setProcessTargetIds(ids);
     processForm.resetFields();
     setProcessModalOpen(true);
     setStorageLoading(true);
@@ -687,7 +689,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           style={{ width: 160 }}
         />
         <Button onClick={reloadFromFirstPage}>搜索</Button>
-        <Button type="primary" onClick={openBatchProcess}>批量处理</Button>
+        <Button type="primary" onClick={() => openProcess(selectedRowKeys)}>批量处理</Button>
         <Button onClick={() => {
           if (!selectedRowKeys.length) {
             message.warning("先选择资源");
@@ -778,7 +780,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
               });
             }}>编辑</Button>
             <Button size="small" onClick={() => analyze(row.id, load)}>AI识别</Button>
-            <Button size="small" type="primary" onClick={() => processWallpaper(row.id, load)}>一键处理</Button>
+            <Button size="small" type="primary" onClick={() => openProcess([row.id])}>一键处理</Button>
             <Button size="small" onClick={() => openChannelPublish([row.id])}>发频道</Button>
             <Button size="small" onClick={() => patch(row.id, { status: "published" }, load)}>上架</Button>
             <Button size="small" danger onClick={() => patch(row.id, { status: "archived" }, load)}>下架</Button>
@@ -848,14 +850,16 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         confirmLoading={processLoading}
         onCancel={() => {
           setProcessModalOpen(false);
+          setProcessTargetIds([]);
           processForm.resetFields();
         }}
         onOk={async () => {
           const values = await processForm.validateFields();
           setProcessLoading(true);
           try {
-            await processBatch(selectedRowKeys, values, load);
+            await processBatch(processTargetIds, values, load);
             setProcessModalOpen(false);
+            setProcessTargetIds([]);
             processForm.resetFields();
           } finally {
             setProcessLoading(false);
@@ -870,7 +874,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         />
         <Form form={processForm} layout="vertical">
           <Form.Item label="已选择资源">
-            <Tag color="blue">{selectedRowKeys.length} 个</Tag>
+            <Tag color="blue">{processTargetIds.length} 个</Tag>
           </Form.Item>
           <Form.Item label="本次夸克同步账号" name="quarkAccountId">
             <Select
@@ -1953,12 +1957,6 @@ function IssueRow({ label, value, danger = false, onClick }: { label: string; va
 async function analyze(id: string, reload: () => void) {
   await request(`/api/admin/wallpapers/${id}/analyze`, { method: "POST" });
   message.success("AI 识别完成");
-  reload();
-}
-
-async function processWallpaper(id: string, reload: () => void) {
-  await request(`/api/admin/wallpapers/${id}/process`, { method: "POST" });
-  message.success("已加入处理队列");
   reload();
 }
 

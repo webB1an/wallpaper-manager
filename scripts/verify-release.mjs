@@ -170,7 +170,9 @@ requireContains("apps/admin/src/main.tsx", "第一个账号会自动设为默认
 requireContains("apps/admin/src/main.tsx", "本次夸克同步账号");
 requireContains("apps/admin/src/main.tsx", "本次百度同步账号");
 requireContains("apps/admin/src/main.tsx", "title=\"批量处理\"");
-requireContains("apps/admin/src/main.tsx", "processBatch(selectedRowKeys, values, load)");
+requireContains("apps/admin/src/main.tsx", "processTargetIds");
+requireContains("apps/admin/src/main.tsx", "openProcess([row.id])");
+requireContains("apps/admin/src/main.tsx", "processBatch(processTargetIds, values, load)");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "bulkProcess(@Body() body?: { ids?: string[]; quarkAccountId?: string; baiduAccountId?: string })");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "async enqueueProcessWallpapers(ids: string[], storageSelection?: StorageSelection)");
 requireContains("apps/admin/src/main.tsx", "auth/start");
