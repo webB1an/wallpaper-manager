@@ -1589,10 +1589,46 @@ function StorageAccounts() {
     message.success("探活完成");
     await load();
   };
+  const openCreateAccount = (provider: StorageAccount["provider"]) => {
+    form.setFieldsValue({ provider, isDefault: false });
+    setActiveTab("new");
+  };
+  const storageReadiness = ([
+    { provider: "quark" as const, title: "夸克主源", description: "默认上传与分享源" },
+    { provider: "baidu" as const, title: "百度备用源", description: "备用同步与短链入库" },
+  ]).map((item) => {
+    const accounts = items.filter((account) => account.provider === item.provider);
+    const defaultAccount = accounts.find((account) => account.isDefault);
+    const usable = accounts.some((account) => account.lastProbeOk);
+    return { ...item, accounts, defaultAccount, usable };
+  });
 
   return (
     <section>
       <Header title="网盘账号" subtitle="百度和夸克都在后台完成授权，支持多账号并按网盘类型设置默认同步账号。" />
+      <div className="storage-readiness">
+        {storageReadiness.map((item) => (
+          <div key={item.provider} className={`storage-readiness-card${item.defaultAccount && item.usable ? " is-ready" : ""}`}>
+            <div>
+              <strong>{item.title}</strong>
+              <span>{item.description}</span>
+            </div>
+            <div className="storage-readiness-meta">
+              <Tag color={item.defaultAccount ? "green" : "gold"}>{item.defaultAccount ? `默认：${item.defaultAccount.label}` : "缺默认账号"}</Tag>
+              <Tag color={item.usable ? "green" : item.accounts.length ? "gold" : "default"}>{item.accounts.length ? `${item.accounts.length} 个账号` : "未新增"} · {item.usable ? "已探活" : "待授权"}</Tag>
+            </div>
+            <Button size="small" type={item.defaultAccount && item.usable ? "default" : "primary"} onClick={() => openCreateAccount(item.provider)}>
+              新增{providerText(item.provider)}账号
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Alert
+        className="page-alert"
+        type="info"
+        showIcon
+        message="每种网盘的第一个账号会自动设为默认；多账号场景可以手动切换默认账号，上传批次也可以临时指定账号。"
+      />
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {
           key: "accounts",
