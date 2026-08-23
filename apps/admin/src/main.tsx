@@ -121,6 +121,13 @@ type DiagnosticItem = {
   command?: string;
 };
 
+type ReadinessReport = {
+  ok: boolean;
+  diagnostics: Record<"ok" | "warn" | "fail", number>;
+  actions: Array<DiagnosticItem & { nextStep: string }>;
+  report: string;
+};
+
 type AdminOverview = {
   wallpapers: {
     total: number;
@@ -1109,12 +1116,22 @@ function Settings() {
 function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
   const [items, setItems] = useState<DiagnosticItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
   const load = async () => {
     setLoading(true);
     try {
       setItems(await request<DiagnosticItem[]>("/api/admin/diagnostics"));
     } finally {
       setLoading(false);
+    }
+  };
+  const copyReadinessReport = async () => {
+    setReportLoading(true);
+    try {
+      const data = await request<ReadinessReport>("/api/admin/readiness");
+      await copyText(data.report, "上线报告已复制");
+    } finally {
+      setReportLoading(false);
     }
   };
   useEffect(() => { void load(); }, []);
@@ -1126,6 +1143,7 @@ function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) 
       <Header title="上线诊断" subtitle="检查数据库、Redis、网盘工具、AI、panapi 和频道发布依赖是否已经就绪。" />
       <Space className="toolbar">
         <Button type="primary" onClick={load} loading={loading}>重新检查</Button>
+        <Button icon={<Copy size={14} />} onClick={copyReadinessReport} loading={reportLoading}>复制上线报告</Button>
         <Tag color="green">正常 {okCount}</Tag>
         <Tag color={warnCount ? "gold" : "default"}>提醒 {warnCount}</Tag>
         <Tag color={failCount ? "red" : "default"}>失败 {failCount}</Tag>

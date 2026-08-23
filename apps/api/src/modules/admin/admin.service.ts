@@ -36,6 +36,10 @@ type DiagnosticItem = {
   command?: string;
 };
 
+type ReadinessAction = DiagnosticItem & {
+  nextStep: string;
+};
+
 type AiReviewFilter = "unreviewed" | "safe" | "blocked";
 type StorageFilter = "has_quark" | "has_baidu" | "missing_quark" | "missing_baidu" | "missing_active" | "missing_short" | "unpublished_active_short";
 type StorageSelection = { quarkAccountId?: string; baiduAccountId?: string };
@@ -166,6 +170,45 @@ export class AdminService {
     checks.push(await this.checkUnpublishedActiveShortLinks());
 
     return checks;
+  }
+
+  async readiness() {
+    const [overview, diagnostics, settings] = await Promise.all([
+      this.overview(),
+      this.diagnostics(),
+      this.getSettings(),
+    ]);
+    const counts = diagnostics.reduce((acc, item) => {
+      acc[item.status] = (acc[item.status] || 0) + 1;
+      return acc;
+    }, { ok: 0, warn: 0, fail: 0 } as Record<DiagnosticItem["status"], number>);
+    const actions = diagnostics
+      .filter((item) => item.status === "fail" || item.status === "warn")
+      .map(readinessAction);
+    return {
+      ok: counts.fail === 0,
+      diagnostics: counts,
+      wallpapers: {
+        total: overview.wallpapers.total,
+        published: overview.wallpapers.published,
+        pendingReview: overview.wallpapers.pendingReview,
+      },
+      storage: {
+        activeQuark: overview.storage.activeQuark,
+        activeBaidu: overview.storage.activeBaidu,
+        missingActiveLinks: overview.storage.missingActiveLinks,
+        unpublishedActiveShortLinks: overview.storage.unpublishedActiveShortLinks,
+      },
+      settings,
+      actions,
+      report: formatReadinessReport({
+        diagnostics: counts,
+        wallpapers: overview.wallpapers,
+        storage: overview.storage,
+        settings,
+        actions,
+      }),
+    };
   }
 
   async overview() {
@@ -1136,6 +1179,73 @@ function warn(key: string, label: string, message: string): DiagnosticItem {
 
 function fail(key: string, label: string, message: string, command?: string): DiagnosticItem {
   return { key, label, status: "fail", message, command };
+}
+
+function readinessAction(item: DiagnosticItem): ReadinessAction {
+  const base: ReadinessAction = {
+    ...item,
+    nextStep: item.command ? "复制命令到宝塔终端执行，完成后重新运行本检查。" : "按诊断信息处理后重新运行本检查。",
+  };
+  if (item.key === "bdpan") {
+    return {
+      ...base,
+      nextStep: "打开管理端“网盘账号”，新增或选择百度账号，点击授权，打开链接后把授权码粘贴回后台并设为默认账号。",
+    };
+  }
+  if (item.key === "quark_skill") {
+    return {
+      ...base,
+      nextStep: "打开管理端“网盘账号”，新增或选择夸克账号，点击授权，打开链接后把 code 授权码粘贴回后台并设为默认账号。",
+    };
+  }
+  if (item.key === "channel_accounts") {
+    return {
+      ...base,
+      nextStep: "打开管理端的腾讯频道账号配置，新增账号 token，选择频道/版块，并设置一个默认账号。",
+    };
+  }
+  if (item.key === "miniprogram_release") {
+    return {
+      ...base,
+      nextStep: "按 docs/deployment.md 的“微信小程序发布”章节处理：填写 AppID，确认 wall-api.wdbzk.com 合法域名，保持 r.wdbzk.com 只作为复制短链文本。",
+    };
+  }
+  if (item.key === "unpublished_active_short_links") {
+    return {
+      ...base,
+      nextStep: "在管理端资源库筛选“下架活跃短链”，确认后点击批量清理。公开跳转当前已经被后端拦截。",
+    };
+  }
+  return base;
+}
+
+function formatReadinessReport(data: {
+  diagnostics: Record<DiagnosticItem["status"], number>;
+  wallpapers: { total: number; published: number; pendingReview: number };
+  storage: { activeQuark: number; activeBaidu: number; missingActiveLinks: number; unpublishedActiveShortLinks: number };
+  settings: SystemSettings;
+  actions: ReadinessAction[];
+}): string {
+  const lines = [
+    "Wallpaper Manager readiness",
+    `Diagnostics: ok ${data.diagnostics.ok}, warn ${data.diagnostics.warn}, fail ${data.diagnostics.fail}`,
+    `Wallpapers: total ${data.wallpapers.total}, published ${data.wallpapers.published}, pendingReview ${data.wallpapers.pendingReview}`,
+    `Storage: quark ${data.storage.activeQuark}, baidu ${data.storage.activeBaidu}, missingActive ${data.storage.missingActiveLinks}, unpublishedActiveShort ${data.storage.unpublishedActiveShortLinks}`,
+    `Defaults: autoProcess ${data.settings.defaultAutoProcess}, autoPublish ${data.settings.defaultAutoPublish}`,
+    "",
+  ];
+  if (!data.actions.length) {
+    lines.push("Ready: no failed or warning diagnostics.");
+    return lines.join("\n");
+  }
+  lines.push("Action required:");
+  for (const action of data.actions) {
+    lines.push(`- [${action.status}] ${action.label} (${action.key})`);
+    lines.push(`  ${action.message}`);
+    if (action.command) lines.push(`  Command: ${action.command}`);
+    lines.push(`  Next: ${action.nextStep}`);
+  }
+  return lines.join("\n");
 }
 
 function shortError(error: unknown): string {

@@ -107,6 +107,9 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "checkPublicOrigi
 requireContains("apps/api/src/modules/admin/admin.service.ts", "公开域名配置");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkMiniprogramReleaseConfig");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "微信小程序发布");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "formatReadinessReport");
+requireContains("apps/api/src/modules/admin/admin.service.ts", "readinessAction");
+requireContains("apps/api/src/modules/admin/admin.controller.ts", "readiness");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkQuarkStorage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "checkBaiduStorage");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "storage-accounts");
@@ -154,6 +157,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "where: { wallpap
 requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
 requireContains("apps/admin/src/main.tsx", "row.command");
 requireContains("apps/admin/src/main.tsx", "命令已复制");
+requireContains("apps/admin/src/main.tsx", "复制上线报告");
 requireContains("apps/admin/src/main.tsx", "function DiagnosticActions");
 requireContains("apps/admin/src/main.tsx", "去网盘账号");
 requireContains("apps/admin/src/main.tsx", "去腾讯频道");
@@ -177,6 +181,8 @@ requireContains("scripts/smoke-admin.mjs", "blockingDiagnostics");
 requireContains("scripts/smoke-admin.mjs", "item.command");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/overview");
 requireContains("scripts/smoke-admin.mjs", "/api/admin/storage-accounts");
+requireContains("scripts/smoke-admin.mjs", "/api/admin/readiness");
+requireContains("scripts/smoke-admin.mjs", "Wallpaper Manager readiness");
 requireContains("scripts/smoke-admin.mjs", "overview.storageAccounts.defaultBaidu");
 requireContains("scripts/smoke-admin.mjs", "overview.storageAccounts.defaultQuark");
 requireContains("scripts/smoke-admin.mjs", "diagnostics");

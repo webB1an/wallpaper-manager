@@ -35,12 +35,13 @@ const login = await request("/api/admin/auth/login", {
 assert(typeof login.token === "string" && login.token.length > 20, "admin login must return a token");
 
 const headers = { Authorization: `Bearer ${login.token}`, "Content-Type": "application/json" };
-const [me, overview, diagnostics, settings, storageAccounts] = await Promise.all([
+const [me, overview, diagnostics, settings, storageAccounts, readiness] = await Promise.all([
   request("/api/admin/me", { headers }),
   request("/api/admin/overview", { headers }),
   request("/api/admin/diagnostics", { headers }),
   request("/api/admin/settings", { headers }),
   request("/api/admin/storage-accounts", { headers }),
+  request("/api/admin/readiness", { headers }),
 ]);
 
 assert(me.ok === true, "admin /me must return ok");
@@ -51,6 +52,9 @@ assert(typeof overview.storageAccounts?.defaultQuark === "boolean", "overview mu
 assert(Array.isArray(diagnostics) && diagnostics.length > 0, "diagnostics must be a non-empty array");
 assert(typeof settings.defaultAutoProcess === "boolean", "settings must include defaultAutoProcess");
 assert(Array.isArray(storageAccounts), "storage accounts must be an array");
+assert(typeof readiness.report === "string" && readiness.report.includes("Wallpaper Manager readiness"), "readiness must include a copyable report");
+assert(typeof readiness.diagnostics?.ok === "number", "readiness must include diagnostic counts");
+assert(Array.isArray(readiness.actions), "readiness must include action items");
 
 const diagnosticCounts = diagnostics.reduce((acc, item) => {
   acc[item.status] = (acc[item.status] || 0) + 1;
@@ -87,6 +91,7 @@ console.log(JSON.stringify({
     unpublishedActiveShortLinks: overview.storage.unpublishedActiveShortLinks,
   },
   diagnostics: diagnosticCounts,
+  readinessActions: readiness.actions.length,
   blockingDiagnostics,
   strict,
   settings: {

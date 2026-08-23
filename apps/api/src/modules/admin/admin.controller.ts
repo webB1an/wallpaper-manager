@@ -68,6 +68,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get("readiness")
+  async readiness() {
+    return { code: 200, data: await this.admin.readiness() };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Get("overview")
   async overview() {
     return { code: 200, data: await this.admin.overview() };
