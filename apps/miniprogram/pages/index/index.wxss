@@ -136,6 +136,24 @@
   margin-top: 22rpx;
 }
 
+.hot-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.hot-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 44rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  color: #2f6f5e;
+  background: #e9f2ed;
+  font-size: 23rpx;
+}
+
 .filter {
   display: inline-flex;
   align-items: center;

@@ -8,6 +8,7 @@ Page({
         leftItems: [],
         rightItems: [],
         heroSlides: [],
+        hotTags: [],
         total: 0,
         page: 1,
         keyword: "",
@@ -23,6 +24,7 @@ Page({
         }
         this.loadHero();
         this.load();
+        this.loadHotTags();
     },
     onPullDownRefresh() {
         this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
@@ -89,6 +91,15 @@ Page({
         }
         catch {
             // 首页主列表仍然可用时，不因为轮播失败打断用户。
+        }
+    },
+    async loadHotTags() {
+        try {
+            const data = await (0, api_1.request)("/wallpapers/facets");
+            this.setData({ hotTags: (data.tags || []).slice(0, 8) });
+        }
+        catch {
+            // 热门标签只是浏览入口，失败不打断主流程。
         }
     },
     retry() {

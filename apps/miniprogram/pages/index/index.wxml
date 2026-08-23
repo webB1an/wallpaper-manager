@@ -48,6 +48,12 @@
     <view class="search-button" bindtap="reload">⌕</view>
   </view>
 
+  <view wx:if="{{hotTags.length}}" class="hot-tags">
+    <block wx:for="{{hotTags}}" wx:key="name">
+      <text class="hot-tag" bindtap="openTag" data-tag="{{item.name}}">#{{item.name}}</text>
+    </block>
+  </view>
+
   <view class="filter-row">
     <view class="filter {{sort === 'latest' ? 'active' : ''}}" data-sort="latest" bindtap="switchSort"><text>◷</text>最新</view>
     <view class="filter {{sort === 'hot' ? 'active' : ''}}" data-sort="hot" bindtap="switchSort"><text>▲</text>热门</view>

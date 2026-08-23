@@ -1,4 +1,4 @@
-import { request, WallpaperCard } from "../../utils/api";
+import { request, WallpaperCard, WallpaperFacets } from "../../utils/api";
 
 let requestToken = 0;
 
@@ -8,6 +8,7 @@ Page({
     leftItems: [] as WallpaperCard[],
     rightItems: [] as WallpaperCard[],
     heroSlides: [] as WallpaperCard[],
+    hotTags: [] as Array<{ name: string; count: number; coverUrl: string }>,
     total: 0,
     page: 1,
     keyword: "",
@@ -24,6 +25,7 @@ Page({
     }
     this.loadHero();
     this.load();
+    this.loadHotTags();
   },
 
   onPullDownRefresh() {
@@ -91,6 +93,15 @@ Page({
       this.setData({ heroSlides: data.list.map(decorateCard) });
     } catch {
       // 首页主列表仍然可用时，不因为轮播失败打断用户。
+    }
+  },
+
+  async loadHotTags() {
+    try {
+      const data = await request<WallpaperFacets>("/wallpapers/facets");
+      this.setData({ hotTags: (data.tags || []).slice(0, 8) });
+    } catch {
+      // 热门标签只是浏览入口，失败不打断主流程。
     }
   },
 
