@@ -19,7 +19,8 @@ body {
 
 .ant-modal .ant-modal-body {
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
+  overflow-x: hidden;
 }
 
 .ant-modal .ant-modal-footer {
@@ -579,7 +580,7 @@ small {
 
 .storage-form {
   display: grid;
-  grid-template-columns: 120px 1fr 120px 110px auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   align-items: end;
   margin-top: 12px;

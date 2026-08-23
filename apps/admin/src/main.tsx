@@ -789,6 +789,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
       ]} />
       <Modal
         title="编辑壁纸"
+        width={760}
         open={Boolean(editing)}
         onCancel={() => setEditing(null)}
         onOk={async () => {
