@@ -152,6 +152,10 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "where: { wallpap
 requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
 requireContains("apps/admin/src/main.tsx", "row.command");
 requireContains("apps/admin/src/main.tsx", "命令已复制");
+requireContains("apps/admin/src/main.tsx", "function DiagnosticActions");
+requireContains("apps/admin/src/main.tsx", "去网盘账号");
+requireContains("apps/admin/src/main.tsx", "去腾讯频道");
+requireContains("apps/admin/src/main.tsx", "处理短链");
 requireContains("apps/admin/src/main.tsx", "warnCount");
 requireContains("apps/admin/src/main.tsx", "提醒 {warnCount}");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");

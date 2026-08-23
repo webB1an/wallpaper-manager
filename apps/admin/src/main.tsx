@@ -238,7 +238,7 @@ function App() {
           {active === "storageAccounts" && <StorageAccounts />}
           {active === "channels" && <Channels />}
           {active === "settings" && <Settings />}
-          {active === "diagnostics" && <Diagnostics />}
+          {active === "diagnostics" && <Diagnostics onNavigate={setActive} onOpenLibrary={openLibrary} />}
         </Layout.Content>
       </Layout>
     </ConfigProvider>
@@ -1106,7 +1106,7 @@ function Settings() {
   );
 }
 
-function Diagnostics() {
+function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
   const [items, setItems] = useState<DiagnosticItem[]>([]);
   const [loading, setLoading] = useState(false);
   const load = async () => {
@@ -1134,14 +1134,37 @@ function Diagnostics() {
         { title: "项目", dataIndex: "label", width: 220 },
         { title: "状态", dataIndex: "status", width: 120, render: (status) => <DiagnosticStatusTag status={status} /> },
         { title: "说明", render: (_, row) => <DiagnosticMessage value={row.message} command={row.command} /> },
-        { title: "操作", width: 150, render: (_, row) => {
-          return row.command ? (
-            <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(row.command || "", "命令已复制")}>复制命令</Button>
-          ) : null;
-        } },
+        { title: "操作", width: 220, render: (_, row) => <DiagnosticActions row={row} onNavigate={onNavigate} onOpenLibrary={onOpenLibrary} /> },
       ]} />
     </section>
   );
+}
+
+function DiagnosticActions({ row, onNavigate, onOpenLibrary }: { row: DiagnosticItem; onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
+  const action = diagnosticAction(row, onNavigate, onOpenLibrary);
+  if (!row.command && !action) return null;
+  return (
+    <Space size={8} wrap>
+      {action ? <Button size="small" type={row.status === "fail" ? "primary" : "default"} onClick={action.onClick}>{action.label}</Button> : null}
+      {row.command ? <Button size="small" icon={<Copy size={14} />} onClick={() => copyText(row.command || "", "命令已复制")}>复制命令</Button> : null}
+    </Space>
+  );
+}
+
+function diagnosticAction(row: DiagnosticItem, onNavigate: (key: string) => void, onOpenLibrary: (preset?: LibraryPreset) => void) {
+  if (row.key === "bdpan" || row.key === "quark_skill") {
+    return { label: "去网盘账号", onClick: () => onNavigate("storageAccounts") };
+  }
+  if (row.key === "channel_accounts") {
+    return { label: "去腾讯频道", onClick: () => onNavigate("channels") };
+  }
+  if (row.key === "unpublished_active_short_links") {
+    return { label: "处理短链", onClick: () => onOpenLibrary({ storageFilter: "unpublished_active_short" }) };
+  }
+  if (row.key === "old_cover_source") {
+    return { label: "老封面迁移", onClick: () => onNavigate("import") };
+  }
+  return null;
 }
 
 function Tasks() {
