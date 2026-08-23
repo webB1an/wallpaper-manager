@@ -1,8 +1,8 @@
 page {
   min-height: 100vh;
   overflow-x: hidden;
-  background: #f4f0e8;
-  color: #1f231c;
+  background: #f6f7f4;
+  color: #1e2823;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -35,7 +35,7 @@ button {
   color: #ffffff;
   background:
     radial-gradient(circle at 88% 12%, rgba(230, 181, 102, 0.22), transparent 34%),
-    linear-gradient(135deg, #314a3b 0%, #6e5a43 100%);
+    linear-gradient(135deg, #2f6f5e 0%, #5e6f5d 100%);
   box-shadow: 0 18rpx 42rpx rgba(49, 74, 59, 0.22);
 }
 
@@ -71,13 +71,13 @@ button {
   align-items: center;
   justify-content: space-between;
   margin: 34rpx 2rpx 16rpx;
-  color: #1f231c;
+  color: #1e2823;
   font-size: 32rpx;
   font-weight: 840;
 }
 
 .muted {
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 24rpx;
 }
 
@@ -88,14 +88,14 @@ button {
   padding: 0 18rpx;
   margin: 0 12rpx 12rpx 0;
   border-radius: 999rpx;
-  color: #4c6b5a;
-  background: #e4eadf;
+  color: #2f6f5e;
+  background: #e9f2ed;
   font-size: 23rpx;
 }
 
 .empty {
   padding: 80rpx 0;
-  color: #7a746c;
+  color: #6b7a72;
   text-align: center;
 }
 
@@ -106,20 +106,20 @@ button {
 .state-card {
   margin-top: 26rpx;
   padding: 56rpx 24rpx;
-  border: 2rpx dashed #e3ddd0;
+  border: 2rpx dashed #e7ece7;
   border-radius: 20rpx;
   background: #ffffff;
 }
 
 .empty-subtitle {
   margin-top: 10rpx;
-  color: #9a948a;
+  color: #98a29b;
   font-size: 23rpx;
 }
 
 .loading-more {
   padding: 30rpx 0 8rpx;
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 24rpx;
   text-align: center;
 }
@@ -132,7 +132,7 @@ button {
   padding: 0;
   border-radius: 999rpx;
   color: #ffffff;
-  background: #4c6b5a;
+  background: #2f6f5e;
   font-size: 24rpx;
   line-height: 64rpx;
 }

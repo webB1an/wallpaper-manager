@@ -1,20 +1,20 @@
 .detail-page {
   min-height: 100vh;
-  background: #1d2521;
+  background: #1e2823;
 }
 
 .detail-visual {
   position: relative;
   overflow: hidden;
   height: 720rpx;
-  background: #1d2521;
+  background: #1e2823;
 }
 
 .detail-cover {
   display: block;
   width: 100%;
   height: 720rpx;
-  background: #27352d;
+  background: #243128;
 }
 
 .detail-visual::after {
@@ -52,7 +52,7 @@
   margin-top: -32rpx;
   padding: 34rpx 28rpx 60rpx;
   border-radius: 28rpx 28rpx 0 0;
-  background: #f4f0e8;
+  background: #f6f7f4;
 }
 
 .detail-panel view,
@@ -67,7 +67,7 @@
   margin: -10rpx auto 24rpx;
   border-radius: 999rpx;
   content: "";
-  background: #dcd5c8;
+  background: #dfe6e0;
 }
 
 .detail-title {
@@ -82,7 +82,7 @@
   flex-wrap: wrap;
   gap: 12rpx;
   margin-top: 18rpx;
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 24rpx;
 }
 
@@ -98,7 +98,7 @@
   padding: 0;
   border-radius: 14rpx;
   color: #ffffff;
-  background: #4c6b5a;
+  background: #2f6f5e;
   font-size: 27rpx;
   font-weight: 780;
   line-height: 76rpx;
@@ -125,7 +125,7 @@
   color: #ffffff;
   background:
     linear-gradient(135deg, rgba(230, 181, 102, 0.2), transparent 46%),
-    #1d2521;
+    #1e2823;
   box-shadow: 0 14rpx 34rpx rgba(29, 37, 33, 0.18);
 }
 
@@ -135,7 +135,7 @@
 
 .primary-download view text:first-child {
   display: block;
-  color: #e6b566;
+  color: #d98a5b;
   font-size: 23rpx;
   font-weight: 780;
 }
@@ -158,8 +158,8 @@
   margin-top: 10rpx;
   padding: 6rpx 12rpx;
   border-radius: 10rpx;
-  color: #1d2521;
-  background: #e6b566;
+  color: #1e2823;
+  background: #d98a5b;
   font-size: 21rpx;
   font-weight: 820;
 }
@@ -170,8 +170,8 @@
   height: 72rpx;
   padding: 0;
   border-radius: 14rpx;
-  color: #1d2521;
-  background: #e6b566;
+  color: #1e2823;
+  background: #d98a5b;
   font-size: 25rpx;
   font-weight: 820;
   line-height: 72rpx;
@@ -190,13 +190,13 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  color: #1f231c;
+  color: #1e2823;
   font-size: 29rpx;
   font-weight: 820;
 }
 
 .download-heading text:last-child {
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 22rpx;
   font-weight: 520;
 }
@@ -208,7 +208,7 @@
   gap: 14rpx;
   align-items: center;
   padding: 18rpx;
-  border: 2rpx solid #e3ddd0;
+  border: 2rpx solid #e7ece7;
   border-radius: 10rpx;
   background: #ffffff;
 }
@@ -225,14 +225,14 @@
   height: 70rpx;
   border-radius: 0 999rpx 999rpx 0;
   content: "";
-  background: #4c6b5a;
+  background: #2f6f5e;
 }
 
 .download-empty {
   padding: 26rpx 18rpx;
-  border: 2rpx dashed #e3ddd0;
+  border: 2rpx dashed #e7ece7;
   border-radius: 14rpx;
-  color: #7a746c;
+  color: #6b7a72;
   background: rgba(255, 255, 255, 0.7);
   font-size: 24rpx;
   text-align: center;
@@ -240,7 +240,7 @@
 
 .download-label {
   display: block;
-  color: #1f231c;
+  color: #1e2823;
   font-size: 28rpx;
   font-weight: 760;
 }
@@ -249,7 +249,7 @@
   display: block;
   margin-top: 8rpx;
   overflow: hidden;
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 22rpx;
   line-height: 30rpx;
   text-overflow: ellipsis;
@@ -261,8 +261,8 @@
   margin-top: 10rpx;
   padding: 6rpx 12rpx;
   border-radius: 10rpx;
-  color: #4c6b5a;
-  background: #e4eadf;
+  color: #2f6f5e;
+  background: #e9f2ed;
   font-size: 21rpx;
   font-weight: 760;
 }
@@ -274,7 +274,7 @@
   padding: 0;
   border-radius: 10rpx;
   color: #ffffff;
-  background: #b85c3e;
+  background: #e57355;
   font-size: 27rpx;
   font-weight: 760;
   line-height: 70rpx;
@@ -292,13 +292,13 @@
 }
 
 .related-head text:first-child {
-  color: #1f231c;
+  color: #1e2823;
   font-size: 31rpx;
   font-weight: 820;
 }
 
 .related-head text:last-child {
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 23rpx;
 }
 
@@ -322,7 +322,7 @@
   display: block;
   width: 220rpx;
   height: 144rpx;
-  background: #e8e2d6;
+  background: #e6ebe6;
 }
 
 .related-card text {
@@ -330,7 +330,7 @@
   height: 68rpx;
   padding: 12rpx;
   overflow: hidden;
-  color: #1f231c;
+  color: #1e2823;
   font-size: 23rpx;
   font-weight: 720;
   line-height: 34rpx;
@@ -338,14 +338,14 @@
 }
 
 .detail-loading {
-  background: #1d2521;
+  background: #1e2823;
 }
 
 .detail-cover-skeleton {
   height: 720rpx;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
-    #27352d;
+    #243128;
   background-size: 260rpx 100%, 100% 100%;
   animation: detailSkeletonSweep 1.4s ease-in-out infinite;
 }
@@ -360,7 +360,7 @@
   border-radius: 999rpx;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0)),
-    #e6e1d5;
+    #e6ebe6;
   background-size: 220rpx 100%, 100% 100%;
   animation: detailPanelSkeletonSweep 1.4s ease-in-out infinite;
 }

@@ -8,13 +8,13 @@
   ],
   "window": {
     "navigationBarTitleText": "WDBZK 壁纸",
-    "navigationBarBackgroundColor": "#F4F0E8",
+    "navigationBarBackgroundColor": "#F6F7F4",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F4F0E8"
+    "backgroundColor": "#F6F7F4"
   },
   "tabBar": {
-    "color": "#9A948A",
-    "selectedColor": "#4C6B5A",
+    "color": "#98A29B",
+    "selectedColor": "#2F6F5E",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [

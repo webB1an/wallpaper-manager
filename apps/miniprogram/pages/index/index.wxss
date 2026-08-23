@@ -2,7 +2,7 @@
   overflow: hidden;
   border: 1rpx solid rgba(255, 255, 255, 0.1);
   border-radius: 26rpx;
-  background: linear-gradient(135deg, #314a3b 0%, #6e5a43 100%);
+  background: linear-gradient(135deg, #2f6f5e 0%, #5e6f5d 100%);
   box-shadow: 0 18rpx 42rpx rgba(49, 74, 59, 0.2);
 }
 
@@ -20,7 +20,7 @@
   display: block;
   width: 100%;
   height: 420rpx;
-  background: #e8e2d6;
+  background: #e6ebe6;
   filter: saturate(0.96) contrast(1);
 }
 
@@ -48,8 +48,8 @@
   display: inline-block;
   padding: 8rpx 14rpx;
   border-radius: 999rpx;
-  color: #1f231c;
-  background: #e6b566;
+  color: #1e2823;
+  background: #d98a5b;
   font-size: 20rpx;
   font-weight: 820;
   letter-spacing: 0;
@@ -97,7 +97,7 @@
   margin-top: 22rpx;
   padding: 8rpx;
   overflow: hidden;
-  border: 1rpx solid #e3ddd0;
+  border: 1rpx solid #e7ece7;
   border-radius: 22rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 30rpx rgba(31, 35, 28, 0.06);
@@ -110,7 +110,7 @@
   padding: 0 18rpx;
   border-radius: 14rpx;
   background: transparent;
-  color: #1f231c;
+  color: #1e2823;
   font-size: 27rpx;
 }
 
@@ -122,7 +122,7 @@
   padding: 0;
   border-radius: 18rpx;
   color: #ffffff;
-  background: #4c6b5a;
+  background: #2f6f5e;
   font-size: 34rpx;
   font-weight: 820;
   line-height: 68rpx;
@@ -141,17 +141,17 @@
   align-items: center;
   gap: 8rpx;
   padding: 14rpx 24rpx;
-  border: 1rpx solid #e3ddd0;
+  border: 1rpx solid #e7ece7;
   border-radius: 999rpx;
-  color: #5d584f;
+  color: #5a675f;
   background: #ffffff;
   font-size: 25rpx;
 }
 
 .filter.active {
-  border-color: #1f231c;
+  border-color: #1e2823;
   color: #ffffff;
-  background: #1f231c;
+  background: #1e2823;
   font-weight: 760;
 }
 
@@ -162,8 +162,8 @@
 .tag-filter {
   padding: 15rpx 22rpx;
   border-radius: 999rpx;
-  color: #4c6b5a;
-  background: #e4eadf;
+  color: #2f6f5e;
+  background: #e9f2ed;
   font-size: 24rpx;
 }
 
@@ -189,7 +189,7 @@
   position: relative;
   overflow: hidden;
   width: 100%;
-  border: 1rpx solid #e3ddd0;
+  border: 1rpx solid #e7ece7;
   border-radius: 20rpx;
   background: #ffffff;
   box-shadow: 0 14rpx 34rpx rgba(31, 35, 28, 0.07);
@@ -200,7 +200,7 @@
   width: 100%;
   min-height: 300rpx;
   height: auto;
-  background: #e8e2d6;
+  background: #e6ebe6;
 }
 
 .live-ribbon {
@@ -229,7 +229,7 @@
   display: block;
   height: 68rpx;
   overflow: hidden;
-  color: #1f231c;
+  color: #1e2823;
   font-size: 25rpx;
   font-weight: 760;
   line-height: 34rpx;
@@ -240,8 +240,8 @@
   margin-top: 12rpx;
   padding: 5rpx 12rpx;
   border-radius: 999rpx;
-  color: #4c6b5a;
-  background: #e4eadf;
+  color: #2f6f5e;
+  background: #e9f2ed;
   font-size: 21rpx;
 }
 
@@ -251,7 +251,7 @@
   margin-top: 14rpx;
   margin-left: 10rpx;
   overflow: hidden;
-  color: #7a746c;
+  color: #6b7a72;
   font-size: 21rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -271,8 +271,8 @@
   padding: 0 10rpx;
   overflow: hidden;
   border-radius: 999rpx;
-  color: #5d584f;
-  background: #f0ece3;
+  color: #5a675f;
+  background: #eef2ee;
   font-size: 20rpx;
   line-height: 34rpx;
   text-overflow: ellipsis;
@@ -297,7 +297,7 @@
   border-radius: 20rpx;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0)),
-    #e8e2d6;
+    #e6ebe6;
   background-size: 240rpx 100%, 100% 100%;
   animation: skeletonSweep 1.4s ease-in-out infinite;
 }
