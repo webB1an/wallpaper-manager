@@ -82,10 +82,12 @@ export class StorageAccountService {
   }
 
   async getDefaultAccount(provider: StorageProvider) {
-    return this.prisma.storageAccount.findFirst({
+    const defaultAccount = await this.prisma.storageAccount.findFirst({
       where: { provider, isDefault: true, isActive: true },
       orderBy: { createdAt: "desc" },
-    }) || this.prisma.storageAccount.findFirst({
+    });
+    if (defaultAccount) return defaultAccount;
+    return this.prisma.storageAccount.findFirst({
       where: { provider, isActive: true },
       orderBy: { createdAt: "desc" },
     });
