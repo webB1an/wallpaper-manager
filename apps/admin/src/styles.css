@@ -552,6 +552,86 @@ small {
   white-space: nowrap;
 }
 
+.final-steps {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #dfe6dc;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.final-steps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.final-steps-head strong,
+.final-steps-head span {
+  display: block;
+}
+
+.final-steps-head strong {
+  font-size: 16px;
+}
+
+.final-steps-head span {
+  margin-top: 4px;
+  color: #66746b;
+  font-size: 13px;
+}
+
+.final-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.final-step {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 86px;
+  padding: 12px;
+  border: 1px solid #f0dfb4;
+  border-radius: 8px;
+  background: #fffaf0;
+}
+
+.final-step-fail {
+  border-color: #f1c6be;
+  background: #fff7f5;
+}
+
+.final-step-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #eef5ed;
+  color: #1f7a5a;
+}
+
+.final-step strong,
+.final-step span {
+  display: block;
+}
+
+.final-step strong {
+  color: #17201b;
+}
+
+.final-step span {
+  margin-top: 4px;
+  color: #66746b;
+  font-size: 12px;
+}
+
 .release-guide {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
@@ -642,4 +722,23 @@ small {
 .login-panel form {
   align-self: center;
   padding: 42px;
+}
+
+@media (max-width: 960px) {
+  .final-steps-grid,
+  .launch-items,
+  .overview-grid,
+  .upload-storage-options,
+  .release-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .final-step {
+    grid-template-columns: auto 1fr;
+  }
+
+  .final-step .ant-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
 }

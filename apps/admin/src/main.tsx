@@ -1274,6 +1274,7 @@ function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) 
         <Tag color={warnCount ? "gold" : "default"}>提醒 {warnCount}</Tag>
         <Tag color={failCount ? "red" : "default"}>失败 {failCount}</Tag>
       </Space>
+      <LaunchFinalSteps items={items} onNavigate={onNavigate} />
       <Table rowKey="key" loading={loading} dataSource={items} pagination={false} columns={[
         { title: "项目", dataIndex: "label", width: 220 },
         { title: "状态", dataIndex: "status", width: 120, render: (status) => <DiagnosticStatusTag status={status} /> },
@@ -1282,6 +1283,64 @@ function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) 
       ]} />
       <MiniProgramReleaseGuide />
     </section>
+  );
+}
+
+function LaunchFinalSteps({ items, onNavigate }: { items: DiagnosticItem[]; onNavigate: (key: string) => void }) {
+  const byKey = new Map(items.map((item) => [item.key, item]));
+  const steps = [
+    {
+      key: "baidu",
+      title: "授权百度备用源",
+      description: "新增账号，打开授权链接，回填授权码并设为默认。",
+      diagnostic: byKey.get("bdpan"),
+      icon: <HardDrive size={16} />,
+      action: () => onNavigate("storageAccounts"),
+      actionText: "去网盘账号",
+    },
+    {
+      key: "quark",
+      title: "授权夸克主源",
+      description: "新增账号，打开授权链接，回填 code 并设为默认。",
+      diagnostic: byKey.get("quark_skill"),
+      icon: <CloudUpload size={16} />,
+      action: () => onNavigate("storageAccounts"),
+      actionText: "去网盘账号",
+    },
+    {
+      key: "channel",
+      title: "配置腾讯频道",
+      description: "保存 token，选择频道/版块，并设为默认账号。",
+      diagnostic: byKey.get("channel_accounts"),
+      icon: <RadioTower size={16} />,
+      action: () => onNavigate("channels"),
+      actionText: "去腾讯频道",
+    },
+  ];
+  const visible = steps.filter((step) => step.diagnostic?.status !== "ok");
+  if (!visible.length) return null;
+  return (
+    <div className="final-steps">
+      <div className="final-steps-head">
+        <div>
+          <strong>上线收尾</strong>
+          <span>这些账号需要在管理端完成授权；全部完成后再重新检查。</span>
+        </div>
+        <Tag color="gold">剩余 {visible.length} 项</Tag>
+      </div>
+      <div className="final-steps-grid">
+        {visible.map((step) => (
+          <div key={step.key} className={`final-step final-step-${step.diagnostic?.status || "warn"}`}>
+            <span className="final-step-icon">{step.icon}</span>
+            <div>
+              <strong>{step.title}</strong>
+              <span>{step.diagnostic?.message || step.description}</span>
+            </div>
+            <Button size="small" type={step.diagnostic?.status === "fail" ? "primary" : "default"} onClick={step.action}>{step.actionText}</Button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
