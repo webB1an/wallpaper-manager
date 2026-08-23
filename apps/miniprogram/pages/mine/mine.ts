@@ -28,8 +28,22 @@ Page({
   },
 
   clearHistory() {
-    wx.removeStorageSync(HISTORY_KEY);
-    this.setData({ records: [] });
+    wx.showModal({
+      title: "清空复制记录",
+      content: "确认清空最近复制的短链记录？",
+      confirmText: "清空",
+      confirmColor: "#d85a3a",
+      success: (result) => {
+        if (!result.confirm) return;
+        wx.removeStorageSync(HISTORY_KEY);
+        this.setData({ records: [] });
+        wx.showToast({ title: "已清空", icon: "success" });
+      }
+    });
+  },
+
+  goExplore() {
+    wx.switchTab({ url: "/pages/index/index" });
   },
 
   openDetail(event: WechatMiniprogram.TouchEvent) {

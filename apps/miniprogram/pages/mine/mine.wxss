@@ -13,6 +13,29 @@
   font-size: 28rpx;
 }
 
+.mine-meter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10rpx;
+  width: fit-content;
+  margin-top: 26rpx;
+  padding: 12rpx 18rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.24);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mine-meter text:first-child {
+  color: #ffd166;
+  font-size: 34rpx;
+  font-weight: 820;
+}
+
+.mine-meter text:last-child {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 22rpx;
+}
+
 .history-list {
   display: grid;
   gap: 16rpx;
@@ -122,4 +145,21 @@
   color: #6e7881;
   font-size: 24rpx;
   line-height: 1.6;
+}
+
+.empty-state button {
+  width: 210rpx;
+  height: 68rpx;
+  margin-top: 26rpx;
+  padding: 0;
+  border-radius: 12rpx;
+  color: #fff;
+  background: #25465a;
+  font-size: 25rpx;
+  font-weight: 760;
+  line-height: 68rpx;
+}
+
+.empty-state button::after {
+  border: 0;
 }

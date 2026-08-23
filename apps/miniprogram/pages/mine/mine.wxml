@@ -2,6 +2,10 @@
   <view class="hero">
     <text class="hero-title">服务中心</text>
     <text class="hero-subtitle">最近领取过的壁纸短链</text>
+    <view class="mine-meter">
+      <text>{{records.length}}</text>
+      <text>条复制记录</text>
+    </view>
   </view>
 
   <view class="section-title">
@@ -29,6 +33,7 @@
   <view wx:if="{{records.length === 0}}" class="empty-state">
     <text>还没有复制记录</text>
     <text>在壁纸详情页复制原图短链后，会自动保存在这里。</text>
+    <button bindtap="goExplore">去发现壁纸</button>
   </view>
 
   <view class="panel">
