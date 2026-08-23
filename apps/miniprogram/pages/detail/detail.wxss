@@ -26,9 +26,11 @@
   border-radius: 999rpx;
   color: #ffffff;
   background: rgba(0, 0, 0, 0.28);
-  font-size: 52rpx;
-  line-height: 60rpx;
-  text-align: center;
+}
+
+.detail-back-icon {
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .detail-nav-title {
@@ -343,17 +345,17 @@
   font-size: 23rpx;
 }
 
-.related-scroll {
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
   width: 100%;
-  white-space: nowrap;
 }
 
 .related-card {
-  display: inline-block;
-  width: 220rpx;
-  margin-right: 18rpx;
+  display: block;
+  width: 100%;
   overflow: hidden;
-  vertical-align: top;
   border-radius: 14rpx;
   background: #ffffff;
   box-shadow: 0 10rpx 30rpx rgba(29, 37, 33, 0.06);
@@ -361,8 +363,8 @@
 
 .related-card image {
   display: block;
-  width: 220rpx;
-  height: 144rpx;
+  width: 100%;
+  height: 180rpx;
   background: #f0e4d6;
 }
 

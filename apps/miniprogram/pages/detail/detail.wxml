@@ -1,6 +1,6 @@
 <view class="detail-page" wx:if="{{item}}">
   <view class="detail-topbar">
-    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;">‹</view>
+    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back.png" /></view>
     <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;">{{item.title}}</text>
   </view>
   <view class="detail-visual">
@@ -37,20 +37,20 @@
         <text>继续看看</text>
         <text>{{item.related.length}} 张</text>
       </view>
-      <scroll-view scroll-x class="related-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="related-grid">
         <block wx:for="{{item.related}}" wx:key="id">
           <view class="related-card" bindtap="openRelated" data-id="{{item.id}}">
             <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
             <text>{{item.title}}</text>
           </view>
         </block>
-      </scroll-view>
+      </view>
     </view>
   </view>
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty state-card">
   <view class="detail-topbar">
-    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;">‹</view>
+    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back.png" /></view>
     <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;">壁纸详情</text>
   </view>
   <text>{{error}}</text>
@@ -59,7 +59,7 @@
 </view>
 <view wx:else class="detail-page detail-loading">
   <view class="detail-topbar">
-    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;">‹</view>
+    <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back.png" /></view>
     <text class="detail-nav-title" style="top:{{capsuleTop}}px;height:{{capsuleHeight}}px;line-height:{{capsuleHeight}}px;">壁纸详情</text>
   </view>
   <view class="detail-cover-skeleton"></view>
