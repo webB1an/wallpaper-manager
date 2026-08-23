@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Alert, Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
-import type { UploadProps } from "antd";
+import type { UploadFile, UploadProps } from "antd";
 import { Activity, CloudUpload, Copy, GalleryVerticalEnd, HardDrive, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
 import "./styles.css";
@@ -1057,6 +1057,7 @@ function Uploader() {
   const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>([]);
   const [quarkAccountId, setQuarkAccountId] = useState<string>();
   const [baiduAccountId, setBaiduAccountId] = useState<string>();
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
   useEffect(() => {
     Promise.all([
       request<SystemSettings>("/api/admin/settings"),
@@ -1095,17 +1096,56 @@ function Uploader() {
     headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
     data: selectedStorageData,
     disabled: uploadDisabled,
-    onChange(info) {
-      if (info.file.status === "done") {
-        const response = info.file.response as { code?: number; message?: string; error?: string } | undefined;
+    fileList,
+    listType: "picture",
+    beforeUpload: () => false,
+    onChange({ file, fileList: next }) {
+      setFileList(next);
+      if (file.status === "done") {
+        const response = file.response as { code?: number; message?: string; error?: string } | undefined;
         if (response?.code && response.code !== 200) {
-          message.error(`${info.file.name} 上传失败：${uploadErrorMessage(response)}`);
+          message.error(`${file.name} 上传失败：${uploadErrorMessage(response)}`);
           return;
         }
-        message.success(autoProcess ? `${info.file.name} 已上传并加入处理队列` : `${info.file.name} 已上传为草稿`);
+        message.success(autoProcess ? `${file.name} 已上传并加入处理队列` : `${file.name} 已上传为草稿`);
       }
-      if (info.file.status === "error") message.error(`${info.file.name} 上传失败：${uploadErrorMessage(info.file.response || info.file.error)}`);
+      if (file.status === "error") {
+        message.error(`${file.name} 上传失败：${uploadErrorMessage(file.response || file.error)}`);
+      }
+      if (next.length && next.every((item) => item.status === "done" || item.status === "error")) {
+        window.setTimeout(() => setFileList([]), 1200);
+      }
     },
+  };
+  const uploadFile = async (file: UploadFile) => {
+    const source = file.originFileObj;
+    if (!source) return;
+    setFileList((prev) => prev.map((item) => item.uid === file.uid ? { ...item, status: "uploading", percent: 0 } : item));
+    const form = new FormData();
+    form.append("files", source);
+    for (const [key, value] of Object.entries(selectedStorageData)) {
+      form.append(key, value);
+    }
+    try {
+      const response = await fetch(`${API}/api/admin/uploads`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
+        body: form,
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.code !== 200) {
+        throw new Error(uploadErrorMessage(body));
+      }
+      message.success(autoProcess ? `${file.name} 已上传并加入处理队列` : `${file.name} 已上传为草稿`);
+      setFileList((prev) => prev.map((item) => item.uid === file.uid ? { ...item, status: "done", response: body } : item));
+    } catch (error) {
+      message.error(`${file.name} 上传失败：${error instanceof Error ? error.message : "请求失败"}`);
+      setFileList((prev) => prev.map((item) => item.uid === file.uid ? { ...item, status: "error", error } : item));
+    }
+  };
+  const startUpload = () => {
+    const pending = fileList.filter((file) => file.originFileObj && file.status !== "done" && file.status !== "error" && file.status !== "uploading");
+    pending.forEach(uploadFile);
   };
   return (
     <section>
@@ -1189,6 +1229,16 @@ function Uploader() {
         <h2>拖拽壁纸文件到这里</h2>
         <p>支持 JPG、PNG、WebP、GIF、AVIF、MP4、MOV、WebM；默认单文件上限 300MB。</p>
       </Upload.Dragger>
+      <div className="upload-actions">
+        <Button
+          type="primary"
+          icon={<UploadCloud size={16} />}
+          disabled={!fileList.length || fileList.some((file) => file.status === "uploading")}
+          onClick={startUpload}
+        >
+          开始上传{fileList.length ? `（${fileList.length}）` : ""}
+        </Button>
+      </div>
     </section>
   );
 }

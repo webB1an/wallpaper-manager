@@ -468,6 +468,10 @@ small {
   color: #738178;
 }
 
+.upload-actions {
+  margin-top: 14px;
+}
+
 .form-grid {
   max-width: 760px;
   padding: 22px;
