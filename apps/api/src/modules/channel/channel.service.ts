@@ -109,6 +109,14 @@ export class ChannelService {
     return this.prisma.channelAccount.update({ where: { id }, data: { isDefault: true }, select: PUBLIC_CHANNEL_ACCOUNT_SELECT });
   }
 
+  async updateLabel(id: string, label: string) {
+    const trimmed = label?.trim();
+    if (!trimmed) throw new BadRequestException("账号名称不能为空");
+    const account = await this.prisma.channelAccount.findUnique({ where: { id } });
+    if (!account) throw new NotFoundException("腾讯频道账号不存在");
+    return this.prisma.channelAccount.update({ where: { id }, data: { label: trimmed }, select: PUBLIC_CHANNEL_ACCOUNT_SELECT });
+  }
+
   async deleteAccount(id: string) {
     const account = await this.prisma.channelAccount.findUnique({ where: { id } });
     if (!account) throw new NotFoundException("腾讯频道账号不存在");

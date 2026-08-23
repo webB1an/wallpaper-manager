@@ -1648,6 +1648,24 @@ function Channels() {
   const load = () => request<ChannelAccount[]>("/api/admin/channels").then(setItems);
   useEffect(() => { void load(); }, []);
   const defaultAccount = items.find((item) => item.isDefault);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; label: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const openRename = (account: ChannelAccount) => {
+    setRenameTarget({ id: account.id, label: account.label });
+    setRenameValue(account.label);
+  };
+  const submitRename = async () => {
+    if (!renameTarget) return;
+    const label = renameValue.trim();
+    if (!label) {
+      message.warning("账号名称不能为空");
+      return;
+    }
+    await request(`/api/admin/channels/${renameTarget.id}`, { method: "PATCH", body: JSON.stringify({ label }) });
+    message.success("频道账号名称已更新");
+    setRenameTarget(null);
+    await load();
+  };
 
   const discoverGuilds = async () => {
     const token = String(form.getFieldValue("token") || "").trim();
@@ -1747,6 +1765,7 @@ function Channels() {
                   await request(`/api/admin/channels/${row.id}/default`, { method: "POST" });
                   await load();
                 }}>设为默认</Button>}
+                <Button size="small" onClick={() => openRename(row)}>改名</Button>
                 <Popconfirm title="删除这个频道账号？" okText="删除" cancelText="取消" onConfirm={async () => {
                   await request(`/api/admin/channels/${row.id}`, { method: "DELETE" });
                   message.success("频道账号已删除");
@@ -1813,6 +1832,20 @@ function Channels() {
           </Form>,
         },
       ]} />
+      <Modal
+        title="修改频道账号名称"
+        open={Boolean(renameTarget)}
+        onCancel={() => setRenameTarget(null)}
+        onOk={submitRename}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form layout="vertical">
+          <Form.Item label="账号名称" required>
+            <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} placeholder="输入新的账号名称" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </section>
   );
 }
@@ -1825,6 +1858,8 @@ function StorageAccounts() {
   const [authTarget, setAuthTarget] = useState<StorageAccount | null>(null);
   const [authUrl, setAuthUrl] = useState("");
   const [loadingAuth, setLoadingAuth] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; label: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const load = () => request<StorageAccount[]>("/api/admin/storage-accounts").then(setItems);
   useEffect(() => { void load(); }, []);
 
@@ -1860,6 +1895,22 @@ function StorageAccounts() {
   const probe = async (account: StorageAccount) => {
     await request(`/api/admin/storage-accounts/${account.id}/probe`, { method: "POST" });
     message.success("探活完成");
+    await load();
+  };
+  const openRename = (account: StorageAccount) => {
+    setRenameTarget({ id: account.id, label: account.label });
+    setRenameValue(account.label);
+  };
+  const submitRename = async () => {
+    if (!renameTarget) return;
+    const label = renameValue.trim();
+    if (!label) {
+      message.warning("账号名称不能为空");
+      return;
+    }
+    await request(`/api/admin/storage-accounts/${renameTarget.id}`, { method: "PATCH", body: JSON.stringify({ label }) });
+    message.success("账号名称已更新");
+    setRenameTarget(null);
     await load();
   };
   const openCreateAccount = (provider: StorageAccount["provider"]) => {
@@ -1941,6 +1992,7 @@ function StorageAccounts() {
                   }}>设为默认</Button>}
                   <Button size="small" loading={loadingAuth && authTarget?.id === row.id} onClick={() => startAuth(row)}>授权</Button>
                   <Button size="small" onClick={() => probe(row)}>探活</Button>
+                  <Button size="small" onClick={() => openRename(row)}>改名</Button>
                   <Popconfirm title="删除这个网盘账号？" description="未使用账号会直接移除；已有资源链接的账号会被停用并清理授权文件，资源链接不会被删除。" okText="删除" cancelText="取消" onConfirm={async () => {
                     await request(`/api/admin/storage-accounts/${row.id}`, { method: "DELETE" });
                     message.success("网盘账号已删除");
@@ -1975,6 +2027,20 @@ function StorageAccounts() {
           </Form>,
         },
       ]} />
+      <Modal
+        title="修改账号名称"
+        open={Boolean(renameTarget)}
+        onCancel={() => setRenameTarget(null)}
+        onOk={submitRename}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form layout="vertical">
+          <Form.Item label="账号名称" required>
+            <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} placeholder="输入新的账号名称" />
+          </Form.Item>
+        </Form>
+      </Modal>
       <Modal
         title={authTarget ? `${providerText(authTarget.provider)}账号授权` : "网盘账号授权"}
         open={Boolean(authTarget)}

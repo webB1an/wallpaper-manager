@@ -214,6 +214,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Patch("channels/:id")
+  async updateChannel(@Param("id") id: string, @Body() body: { label: string }) {
+    return { code: 200, data: await this.admin.updateChannelLabel(id, body.label || "") };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Delete("channels/:id")
   async deleteChannel(@Param("id") id: string) {
     return { code: 200, data: await this.admin.deleteChannel(id) };
@@ -236,6 +242,12 @@ export class AdminController {
   @Post("storage-accounts/:id/default")
   async defaultStorageAccount(@Param("id") id: string) {
     return { code: 200, data: await this.admin.setDefaultStorageAccount(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch("storage-accounts/:id")
+  async updateStorageAccount(@Param("id") id: string, @Body() body: { label: string }) {
+    return { code: 200, data: await this.admin.updateStorageAccountLabel(id, body.label || "") };
   }
 
   @UseGuards(AdminAuthGuard)

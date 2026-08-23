@@ -68,6 +68,13 @@ export class StorageAccountService {
     return this.prisma.storageAccount.update({ where: { id }, data: { isDefault: true, isActive: true }, select: PUBLIC_STORAGE_ACCOUNT_SELECT });
   }
 
+  async updateLabel(id: string, label: string) {
+    const trimmed = label?.trim();
+    if (!trimmed) throw new BadRequestException("账号名称不能为空");
+    await this.requireAccount(id);
+    return this.prisma.storageAccount.update({ where: { id }, data: { label: trimmed }, select: PUBLIC_STORAGE_ACCOUNT_SELECT });
+  }
+
   async deleteAccount(id: string) {
     const account = await this.requireAccount(id);
     const linkCount = await this.prisma.storageLink.count({ where: { storageAccountId: id } });

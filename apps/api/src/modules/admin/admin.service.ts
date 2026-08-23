@@ -727,6 +727,10 @@ export class AdminService {
     return this.channel.saveAccount(input);
   }
 
+  updateChannelLabel(id: string, label: string) {
+    return this.channel.updateLabel(id, label);
+  }
+
   setDefaultChannel(id: string) {
     return this.channel.setDefaultAccount(id);
   }
@@ -746,6 +750,10 @@ export class AdminService {
 
   saveStorageAccount(input: Parameters<StorageAccountService["createAccount"]>[0]) {
     return this.storageAccounts.createAccount(input);
+  }
+
+  updateStorageAccountLabel(id: string, label: string) {
+    return this.storageAccounts.updateLabel(id, label);
   }
 
   setDefaultStorageAccount(id: string) {
