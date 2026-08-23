@@ -101,6 +101,7 @@ PANAPI_TOKEN=
 PANAPI_CATEGORY_ID=61
 OLD_WALLPAPER_ROOT=/www/wwwroot/wallpaper.wdbzk.com
 QUARK_SKILL_DIR=/www/server/quarkclouddrive-1.0.14
+QUARK_AUTH_START_TIMEOUT_MS=12000
 BDPAN_PATH=bdpan
 BAIDU_REMOTE_BASE=/apps/bdpan/wallpapers
 UPLOAD_MAX_FILE_MB=300

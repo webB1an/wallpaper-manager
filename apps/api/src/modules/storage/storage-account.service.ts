@@ -132,7 +132,7 @@ export class StorageAccountService {
 
   async startQuarkAuth(id: string) {
     const account = await this.requireAccount(id, StorageProvider.quark);
-    const result = await this.runQuark(account, ["login"], 45_000);
+    const result = await this.runQuark(account, ["login"], this.quarkAuthStartTimeoutMs());
     const output = `${result.stdout}\n${result.stderr}`.trim();
     if (result.ok) return this.probeAccount(id);
     const authUrl = extractUrl(output);
@@ -241,6 +241,12 @@ export class StorageAccountService {
       throw new Error("未配置可用的夸克网盘 Skill 目录");
     }
     return skillDir;
+  }
+
+  private quarkAuthStartTimeoutMs() {
+    const value = Number(this.config.get<string>("QUARK_AUTH_START_TIMEOUT_MS") || 12_000);
+    if (!Number.isFinite(value) || value < 3000) return 12_000;
+    return Math.min(value, 60_000);
   }
 
   private root() {

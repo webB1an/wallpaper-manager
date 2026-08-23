@@ -224,6 +224,8 @@ requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "
 requireContains("apps/api/src/modules/admin/admin.service.ts", "command?: string");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", 'CODEX_ENV: "1"');
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", 'AI_AGENT: "codex"');
+requireContains("apps/api/src/modules/storage/storage-account.service.ts", "QUARK_AUTH_START_TIMEOUT_MS");
+requireContains("deploy/production.env.example", "QUARK_AUTH_START_TIMEOUT_MS=12000");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "primaryProvider");
 requireContains("apps/api/src/modules/storage/quark-storage.service.ts", "quarkAccountEnv");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", 'CODEX_ENV: "1"');
