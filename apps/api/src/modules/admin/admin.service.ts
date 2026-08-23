@@ -4,7 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
@@ -154,6 +154,7 @@ export class AdminService {
     checks.push(await this.checkRedis());
     checks.push(await this.checkWritableStorage());
     checks.push(this.checkPublicOrigins());
+    checks.push(this.checkMiniprogramReleaseConfig());
     checks.push(await this.checkCommand("ffmpeg", "ffmpeg 视频封面", this.config.get<string>("FFMPEG_PATH")?.trim() || "ffmpeg", ["-version"]));
     checks.push(await this.checkBaiduStorage());
     checks.push(await this.checkQuarkStorage());
@@ -879,6 +880,28 @@ export class AdminService {
     return ok("public_origins", "公开域名配置", "API、后台和短链域名配置正确");
   }
 
+  private checkMiniprogramReleaseConfig(): DiagnosticItem {
+    try {
+      const project = readJsonFile<{ appid?: string; setting?: { urlCheck?: boolean } }>("apps/miniprogram/project.config.json");
+      const domains = readJsonFile<{ request?: string[]; downloadFile?: string[]; businessDomain?: string[] }>("deploy/wechat-miniprogram-domains.json");
+      const apiText = readFileSync(resolve(process.cwd(), "apps/miniprogram/utils/api.ts"), "utf8");
+      const issues: string[] = [];
+      const warnings: string[] = [];
+      if (!project.appid?.trim()) warnings.push("AppID 未填写");
+      if (project.setting?.urlCheck !== true) issues.push("urlCheck 未开启");
+      if (!apiText.includes('const API_BASE = "https://wall-api.wdbzk.com/api"')) issues.push("API 地址不是 https://wall-api.wdbzk.com/api");
+      if (!domains.request?.includes("https://wall-api.wdbzk.com")) issues.push("request 合法域名缺少 wall-api.wdbzk.com");
+      if (!domains.downloadFile?.includes("https://wall-api.wdbzk.com")) issues.push("downloadFile 合法域名缺少 wall-api.wdbzk.com");
+      const shortDomainConfigured = [...(domains.request || []), ...(domains.downloadFile || []), ...(domains.businessDomain || [])].includes("https://r.wdbzk.com");
+      if (shortDomainConfigured) issues.push("r.wdbzk.com 应只作为复制文本，不应配置为小程序请求域名");
+      if (issues.length) return fail("miniprogram_release", "微信小程序发布", issues.join("；"));
+      if (warnings.length) return warn("miniprogram_release", "微信小程序发布", `${warnings.join("；")}。其余页面、API 和合法域名策略已通过静态检查`);
+      return ok("miniprogram_release", "微信小程序发布", "AppID、API 地址和合法域名策略已就绪");
+    } catch (error) {
+      return warn("miniprogram_release", "微信小程序发布", `小程序发布配置检查失败：${shortError(error)}`);
+    }
+  }
+
   private async checkCommand(key: string, label: string, command: string, args: string[]): Promise<DiagnosticItem> {
     const result = await runCli(command, args, { timeoutMs: 15_000 });
     if (result.ok) return ok(key, label, "命令可执行");
@@ -1097,6 +1120,10 @@ function storageWhere(value?: StorageFilter): Prisma.WallpaperWhereInput {
     };
   }
   return {};
+}
+
+function readJsonFile<T>(path: string): T {
+  return JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8")) as T;
 }
 
 function ok(key: string, label: string, message: string): DiagnosticItem {

@@ -1164,6 +1164,9 @@ function diagnosticAction(row: DiagnosticItem, onNavigate: (key: string) => void
   if (row.key === "old_cover_source") {
     return { label: "老封面迁移", onClick: () => onNavigate("import") };
   }
+  if (row.key === "miniprogram_release") {
+    return { label: "发布文档", onClick: () => window.open("https://github.com/webB1an/wallpaper-manager/blob/main/docs/deployment.md#14-%E5%BE%AE%E4%BF%A1%E5%B0%8F%E7%A8%8B%E5%BA%8F%E5%8F%91%E5%B8%83", "_blank") };
+  }
   return null;
 }
 
