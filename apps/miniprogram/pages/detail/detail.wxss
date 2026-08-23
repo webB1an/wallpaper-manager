@@ -300,3 +300,85 @@
   line-height: 34rpx;
   white-space: normal;
 }
+
+.detail-loading {
+  background: #111820;
+}
+
+.detail-cover-skeleton {
+  height: 720rpx;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
+    #263840;
+  background-size: 260rpx 100%, 100% 100%;
+  animation: detailSkeletonSweep 1.4s ease-in-out infinite;
+}
+
+.detail-panel-skeleton {
+  min-height: 560rpx;
+}
+
+.skeleton-line,
+.skeleton-action,
+.skeleton-download {
+  border-radius: 999rpx;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0)),
+    #e1e5df;
+  background-size: 220rpx 100%, 100% 100%;
+  animation: detailPanelSkeletonSweep 1.4s ease-in-out infinite;
+}
+
+.skeleton-line.title {
+  width: 76%;
+  height: 42rpx;
+}
+
+.skeleton-line.meta {
+  width: 48%;
+  height: 24rpx;
+  margin-top: 24rpx;
+}
+
+.skeleton-line.tag {
+  width: 64%;
+  height: 34rpx;
+  margin-top: 26rpx;
+}
+
+.skeleton-action {
+  width: 100%;
+  height: 76rpx;
+  margin-top: 28rpx;
+  border-radius: 14rpx;
+}
+
+.skeleton-download {
+  height: 118rpx;
+  margin-top: 26rpx;
+  border-radius: 18rpx;
+}
+
+.skeleton-download.small {
+  height: 96rpx;
+  margin-top: 18rpx;
+  border-radius: 10rpx;
+}
+
+@keyframes detailSkeletonSweep {
+  0% {
+    background-position: -280rpx 0, 0 0;
+  }
+  100% {
+    background-position: 760rpx 0, 0 0;
+  }
+}
+
+@keyframes detailPanelSkeletonSweep {
+  0% {
+    background-position: -240rpx 0, 0 0;
+  }
+  100% {
+    background-position: 720rpx 0, 0 0;
+  }
+}

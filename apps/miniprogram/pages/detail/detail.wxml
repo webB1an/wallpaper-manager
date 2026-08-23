@@ -60,9 +60,19 @@
     </view>
   </view>
 </view>
-<view wx:elif="{{error}}" class="empty detail-empty">
+<view wx:elif="{{error}}" class="empty detail-empty state-card">
   <text>{{error}}</text>
   <button wx:if="{{id}}" class="retry-button" bindtap="retry">重试</button>
   <button wx:else class="retry-button" bindtap="goHome">回首页</button>
 </view>
-<view wx:else class="empty detail-empty">加载中...</view>
+<view wx:else class="detail-page detail-loading">
+  <view class="detail-cover-skeleton"></view>
+  <view class="detail-panel detail-panel-skeleton">
+    <view class="skeleton-line title"></view>
+    <view class="skeleton-line meta"></view>
+    <view class="skeleton-line tag"></view>
+    <view class="skeleton-action"></view>
+    <view class="skeleton-download"></view>
+    <view class="skeleton-download small"></view>
+  </view>
+</view>

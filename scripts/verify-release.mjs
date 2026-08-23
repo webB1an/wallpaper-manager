@@ -103,6 +103,8 @@ requireContains("apps/miniprogram/pages/index/index.wxml", "skeleton-grid");
 requireContains("apps/miniprogram/pages/index/index.wxss", "skeletonSweep");
 requireContains("apps/miniprogram/pages/category/category.wxml", "category-skeleton-grid");
 requireContains("apps/miniprogram/pages/category/category.wxss", "tagSkeletonSweep");
+requireContains("apps/miniprogram/pages/detail/detail.wxml", "detail-panel-skeleton");
+requireContains("apps/miniprogram/pages/detail/detail.wxss", "detailSkeletonSweep");
 requireContains("apps/miniprogram/utils/api.ts", 'const API_BASE = "https://wall-api.wdbzk.com/api"');
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download");
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "download-passcode");
