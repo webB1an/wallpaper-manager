@@ -7,6 +7,7 @@ Page({
     item: null as WallpaperDetail | null,
     primaryLink: null as { provider: string; label: string; url: string; passcode?: string } | null,
     primaryUrl: "",
+    primaryPasscode: "",
     sizeText: "",
     typeText: "",
     loading: true,
@@ -37,6 +38,7 @@ Page({
         item,
         primaryLink: item.shortLinks[0] || null,
         primaryUrl: item.shortLinks[0]?.url || "",
+        primaryPasscode: item.shortLinks[0]?.passcode || "",
         sizeText: formatBytes(item.fileSize),
         typeText: formatType(item.type)
       });
@@ -91,7 +93,7 @@ Page({
   openRelated(event: WechatMiniprogram.TouchEvent) {
     const id = String(event.currentTarget.dataset.id || "");
     if (!id || id === this.data.id) return;
-    this.setData({ id, item: null, primaryLink: null, primaryUrl: "", sizeText: "", typeText: "" });
+    this.setData({ id, item: null, primaryLink: null, primaryUrl: "", primaryPasscode: "", sizeText: "", typeText: "" });
     this.loadDetail(id);
   },
 

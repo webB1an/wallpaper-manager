@@ -130,7 +130,7 @@
   font-weight: 780;
 }
 
-.primary-download view text:last-child {
+.primary-download view text:nth-child(2) {
   display: block;
   margin-top: 8rpx;
   overflow: hidden;
@@ -139,6 +139,19 @@
   line-height: 32rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.primary-passcode {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 10rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 10rpx;
+  color: #111820;
+  background: rgba(255, 214, 121, 0.92);
+  font-size: 21rpx;
+  font-weight: 820;
 }
 
 .primary-download button {

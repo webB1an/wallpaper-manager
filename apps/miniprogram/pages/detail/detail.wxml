@@ -24,6 +24,7 @@
         <text>原图短链</text>
         <text wx:if="{{primaryUrl}}">{{primaryUrl}}</text>
         <text wx:else>暂无可用短链</text>
+        <text wx:if="{{primaryPasscode}}" class="primary-passcode">提取码 {{primaryPasscode}}</text>
       </view>
       <button bindtap="copyPrimaryLink">复制主链</button>
     </view>
