@@ -280,3 +280,52 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 6rpx;
+}
+
+.skeleton-card {
+  height: 324rpx;
+  padding: 18rpx;
+  border-radius: 10rpx;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0)),
+    #e8ece7;
+  background-size: 240rpx 100%, 100% 100%;
+  animation: skeletonSweep 1.4s ease-in-out infinite;
+}
+
+.skeleton-card.tall {
+  height: 386rpx;
+}
+
+.skeleton-card text {
+  display: block;
+  width: 70%;
+  height: 22rpx;
+  margin-top: 238rpx;
+  border-radius: 999rpx;
+  background: rgba(17, 24, 32, 0.08);
+}
+
+.skeleton-card.tall text {
+  margin-top: 300rpx;
+}
+
+.skeleton-card text:last-child {
+  width: 42%;
+  margin-top: 14rpx;
+}
+
+@keyframes skeletonSweep {
+  0% {
+    background-position: -260rpx 0, 0 0;
+  }
+  100% {
+    background-position: 420rpx 0, 0 0;
+  }
+}

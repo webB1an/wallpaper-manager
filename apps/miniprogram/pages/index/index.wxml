@@ -71,10 +71,19 @@
     </block>
   </view>
 
-  <view wx:if="{{!loading && error}}" class="empty">
+  <view wx:if="{{loading && items.length === 0}}" class="skeleton-grid">
+    <view class="skeleton-card tall"><text></text><text></text></view>
+    <view class="skeleton-card"><text></text><text></text></view>
+    <view class="skeleton-card"><text></text><text></text></view>
+    <view class="skeleton-card tall"><text></text><text></text></view>
+  </view>
+  <view wx:elif="{{loading && items.length > 0}}" class="loading-more">继续加载缩略图...</view>
+  <view wx:elif="{{!loading && error}}" class="empty state-card">
     <text>{{error}}</text>
     <button class="retry-button" bindtap="retry">重试</button>
   </view>
-  <view wx:elif="{{!loading && items.length === 0}}" class="empty">暂无壁纸</view>
-  <view wx:if="{{loading}}" class="empty">加载中...</view>
+  <view wx:elif="{{!loading && items.length === 0}}" class="empty state-card">
+    <text>暂无壁纸</text>
+    <text class="empty-subtitle">换个关键词或分类再试试</text>
+  </view>
 </view>

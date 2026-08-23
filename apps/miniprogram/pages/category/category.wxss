@@ -162,3 +162,29 @@
     linear-gradient(145deg, rgba(17, 24, 32, 0.08), rgba(17, 24, 32, 0.78)),
     linear-gradient(135deg, #111820, #25465a);
 }
+
+.category-skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+  margin-top: 26rpx;
+}
+
+.category-skeleton-card {
+  height: 172rpx;
+  border-radius: 10rpx;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0)),
+    #e7ece9;
+  background-size: 240rpx 100%, 100% 100%;
+  animation: tagSkeletonSweep 1.4s ease-in-out infinite;
+}
+
+@keyframes tagSkeletonSweep {
+  0% {
+    background-position: -260rpx 0, 0 0;
+  }
+  100% {
+    background-position: 420rpx 0, 0 0;
+  }
+}

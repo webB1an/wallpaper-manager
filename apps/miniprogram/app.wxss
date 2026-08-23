@@ -85,6 +85,27 @@ page {
   display: block;
 }
 
+.state-card {
+  margin-top: 26rpx;
+  padding: 56rpx 24rpx;
+  border: 2rpx dashed #dce4e8;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.empty-subtitle {
+  margin-top: 10rpx;
+  color: #98a39b;
+  font-size: 23rpx;
+}
+
+.loading-more {
+  padding: 30rpx 0 8rpx;
+  color: #7d887f;
+  font-size: 24rpx;
+  text-align: center;
+}
+
 .retry-button {
   width: 160rpx;
   height: 64rpx;

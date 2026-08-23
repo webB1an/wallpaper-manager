@@ -34,10 +34,18 @@
       </view>
     </block>
   </view>
-  <view wx:if="{{!loading && error}}" class="empty">
+  <view wx:if="{{loading && tags.length === 0}}" class="category-skeleton-grid">
+    <view class="category-skeleton-card"></view>
+    <view class="category-skeleton-card"></view>
+    <view class="category-skeleton-card"></view>
+    <view class="category-skeleton-card"></view>
+  </view>
+  <view wx:elif="{{!loading && error}}" class="empty state-card">
     <text>{{error}}</text>
     <button class="retry-button" bindtap="retry">重试</button>
   </view>
-  <view wx:elif="{{!loading && tags.length === 0}}" class="empty">暂无分类</view>
-  <view wx:if="{{loading}}" class="empty">加载中...</view>
+  <view wx:elif="{{!loading && tags.length === 0}}" class="empty state-card">
+    <text>暂无分类</text>
+    <text class="empty-subtitle">上传并完成 AI 识别后会自动生成标签</text>
+  </view>
 </view>
