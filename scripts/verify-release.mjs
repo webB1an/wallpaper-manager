@@ -287,6 +287,7 @@ requireContains("apps/admin/src/main.tsx", "下架活跃短链");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
 requireContains(".github/workflows/deploy.yml", "Smoke production");
+requireContains(".github/workflows/deploy.yml", "npm run lint");
 requireContains(".github/workflows/deploy.yml", "npm run smoke:production");
 requireContains(".github/workflows/deploy.yml", "npm run smoke:auth-code");
 requireContains(".github/workflows/deploy.yml", "Launch readiness report");

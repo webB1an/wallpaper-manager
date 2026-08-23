@@ -39,6 +39,7 @@ jobs:
           npm run prisma:validate
           npm run prisma:generate
           npm run typecheck
+          npm run lint
           npm run build
           npm run smoke:json
           npm run smoke:auth-code
