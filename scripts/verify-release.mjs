@@ -72,6 +72,7 @@ if (rootPackage.scripts?.["smoke:production"] !== "npm run smoke:public && npm r
 if (rootPackage.scripts?.["smoke:production:strict"] !== "node scripts/smoke-public.mjs && node scripts/smoke-admin.mjs --strict") fail("root package must expose smoke:production:strict");
 if (rootPackage.scripts?.["smoke:channel-accounts"] !== "node scripts/smoke-channel-accounts.mjs") fail("root package must expose smoke:channel-accounts");
 if (rootPackage.scripts?.["smoke:storage-accounts"] !== "node scripts/smoke-storage-accounts.mjs") fail("root package must expose smoke:storage-accounts");
+if (rootPackage.scripts?.["smoke:auth-code"] !== "npm run smoke:auth-code -w apps/api") fail("root package must expose smoke:auth-code");
 if (rootPackage.scripts?.["readiness:production"] !== "node scripts/production-readiness.mjs") fail("root package must expose readiness:production");
 if (rootPackage.scripts?.["readiness:production:strict"] !== "node scripts/production-readiness.mjs --strict") fail("root package must expose readiness:production:strict");
 if (rootPackage.scripts?.["readiness:miniprogram"] !== "node scripts/miniprogram-readiness.mjs") fail("root package must expose readiness:miniprogram");
@@ -86,6 +87,7 @@ requireFile("scripts/smoke-admin.mjs");
 requireFile("scripts/smoke-public.mjs");
 requireFile("scripts/smoke-channel-accounts.mjs");
 requireFile("scripts/smoke-storage-accounts.mjs");
+requireFile("apps/api/src/scripts/smoke-auth-code.ts");
 requireFile("scripts/miniprogram-readiness.mjs");
 requireFile("scripts/set-miniprogram-appid.mjs");
 requireFile("scripts/launch-readiness.mjs");
@@ -135,6 +137,8 @@ requireContains("apps/api/src/modules/storage/storage-account.service.ts", "star
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "finishQuarkAuth");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "normalizeAuthCode");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "完整回调 URL");
+requireContains("apps/api/src/scripts/smoke-auth-code.ts", "hash-query-code");
+requireContains("apps/api/package.json", "smoke:auth-code");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "const defaultAccount = await");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "if (defaultAccount) return defaultAccount");
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "where: { isActive: true }");

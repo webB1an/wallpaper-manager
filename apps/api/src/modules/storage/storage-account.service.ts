@@ -267,7 +267,7 @@ function parseBaiduName(output: string) {
   return line || undefined;
 }
 
-function normalizeAuthCode(value: string | undefined) {
+export function normalizeAuthCode(value: string | undefined) {
   const text = value?.trim() || "";
   if (!text) return "";
   const direct = codeFromUrl(text);
