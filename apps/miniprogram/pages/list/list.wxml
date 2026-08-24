@@ -35,6 +35,9 @@
       </block>
     </view>
     <view class="masonry-column">
+      <view wx:if="{{adUnit}}" class="ad-inline">
+        <ad unit-id="{{adUnit}}" binderror="onAdError" />
+      </view>
       <block wx:for="{{rightItems}}" wx:key="id">
         <template is="listPosterCard" data="{{item}}" />
       </block>
@@ -59,9 +62,6 @@
   <view wx:elif="{{!loading && items.length === 0}}" class="empty state-card">
     <text>暂无壁纸</text>
     <text class="empty-subtitle">换个标签或类型再看看</text>
-  </view>
-  <view wx:if="{{adUnit}}" class="ad-float">
-    <ad unit-id="{{adUnit}}" binderror="onAdError" />
   </view>
   <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop"><image class="back-top-icon" src="/assets/icons/top.png" /></view>
 </view>
