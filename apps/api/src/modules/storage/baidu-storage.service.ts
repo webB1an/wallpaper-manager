@@ -71,12 +71,12 @@ export class BaiduStorageService {
     return result.stdout;
   }
 
-  /** 在网盘里按关键字搜索文件，返回匹配项（path 为网盘显示路径）。失败时返回空数组。 */
-  async search(keyword: string, account?: ManagedStorageAccount): Promise<Array<{ path: string; name: string; size: number; isDir: boolean }>> {
-    if (!keyword) return [];
+  /** 在网盘里按关键字搜索文件。失败时抛出；成功返回匹配项与原始输出。 */
+  async search(keyword: string, account?: ManagedStorageAccount): Promise<{ items: Array<{ path: string; name: string; size: number; isDir: boolean }>; raw: string }> {
+    if (!keyword) return { items: [], raw: "" };
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "search", keyword, "--json"], { timeoutMs: 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘搜索失败");
-    return parseBaiduSearchItems(result.stdout);
+    return { items: parseBaiduSearchItems(result.stdout), raw: result.stdout };
   }
 
   async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {
@@ -118,6 +118,14 @@ function parseBaiduSearchItems(stdout: string): Array<{ path: string; name: stri
     else if (rows && typeof rows === "object") {
       const obj = rows as Record<string, unknown>;
       if (Array.isArray(obj.results)) (obj.results as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+      else if (Array.isArray(obj.data)) (obj.data as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+      else if (obj.data && typeof obj.data === "object") {
+        const data = obj.data as Record<string, unknown>;
+        if (Array.isArray(data.results)) (data.results as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+        else if (Array.isArray(data.list)) (data.list as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+        else if (Array.isArray(data.files)) (data.files as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+        else push(data);
+      }
       else push(obj);
     }
   };

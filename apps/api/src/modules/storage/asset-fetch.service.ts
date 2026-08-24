@@ -224,18 +224,21 @@ export class AssetFetchService implements OnModuleInit {
     const keyword = baiduSearchKeyword(wallpaper);
     if (!keyword) return { ok: false, detail: "无搜索关键字" };
     let matches: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
+    let raw = "";
     try {
-      matches = await this.baidu.search(keyword, account);
+      const result = await this.baidu.search(keyword, account);
+      matches = result.items;
+      raw = result.raw;
     } catch (error) {
       return { ok: false, detail: `search拨打异常：${(error as Error).message}` };
     }
-    if (!matches.length) return { ok: false, detail: `search("${keyword}") 无匹配` };
+    if (!matches.length) return { ok: false, detail: `search("${keyword}") 无匹配${raw ? `（原始输出：${raw.slice(0, 300)}）` : ""}` };
     const preferVideo = wallpaper.type === "live";
     const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
     const media = matches.filter((item) => !item.isDir && preferredExts.includes(extname(item.name).toLowerCase()));
     const pool = media.length ? media : matches.filter((item) => !item.isDir);
     const best = pool.sort((a, b) => b.size - a.size)[0];
-    const preview = matches.slice(0, 3).map((m) => `${m.name}(${m.path})`).join(" | ");
+    const preview = matches.slice(0, 5).map((m) => `${m.name}(${m.path})`).join(" | ");
     if (!best) return { ok: false, detail: `search("${keyword}") 命中${matches.length}项但无可下载文件：${preview}` };
     const remotePath = baiduApiPath(best.path);
     if (!remotePath) return { ok: false, detail: `已选 "${best.path}" 但路径转换失败` };
