@@ -176,8 +176,8 @@ function sectionTitleFor(sort) {
 }
 function shareTitle(tag) {
     if (tag)
-        return `#${tag} 壁纸合集｜WDBZK`;
-    return "今日灵感墙｜WDBZK壁纸库";
+        return `#${tag} 壁纸合集｜漫元壁纸`;
+    return "今日灵感墙｜漫元壁纸";
 }
 function sharePath(tag) {
     const query = shareQuery(tag);

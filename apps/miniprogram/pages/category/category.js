@@ -82,13 +82,13 @@ Page({
     },
     onShareAppMessage() {
         return {
-            title: "按风格探索壁纸｜WDBZK",
+            title: "按风格探索壁纸｜漫元壁纸",
             path: "/pages/category/category"
         };
     },
     onShareTimeline() {
         return {
-            title: "按风格探索壁纸｜WDBZK"
+            title: "按风格探索壁纸｜漫元壁纸"
         };
     }
 });

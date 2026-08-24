@@ -128,7 +128,7 @@ Page({
     onShareAppMessage() {
         const item = this.data.item;
         return {
-            title: item ? `${item.title}｜WDBZK壁纸库` : "WDBZK壁纸库",
+            title: item ? `${item.title}｜漫元壁纸` : "漫元壁纸",
             path: item ? `/pages/detail/detail?id=${item.id}` : "/pages/index/index",
             imageUrl: item?.coverUrl || ""
         };
@@ -136,7 +136,7 @@ Page({
     onShareTimeline() {
         const item = this.data.item;
         return {
-            title: item ? `${item.title}｜WDBZK壁纸库` : "WDBZK壁纸库",
+            title: item ? `${item.title}｜漫元壁纸` : "漫元壁纸",
             query: item ? `id=${item.id}` : "",
             imageUrl: item?.coverUrl || ""
         };

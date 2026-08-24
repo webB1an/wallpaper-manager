@@ -95,13 +95,13 @@ Page({
     },
     onShareAppMessage() {
         return {
-            title: `${this.data.title}｜WDBZK壁纸库`,
+            title: `${this.data.title}｜漫元壁纸`,
             path: sharePath(this.data.tag, this.data.type, this.data.orientation, this.data.title)
         };
     },
     onShareTimeline() {
         return {
-            title: `${this.data.title}｜WDBZK壁纸库`,
+            title: `${this.data.title}｜漫元壁纸`,
             query: shareQuery(this.data.tag, this.data.type, this.data.orientation, this.data.title)
         };
     }
