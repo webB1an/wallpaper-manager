@@ -179,6 +179,46 @@
   text-align: center;
 }
 
+.download-loading {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.download-loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22rpx;
+  padding: 44rpx 56rpx;
+  border-radius: 24rpx;
+  background: rgba(43, 33, 27, 0.92);
+  color: #ffffff;
+  font-size: 26rpx;
+}
+
+.download-spinner {
+  width: 56rpx;
+  height: 56rpx;
+  border: 6rpx solid rgba(255, 255, 255, 0.3);
+  border-top-color: #e8b87b;
+  border-radius: 50%;
+  animation: download-spin 0.9s linear infinite;
+}
+
+@keyframes download-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .album-guide {
   position: fixed;
   z-index: 9998;

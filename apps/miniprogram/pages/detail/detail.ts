@@ -21,7 +21,8 @@ Page({
     capsuleHeight: 32,
     adUnit: AD_UNITS.detailBanner,
     toastText: "",
-    showAlbumGuide: false
+    showAlbumGuide: false,
+    downloading: false
   },
 
   onAdError() {
@@ -143,7 +144,7 @@ Page({
   },
 
   async onDownload() {
-    if (!this.data.item) return;
+    if (!this.data.item || this.data.downloading) return;
     // 下载前先确认隐私同意 + 相册授权，避免看完激励广告才发现无法保存。
     const permission = await this.ensureSavePermission();
     if (permission === "privacy") {
@@ -159,7 +160,8 @@ Page({
       await ensureOpenid();
       const reward = await this.rewardStatus();
       if (reward.rewarded && (reward.type === "unlimited" || reward.remaining > 0)) {
-        await this.grantDownload();
+        this.setData({ downloading: true });
+        await this.grantDownload().finally(() => this.setData({ downloading: false }));
         return;
       }
     } catch (error) {
@@ -179,9 +181,12 @@ Page({
             this.showNotice("完整观看视频后才能下载");
             return;
           }
-          this.grantDownload().catch((error: unknown) => {
-            this.showNotice(error instanceof Error ? error.message : "下载失败");
-          });
+          this.setData({ downloading: true });
+          this.grantDownload()
+            .catch((error: unknown) => {
+              this.showNotice(error instanceof Error ? error.message : "下载失败");
+            })
+            .finally(() => this.setData({ downloading: false }));
         }, 400);
       });
       ad.onError(() => this.showNotice("广告加载失败，请稍后再试"));

@@ -72,6 +72,12 @@
   </view>
 </view>
 <view wx:if="{{toastText}}" class="custom-toast">{{toastText}}</view>
+<view wx:if="{{downloading}}" class="download-loading">
+  <view class="download-loading-box">
+    <view class="download-spinner"></view>
+    <text>正在保存壁纸…</text>
+  </view>
+</view>
 <view wx:if="{{showAlbumGuide}}" class="album-guide">
   <text>保存壁纸需要相册权限</text>
   <button class="album-guide-btn" bindtap="openAlbumSetting">去开启权限</button>
