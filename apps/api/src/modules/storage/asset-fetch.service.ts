@@ -293,20 +293,25 @@ export class AssetFetchService implements OnModuleInit {
       return b.size - a.size;
     });
     const tried: string[] = [];
-    let lastError = "";
+    const errors: string[] = [];
     for (const candidate of candidates) {
       const remotePath = baiduApiPath(candidate.path);
       if (!remotePath) continue;
       tried.push(`${candidate.name}(${remotePath})`);
-      try {
-        const result = await this.baidu.downloadByPath(remotePath, dir, account);
-        this.logger.log(`百度回源：搜索命中 ${candidate.name} -> ${remotePath}`);
-        return { ok: true, detail: `按路径下载 ${remotePath}`, localPath: result.localPath };
-      } catch (error) {
-        lastError = `downloadByPath("${remotePath}") 失败：${(error as Error).message}`;
+      const variants = [remotePath];
+      // bdpan download 提示“路径应为相对路径”，对授权目录下的文件同时尝试相对形式。
+      if (remotePath.startsWith("/apps/bdpan/")) variants.push(remotePath.slice("/apps/bdpan/".length));
+      for (const variant of variants) {
+        try {
+          const result = await this.baidu.downloadByPath(variant, dir, account);
+          this.logger.log(`百度回源：搜索命中 ${candidate.name} -> ${variant}`);
+          return { ok: true, detail: `按路径下载 ${variant}`, localPath: result.localPath };
+        } catch (error) {
+          errors.push(`${variant}：${(error as Error).message}`);
+        }
       }
     }
-    return { ok: false, detail: `${lastError || "无可用路径"}（候选：${tried.join("；")}）`, localPath: "" };
+    return { ok: false, detail: `候选：${tried.join("；")}；错误：${errors.join(" | ")}`, localPath: "" };
   }
 
   private async resolveBaiduByPath(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string; localPath: string }> {
