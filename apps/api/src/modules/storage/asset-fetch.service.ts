@@ -41,9 +41,23 @@ export class AssetFetchService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    void this.failStaleFetchTasks();
     void this.cleanupFetchedAssets();
     const timer = setInterval(() => void this.cleanupFetchedAssets(), CLEANUP_INTERVAL_MS);
     timer.unref();
+  }
+
+  /** 服务重启后内存队列清空，把残留的 running/queued 回源任务标记为失败，避免 ensureAsset 永远返回 preparing。 */
+  private async failStaleFetchTasks() {
+    try {
+      const stale = await this.prisma.task.updateMany({
+        where: { type: "asset_fetch", status: { in: [TaskStatus.queued, TaskStatus.running] } },
+        data: { status: TaskStatus.failed, error: "服务重启，回源任务中断，请稍后重试", message: "回源失败" },
+      });
+      if (stale.count) this.logger.warn(`清理 ${stale.count} 个未完成的回源任务`);
+    } catch (error) {
+      this.logger.warn(`清理未完成回源任务失败：${(error as Error).message}`);
+    }
   }
 
   /** 确保壁纸源文件在服务器上；缺失时触发一次网盘回源（异步）。 */
