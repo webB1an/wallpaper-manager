@@ -288,9 +288,19 @@ Page({
       });
     });
     const isVideo = this.data.item?.type === "live";
+    // 安卓真机有时无法直接保存 downloadFile 的临时路径（invalid file），
+    // 先复制到用户数据目录，再校验文件有效性，最后用持久路径保存更稳。
+    const filePath = await this.persistDownloadFile(tempFilePath, isVideo ? "mp4" : "jpg");
+    if (!isVideo) {
+      const valid = await this.validateImageFile(filePath);
+      if (!valid) {
+        this.showNotice("图片文件无效，请稍后重试");
+        return;
+      }
+    }
     await new Promise<void>((resolve, reject) => {
       const options = {
-        filePath: tempFilePath,
+        filePath,
         success: () => { this.showNotice("已保存到相册"); resolve(); },
         fail: (error: { errMsg?: string }) => {
           const message = (error && error.errMsg) || "";
@@ -305,6 +315,37 @@ Page({
       };
       if (isVideo) wx.saveVideoToPhotosAlbum(options);
       else wx.saveImageToPhotosAlbum(options);
+    });
+  },
+
+  persistDownloadFile(tempFilePath: string, ext: string): Promise<string> {
+    return new Promise((resolve) => {
+      if (!tempFilePath || !wx.getFileSystemManager || !wx.env) {
+        resolve(tempFilePath);
+        return;
+      }
+      const fs = wx.getFileSystemManager();
+      const target = `${wx.env.USER_DATA_PATH}/dl_${Date.now()}.${ext}`;
+      fs.copyFile({
+        srcPath: tempFilePath,
+        destPath: target,
+        success: () => resolve(target),
+        fail: () => resolve(tempFilePath),
+      });
+    });
+  },
+
+  validateImageFile(filePath: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!filePath || !wx.getImageInfo) {
+        resolve(true);
+        return;
+      }
+      wx.getImageInfo({
+        src: filePath,
+        success: () => resolve(true),
+        fail: () => resolve(false),
+      });
     });
   },
 
