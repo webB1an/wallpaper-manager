@@ -140,6 +140,11 @@ Page({
     async onDownload() {
         if (!this.data.item)
             return;
+        if (await this.albumPermissionDenied()) {
+            this.showNotice("请先开启相册权限，再点击下载");
+            this.setData({ showAlbumGuide: true });
+            return;
+        }
         try {
             await ensureOpenid();
             const reward = await this.rewardStatus();
@@ -185,6 +190,14 @@ Page({
     },
     async rewardStatus() {
         return (0, api_1.request)("/reward/status");
+    },
+    albumPermissionDenied() {
+        return new Promise((resolve) => {
+            wx.getSetting({
+                success: (settings) => resolve(settings.authSetting["scope.album"] === false),
+                fail: () => resolve(false),
+            });
+        });
     },
     async grantDownload() {
         if (!this.data.item)
