@@ -1,11 +1,17 @@
 <template name="listPosterCard">
   <view class="poster-card" bindtap="openDetail" data-id="{{item.id}}">
+    <text class="live-ribbon">{{item.type === 'live' ? '动态' : '静态'}}</text>
     <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
-    <view class="poster-body">
+    <view class="poster-info">
       <text class="poster-title">{{item.title}}</text>
-      <view class="poster-meta">
-        <text class="poster-pill">{{item.type === 'live' ? '▶ 动态' : '● 静态'}}</text>
-        <text>{{item.downloadCount}} 次</text>
+      <view class="poster-meta-row">
+        <text class="pill">{{item.typeLabel}}</text>
+        <text class="count">{{item.downloadCount}} 次下载</text>
+      </view>
+      <view class="card-tags" wx:if="{{item.tags.length}}">
+        <block wx:for="{{item.tags}}" wx:for-item="tagName" wx:key="*this">
+          <text wx:if="{{index < 2}}">#{{tagName}}</text>
+        </block>
       </view>
     </view>
   </view>

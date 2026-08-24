@@ -9,6 +9,8 @@ Page({
             { key: "static", title: "静态壁纸", subtitle: "单张图片资源", icon: "static", count: 0 }
         ],
         tags: [],
+        leftTags: [],
+        rightTags: [],
         loading: false,
         error: ""
     },
@@ -28,7 +30,8 @@ Page({
             const countByType = new Map(facets.types.map((item) => [item.type, item.count]));
             this.setData({
                 types: this.data.types.map((item) => ({ ...item, count: countByType.get(item.key) || 0 })),
-                tags: facets.tags
+                tags: facets.tags,
+                ...splitMasonry(facets.tags),
             });
         }
         catch (error) {
@@ -69,4 +72,15 @@ Page({
 });
 function openList(query) {
     wx.navigateTo({ url: `/pages/list/list?${query}` });
+}
+function splitMasonry(items) {
+    const leftTags = [];
+    const rightTags = [];
+    items.forEach((item, index) => {
+        if (index % 2 === 0)
+            leftTags.push(item);
+        else
+            rightTags.push(item);
+    });
+    return { leftTags, rightTags };
 }

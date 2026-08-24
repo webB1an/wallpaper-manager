@@ -60,6 +60,7 @@
 }
 
 .poster-card {
+  position: relative;
   overflow: hidden;
   width: 100%;
   border: 1rpx solid #efe4d6;
@@ -75,34 +76,90 @@
   background: #f0e4d6;
 }
 
-.poster-body {
+.poster-info {
   padding: 16rpx;
 }
 
 .poster-title {
   display: block;
-  height: 68rpx;
   overflow: hidden;
   color: #2b211b;
   font-size: 25rpx;
   font-weight: 760;
   line-height: 34rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.poster-meta {
+.poster-meta-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8rpx;
-  margin-top: 12rpx;
+  gap: 10rpx;
+  margin-top: 10rpx;
   color: #8a7668;
   font-size: 21rpx;
 }
 
-.poster-pill {
-  flex-shrink: 0;
+.pill {
+  display: inline-block;
+  margin-top: 0;
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
   color: #c05621;
+  background: #f7ead8;
+  font-size: 21rpx;
+}
+
+.count {
+  display: inline-block;
+  max-width: 170rpx;
+  margin-top: 0;
+  margin-left: 0;
+  overflow: hidden;
+  color: #8a7668;
+  font-size: 21rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-ribbon {
+  position: absolute;
+  z-index: 2;
+  top: 14rpx;
+  left: 14rpx;
+  min-width: 48rpx;
+  height: 40rpx;
+  padding: 0 14rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: rgba(192, 86, 33, 0.96);
+  font-size: 19rpx;
   font-weight: 760;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-tags {
+  display: flex;
+  gap: 8rpx;
+  min-height: 38rpx;
+  margin-top: 12rpx;
+  overflow: hidden;
+}
+
+.card-tags text {
+  max-width: 132rpx;
+  height: 34rpx;
+  padding: 0 10rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  color: #6d5c4f;
+  background: #faf1e7;
+  font-size: 20rpx;
+  line-height: 34rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .skeleton-card {

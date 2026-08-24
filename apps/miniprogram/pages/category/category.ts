@@ -11,6 +11,8 @@ Page({
       { key: "static", title: "静态壁纸", subtitle: "单张图片资源", icon: "static", count: 0 }
     ] as TypeCard[],
     tags: [] as Array<{ name: string; count: number; coverUrl: string }>,
+    leftTags: [] as Array<{ name: string; count: number; coverUrl: string }>,
+    rightTags: [] as Array<{ name: string; count: number; coverUrl: string }>,
     loading: false,
     error: ""
   },
@@ -32,7 +34,8 @@ Page({
       const countByType = new Map(facets.types.map((item) => [item.type, item.count]));
       this.setData({
         types: this.data.types.map((item) => ({ ...item, count: countByType.get(item.key) || 0 })),
-        tags: facets.tags
+        tags: facets.tags,
+        ...splitMasonry(facets.tags),
       });
     } catch (error) {
       if (token !== requestToken) return;
@@ -75,4 +78,14 @@ Page({
 
 function openList(query: string) {
   wx.navigateTo({ url: `/pages/list/list?${query}` });
+}
+
+function splitMasonry(items: Array<{ name: string; count: number; coverUrl: string }>) {
+  const leftTags: Array<{ name: string; count: number; coverUrl: string }> = [];
+  const rightTags: Array<{ name: string; count: number; coverUrl: string }> = [];
+  items.forEach((item, index) => {
+    if (index % 2 === 0) leftTags.push(item);
+    else rightTags.push(item);
+  });
+  return { leftTags, rightTags };
 }
