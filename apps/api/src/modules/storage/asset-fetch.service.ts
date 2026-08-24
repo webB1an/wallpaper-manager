@@ -7,7 +7,7 @@ import { basename, extname, join } from "node:path";
 import { runCli } from "../../common/cli";
 import { PrismaService } from "../prisma/prisma.service";
 import { TasksService } from "../tasks/tasks.service";
-import { BaiduStorageService } from "./baidu-storage.service";
+import { BaiduStorageService, baiduApiPath } from "./baidu-storage.service";
 import { QuarkStorageService } from "./quark-storage.service";
 import { ManagedStorageAccount, StorageAccountService } from "./storage-account.service";
 
@@ -20,7 +20,8 @@ export interface AssetEnsureResult {
 const MEDIA_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".heic", ".mp4", ".mov", ".webm", ".m4v"];
 const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".m4v"];
 const ARCHIVE_EXTENSIONS = [".zip", ".rar", ".7z", ".tar", ".gz", ".tgz"];
-const FAILED_RETRY_COOLDOWN_MS = 10 * 60_000;
+// 回源失败后允许快速重试（原 10 分钟太久，用户下载会一直吃到缓存错误）。
+const FAILED_RETRY_COOLDOWN_MS = 3 * 60_000;
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60_000;
 
 @Injectable()
@@ -112,7 +113,7 @@ export class AssetFetchService implements OnModuleInit {
         const account = await this.resolveAccount(link);
         localPath = link.provider === StorageProvider.quark
           ? await this.fetchFromQuark(link, wallpaper, account)
-          : await this.fetchFromBaidu(link, tmpDir, account);
+          : await this.fetchFromBaidu(link, tmpDir, account, wallpaper);
         if (localPath) break;
       } catch (error) {
         errors.push(`${link.provider}: ${(error as Error).message}`);
@@ -158,7 +159,7 @@ export class AssetFetchService implements OnModuleInit {
     return this.quark.readFileToLocal(fid, account);
   }
 
-  private async fetchFromBaidu(link: StorageLink, tmpDir: string, account?: ManagedStorageAccount): Promise<string> {
+  private async fetchFromBaidu(link: StorageLink, tmpDir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<string> {
     const dir = join(tmpDir, "baidu");
     if (link.remotePath) {
       // 本账号自己上传的文件：直接用网盘路径下载，避免走分享链接触发“自己的分享链接” errno=13045，导致本地目录为空。
@@ -174,6 +175,11 @@ export class AssetFetchService implements OnModuleInit {
     }
     let localPath = await pickLargestMediaFile(dir);
     if (!localPath) {
+      // 分享下载为空目录，大概率是同账号分享（errno=13045）。按壁纸文件名在网盘搜到实际路径，再按路径下载。
+      await this.resolveBaiduBySearch(dir, account, wallpaper).catch(() => undefined);
+      localPath = await pickLargestMediaFile(dir);
+    }
+    if (!localPath) {
       // 百度分享内容本身可能就是压缩包：能解包时继续找媒体文件，不能解包时保留诊断信息。
       localPath = await pickLargestMediaFileInArchives(dir);
     }
@@ -188,6 +194,23 @@ export class AssetFetchService implements OnModuleInit {
   private async downloadFromShare(link: StorageLink, dir: string, account?: ManagedStorageAccount) {
     const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
     await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
+  }
+
+  private async resolveBaiduBySearch(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<boolean> {
+    const keyword = baiduSearchKeyword(wallpaper);
+    if (!keyword) return false;
+    const matches = await this.baidu.search(keyword, account).catch(() => []);
+    if (!matches.length) return false;
+    const preferVideo = wallpaper.type === "live";
+    const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
+    const media = matches.filter((item) => !item.isDir && preferredExts.includes(extname(item.name).toLowerCase()));
+    const pool = media.length ? media : matches.filter((item) => !item.isDir);
+    const best = pool.sort((a, b) => b.size - a.size)[0];
+    if (!best) return false;
+    const remotePath = baiduApiPath(best.path);
+    if (!remotePath) return false;
+    await this.baidu.downloadByPath(remotePath, dir, account);
+    return true;
   }
 
   private async resolveAccount(link: StorageLink): Promise<ManagedStorageAccount | undefined> {
@@ -386,6 +409,12 @@ async function listFiles(dir: string, limit: number): Promise<string[]> {
   }
   await walk(dir);
   return found.slice(0, limit);
+}
+
+function baiduSearchKeyword(wallpaper: Wallpaper): string {
+  const name = (wallpaper.originalName || "").replace(/\.[^.]+$/, "").trim();
+  if (name) return name.slice(0, 24);
+  return (wallpaper.title || "").trim().slice(0, 24);
 }
 
 function mimeTypeOf(ext: string) {

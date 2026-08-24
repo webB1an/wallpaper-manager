@@ -69,6 +69,14 @@ export class BaiduStorageService {
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
   }
 
+  /** 在网盘里按关键字搜索文件，返回匹配项（path 为网盘显示路径）。失败时返回空数组。 */
+  async search(keyword: string, account?: ManagedStorageAccount): Promise<Array<{ path: string; name: string; size: number; isDir: boolean }>> {
+    if (!keyword) return [];
+    const result = await runCli(this.bdpan(), [...baiduArgs(account), "search", keyword, "--json"], { timeoutMs: 60_000 });
+    if (!result.ok) return [];
+    return parseBaiduSearchItems(result.stdout);
+  }
+
   async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "whoami"], { timeoutMs: 15_000 });
     const output = `${result.stdout}\n${result.stderr}`.trim();
@@ -89,4 +97,55 @@ export class BaiduStorageService {
 
 function sanitizeRemoteName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, "_").trim();
+}
+
+function parseBaiduSearchItems(stdout: string): Array<{ path: string; name: string; size: number; isDir: boolean }> {
+  const items: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
+  const seen = new Set<string>();
+  const push = (raw: Record<string, unknown>) => {
+    const path = String(raw.path || raw.remote_path || raw.dpath || "");
+    const name = String(raw.server_filename || raw.name || (path ? path.split("/").pop() || "" : ""));
+    if (!path && !name) return;
+    const key = path || name;
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push({ path, name, size: Number(raw.size ?? raw.fs_size ?? 0) || 0, isDir: Boolean(raw.isdir || raw.is_dir || raw.dir) });
+  };
+  const collect = (rows: unknown) => {
+    if (Array.isArray(rows)) rows.forEach((row) => push((row as Record<string, unknown>) || {}));
+    else if (rows && typeof rows === "object") {
+      const obj = rows as Record<string, unknown>;
+      if (Array.isArray(obj.results)) (obj.results as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+      else push(obj);
+    }
+  };
+  const trimmed = (stdout || "").trim();
+  if (!trimmed) return items;
+  for (const line of trimmed.split(/\r?\n/)) {
+    const text = line.trim();
+    if (!text) continue;
+    try {
+      collect(JSON.parse(text));
+    } catch {
+      // 个别非 JSON 行忽略。
+    }
+  }
+  if (!items.length) {
+    try {
+      collect(JSON.parse(trimmed));
+    } catch {
+      // 无法解析时保持空数组。
+    }
+  }
+  return items;
+}
+
+/** 把 bdpan 返回的（可能是显示路径或相对路径）转成可用于 download 的 /apps/bdpan/... 绝对路径。 */
+export function baiduApiPath(value: string): string {
+  const p = String(value || "").replace(/\\/g, "/").trim();
+  if (!p) return "";
+  if (p === "/apps/bdpan") return p;
+  if (p.startsWith("/apps/bdpan/")) return p;
+  if (p.startsWith("我的应用数据")) return `/apps/bdpan/${p.replace("我的应用数据", "").replace(/^\//, "")}`;
+  return `/apps/bdpan/${p.replace(/^\//, "")}`;
 }
