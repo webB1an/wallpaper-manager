@@ -164,7 +164,7 @@ export class AssetFetchService implements OnModuleInit {
       // 本账号自己上传的文件：直接用网盘路径下载，避免走分享链接触发“自己的分享链接” errno=13045，导致本地目录为空。
       try {
         await this.baidu.downloadByPath(link.remotePath, dir, account);
-      } catch (error) {
+      } catch {
         // 网盘路径异常时退回分享链接方式，避免单一路径导致整条回源失败。
         await this.downloadFromShare(link, dir, account);
       }
