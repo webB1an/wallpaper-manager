@@ -1,9 +1,4 @@
 <view class="page">
-  <view class="hero">
-    <text class="hero-title">按标签探索</text>
-    <text class="hero-subtitle">每个标签取一张热门封面，点进去看完整列表</text>
-  </view>
-
   <view class="section-title">
     <text>资源类型</text>
     <text class="muted">静态 / 动态</text>
