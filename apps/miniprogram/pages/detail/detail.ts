@@ -189,11 +189,42 @@ Page({
         fail: (error) => reject(new Error(error.errMsg || "文件下载失败")),
       });
     });
+    const granted = await this.ensureAlbumPermission();
+    if (!granted) {
+      this.showNotice("需要相册权限才能保存，请在设置中开启");
+      return;
+    }
     const isVideo = this.data.item?.type === "live";
     await new Promise<void>((resolve, reject) => {
       const options = { filePath: tempFilePath, success: () => { this.showNotice("已保存到相册"); resolve(); }, fail: () => reject(new Error("保存到相册失败")) };
       if (isVideo) wx.saveVideoToPhotosAlbum(options);
       else wx.saveImageToPhotosAlbum(options);
+    });
+  },
+
+  ensureAlbumPermission(): Promise<boolean> {
+    return new Promise((resolve) => {
+      wx.getSetting({
+        success: (settings) => {
+          const auth = settings.authSetting as Record<string, boolean>;
+          if (auth["scope.album"]) {
+            resolve(true);
+            return;
+          }
+          wx.authorize({
+            scope: "scope.album",
+            success: () => resolve(true),
+            fail: () => {
+              this.showNotice("需要相册权限，请点击允许或去设置开启");
+              wx.openSetting({
+                success: (result) => resolve(Boolean((result.authSetting as Record<string, boolean>)["scope.album"])),
+                fail: () => resolve(false),
+              });
+            },
+          });
+        },
+        fail: () => resolve(false),
+      });
     });
   },
 
