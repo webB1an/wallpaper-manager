@@ -8,6 +8,7 @@ Page({
         subtitle: "",
         tag: "",
         type: "",
+        orientation: "",
         items: [],
         leftItems: [],
         rightItems: [],
@@ -29,12 +30,14 @@ Page({
     onLoad(options) {
         const tag = decodeOption(options?.tag);
         const type = decodeOption(options?.type);
-        const title = decodeOption(options?.title) || (tag ? `#${tag}` : formatTypeTitle(type));
+        const orientation = decodeOption(options?.orientation);
+        const title = decodeOption(options?.title) || (tag ? `#${tag}` : orientation ? formatOrientationTitle(orientation) : formatTypeTitle(type));
         this.setData({
             tag,
             type,
+            orientation,
             title,
-            subtitle: tag ? "标签下的全部壁纸" : "类型下的全部壁纸"
+            subtitle: tag ? "标签下的全部壁纸" : orientation ? `${formatOrientationTitle(orientation)}下的全部壁纸` : "类型下的全部壁纸"
         });
         wx.setNavigationBarTitle({ title });
         this.load();
@@ -58,6 +61,7 @@ Page({
                 pageSize: 20,
                 tag: this.data.tag,
                 type: this.data.type,
+                orientation: this.data.orientation,
                 sort: "hot"
             });
             if (token !== requestToken)
@@ -92,13 +96,13 @@ Page({
     onShareAppMessage() {
         return {
             title: `${this.data.title}｜WDBZK壁纸库`,
-            path: sharePath(this.data.tag, this.data.type, this.data.title)
+            path: sharePath(this.data.tag, this.data.type, this.data.orientation, this.data.title)
         };
     },
     onShareTimeline() {
         return {
             title: `${this.data.title}｜WDBZK壁纸库`,
-            query: shareQuery(this.data.tag, this.data.type, this.data.title)
+            query: shareQuery(this.data.tag, this.data.type, this.data.orientation, this.data.title)
         };
     }
 });
@@ -126,6 +130,15 @@ function formatTypeTitle(value) {
         return "静态壁纸";
     return "壁纸列表";
 }
+function formatOrientationTitle(value) {
+    if (value === "portrait")
+        return "手机壁纸";
+    if (value === "landscape")
+        return "电脑壁纸";
+    if (value === "square")
+        return "方图";
+    return "设备方向";
+}
 function formatTypeLabel(value) {
     return value === "live" ? "动态" : "静态";
 }
@@ -136,16 +149,18 @@ function formatOrientationLabel(value) {
         return "电脑";
     return "";
 }
-function sharePath(tag, type, title) {
-    const query = shareQuery(tag, type, title);
+function sharePath(tag, type, orientation, title) {
+    const query = shareQuery(tag, type, orientation, title);
     return query ? `/pages/list/list?${query}` : "/pages/list/list";
 }
-function shareQuery(tag, type, title) {
+function shareQuery(tag, type, orientation, title) {
     const query = [];
     if (tag)
         query.push(`tag=${encodeURIComponent(tag)}`);
     if (type)
         query.push(`type=${encodeURIComponent(type)}`);
+    if (orientation)
+        query.push(`orientation=${encodeURIComponent(orientation)}`);
     if (title)
         query.push(`title=${encodeURIComponent(title)}`);
     return query.join("&");

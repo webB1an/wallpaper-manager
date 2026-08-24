@@ -10,6 +10,11 @@ Page({
       { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", icon: "dynamic", count: 0 },
       { key: "static", title: "静态壁纸", subtitle: "单张图片资源", icon: "static", count: 0 }
     ] as TypeCard[],
+    orientations: [
+      { key: "portrait", title: "手机壁纸", subtitle: "竖屏适配", icon: "📱", count: 0 },
+      { key: "landscape", title: "电脑壁纸", subtitle: "横屏适配", icon: "🖥️", count: 0 },
+      { key: "square", title: "方图", subtitle: "正方形适配", icon: "⬜", count: 0 },
+    ] as TypeCard[],
     tags: [] as Array<{ name: string; count: number; coverUrl: string }>,
     leftTags: [] as Array<{ name: string; count: number; coverUrl: string }>,
     rightTags: [] as Array<{ name: string; count: number; coverUrl: string }>,
@@ -44,8 +49,10 @@ Page({
       const facets = await request<WallpaperFacets>("/wallpapers/facets");
       if (token !== requestToken) return;
       const countByType = new Map(facets.types.map((item) => [item.type, item.count]));
+      const countByOrientation = new Map(facets.orientations.map((item) => [item.orientation, item.count]));
       this.setData({
         types: this.data.types.map((item) => ({ ...item, count: countByType.get(item.key) || 0 })),
+        orientations: this.data.orientations.map((item) => ({ ...item, count: countByOrientation.get(item.key) || 0 })),
         tags: facets.tags,
         ...splitMasonry(facets.tags),
       });
@@ -72,6 +79,12 @@ Page({
     const type = String(event.currentTarget.dataset.type || "");
     const title = this.data.types.find((item) => item.key === type)?.title || "壁纸列表";
     openList(`type=${encodeURIComponent(type)}&title=${encodeURIComponent(title)}`);
+  },
+
+  openOrientation(event: WechatMiniprogram.TouchEvent) {
+    const orientation = String(event.currentTarget.dataset.orientation || "");
+    const title = this.data.orientations.find((item) => item.key === orientation)?.title || "设备方向";
+    openList(`orientation=${encodeURIComponent(orientation)}&title=${encodeURIComponent(title)}`);
   },
 
   onShareAppMessage() {

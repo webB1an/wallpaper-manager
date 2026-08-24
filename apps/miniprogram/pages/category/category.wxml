@@ -17,6 +17,23 @@
   </view>
 
   <view class="section-title">
+    <text>设备方向</text>
+    <text class="muted">手机 / 电脑 / 方图</text>
+  </view>
+  <view class="type-grid">
+    <block wx:for="{{orientations}}" wx:key="key">
+      <view class="type-card type-card-{{item.key}}" bindtap="openOrientation" data-orientation="{{item.key}}">
+        <text class="type-mark type-mark-emoji">{{item.icon}}</text>
+        <view>
+          <text>{{item.title}}</text>
+          <text>{{item.subtitle}}</text>
+        </view>
+        <text class="type-count">{{item.count ? item.count + ' 张' : '暂无'}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view class="section-title">
     <text>标签</text>
     <text class="muted">{{tags.length}} 个</text>
   </view>

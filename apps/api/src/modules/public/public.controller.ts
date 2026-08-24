@@ -6,7 +6,7 @@ export class PublicController {
   constructor(private readonly service: PublicService) {}
 
   @Get("wallpapers")
-  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; sort?: string }) {
+  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }) {
     return { code: 200, data: await this.service.list(query) };
   }
 

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { shortUrl } from "../../common/public-url";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -11,16 +11,18 @@ export class PublicService {
     private readonly config: ConfigService,
   ) {}
 
-  async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; sort?: string }) {
+  async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }) {
     const page = positiveInt(query.page, 1, "页码");
     const pageSize = positiveInt(query.pageSize, 20, "每页数量", 50);
     const type = optionalWallpaperType(query.type);
+    const orientation = optionalWallpaperOrientation(query.orientation);
     const keyword = cleanSearchText(query.keyword);
     const tag = cleanSearchText(query.tag);
     const where = {
       status: WallpaperStatus.published,
       ...(keyword ? { title: { contains: keyword } } : {}),
       ...(type ? { type } : {}),
+      ...(orientation ? { orientation } : {}),
       ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
     };
     const period = periodDays(query.sort);
@@ -126,9 +128,14 @@ export class PublicService {
   }
 
   async facets() {
-    const [typeGroups, tagGroups] = await Promise.all([
+    const [typeGroups, orientationGroups, tagGroups] = await Promise.all([
       this.prisma.wallpaper.groupBy({
         by: ["type"],
+        where: { status: WallpaperStatus.published },
+        _count: { _all: true },
+      }),
+      this.prisma.wallpaper.groupBy({
+        by: ["orientation"],
         where: { status: WallpaperStatus.published },
         _count: { _all: true },
       }),
@@ -148,6 +155,9 @@ export class PublicService {
     return {
       types: typeGroups
         .map((group) => ({ type: group.type, count: group._count._all }))
+        .sort((left, right) => right.count - left.count),
+      orientations: orientationGroups
+        .map((group) => ({ orientation: group.orientation, count: group._count._all }))
         .sort((left, right) => right.count - left.count),
       tags: tagGroups
         .map((group) => ({ name: tagNameById.get(group.tagId) || "", count: group._count._all, coverUrl: coverByTagId.get(group.tagId) || FALLBACK_COVER_URL }))
@@ -261,6 +271,12 @@ function optionalWallpaperType(value: string | undefined) {
   if (!value) return undefined;
   if (Object.values(WallpaperType).includes(value as WallpaperType)) return value as WallpaperType;
   throw new BadRequestException("壁纸类型不正确");
+}
+
+function optionalWallpaperOrientation(value: string | undefined) {
+  if (!value) return undefined;
+  if (Object.values(WallpaperOrientation).includes(value as WallpaperOrientation)) return value as WallpaperOrientation;
+  throw new BadRequestException("壁纸方向不正确");
 }
 
 function periodDays(sort: string | undefined) {
