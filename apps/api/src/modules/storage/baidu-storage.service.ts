@@ -54,26 +54,28 @@ export class BaiduStorageService {
   }
 
   /** 通过分享链接下载文件（或整个分享目录）到本地目录。transferDir 为网盘内转存目录（相对 /apps/bdpan）。 */
-  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount, transferDir?: string): Promise<void> {
+  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount, transferDir?: string): Promise<string> {
     await mkdir(localDir, { recursive: true });
     const args = [...baiduArgs(account), "download", url, localDir, ...(passcode ? ["-p", passcode] : []), ...(transferDir ? ["-t", transferDir] : []), "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
+    return result.stdout;
   }
 
   /** 直接按网盘路径下载（适用于本账号自己上传的文件）。绕开分享链接，避免“自己的分享链接” errno=13045 导致本地目录为空。 */
-  async downloadByPath(remotePath: string, localDir: string, account?: ManagedStorageAccount): Promise<void> {
+  async downloadByPath(remotePath: string, localDir: string, account?: ManagedStorageAccount): Promise<string> {
     await mkdir(localDir, { recursive: true });
     const args = [...baiduArgs(account), "download", remotePath, localDir, "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
+    return result.stdout;
   }
 
   /** 在网盘里按关键字搜索文件，返回匹配项（path 为网盘显示路径）。失败时返回空数组。 */
   async search(keyword: string, account?: ManagedStorageAccount): Promise<Array<{ path: string; name: string; size: number; isDir: boolean }>> {
     if (!keyword) return [];
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "search", keyword, "--json"], { timeoutMs: 60_000 });
-    if (!result.ok) return [];
+    if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘搜索失败");
     return parseBaiduSearchItems(result.stdout);
   }
 

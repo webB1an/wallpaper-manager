@@ -161,23 +161,41 @@ export class AssetFetchService implements OnModuleInit {
 
   private async fetchFromBaidu(link: StorageLink, tmpDir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<string> {
     const dir = join(tmpDir, "baidu");
+    const steps: string[] = [];
+    const cliOutputs: string[] = [];
+
     if (link.remotePath) {
       // 本账号自己上传的文件：直接用网盘路径下载，避免走分享链接触发“自己的分享链接” errno=13045，导致本地目录为空。
       try {
-        await this.baidu.downloadByPath(link.remotePath, dir, account);
-      } catch {
+        cliOutputs.push(await this.baidu.downloadByPath(link.remotePath, dir, account));
+        steps.push(`按路径下载 ${link.remotePath}`);
+      } catch (error) {
+        steps.push(`按路径下载失败：${(error as Error).message}`);
         // 网盘路径异常时退回分享链接方式，避免单一路径导致整条回源失败。
-        await this.downloadFromShare(link, dir, account);
+        try {
+          cliOutputs.push(await this.downloadFromShare(link, dir, account));
+          steps.push("退回分享链接");
+        } catch (shareError) {
+          steps.push(`分享链接失败：${(shareError as Error).message}`);
+        }
       }
     } else {
       // 第三方分享链接：先转存到固定网盘目录（相对 /apps/bdpan），再下载到本地。
-      await this.downloadFromShare(link, dir, account);
+      try {
+        cliOutputs.push(await this.downloadFromShare(link, dir, account));
+        steps.push("分享链接下载");
+      } catch (error) {
+        steps.push(`分享链接失败：${(error as Error).message}`);
+      }
     }
+
     let localPath = await pickLargestMediaFile(dir);
+    let searchDiag = "";
     if (!localPath) {
       // 分享下载为空目录，大概率是同账号分享（errno=13045）。按壁纸文件名在网盘搜到实际路径，再按路径下载。
-      await this.resolveBaiduBySearch(dir, account, wallpaper).catch(() => undefined);
-      localPath = await pickLargestMediaFile(dir);
+      const resolved = await this.resolveBaiduBySearch(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `搜索异常：${(error as Error).message}` }));
+      searchDiag = resolved.detail;
+      if (resolved.ok) localPath = await pickLargestMediaFile(dir);
     }
     if (!localPath) {
       // 百度分享内容本身可能就是压缩包：能解包时继续找媒体文件，不能解包时保留诊断信息。
@@ -186,31 +204,48 @@ export class AssetFetchService implements OnModuleInit {
     if (!localPath) {
       // 诊断：把目录里实际下到的内容写进错误，方便在任务队列里定位（比如分享的是压缩包）
       const found = await listFiles(dir, 5);
-      throw new Error(`百度网盘下载完成但未找到媒体文件${found.length ? `（下载内容：${found.join("、")}）` : "（下载目录为空）"}`);
+      const cli = cliOutputs.join("\n").slice(0, 1000);
+      throw new Error(
+        `百度网盘下载完成但未找到媒体文件${found.length ? `（下载内容：${found.join("、")}）` : "（下载目录为空）"}` +
+        `；回源步骤：${steps.join("；") || "无"}` +
+        (searchDiag ? `；搜索：${searchDiag}` : "") +
+        (cli ? `；bdpan输出：${cli}` : ""),
+      );
     }
     return localPath;
   }
 
-  private async downloadFromShare(link: StorageLink, dir: string, account?: ManagedStorageAccount) {
+  private async downloadFromShare(link: StorageLink, dir: string, account?: ManagedStorageAccount): Promise<string> {
     const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
-    await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
+    return this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
   }
 
-  private async resolveBaiduBySearch(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<boolean> {
+  private async resolveBaiduBySearch(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
     const keyword = baiduSearchKeyword(wallpaper);
-    if (!keyword) return false;
-    const matches = await this.baidu.search(keyword, account).catch(() => []);
-    if (!matches.length) return false;
+    if (!keyword) return { ok: false, detail: "无搜索关键字" };
+    let matches: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
+    try {
+      matches = await this.baidu.search(keyword, account);
+    } catch (error) {
+      return { ok: false, detail: `search拨打异常：${(error as Error).message}` };
+    }
+    if (!matches.length) return { ok: false, detail: `search("${keyword}") 无匹配` };
     const preferVideo = wallpaper.type === "live";
     const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
     const media = matches.filter((item) => !item.isDir && preferredExts.includes(extname(item.name).toLowerCase()));
     const pool = media.length ? media : matches.filter((item) => !item.isDir);
     const best = pool.sort((a, b) => b.size - a.size)[0];
-    if (!best) return false;
+    const preview = matches.slice(0, 3).map((m) => `${m.name}(${m.path})`).join(" | ");
+    if (!best) return { ok: false, detail: `search("${keyword}") 命中${matches.length}项但无可下载文件：${preview}` };
     const remotePath = baiduApiPath(best.path);
-    if (!remotePath) return false;
-    await this.baidu.downloadByPath(remotePath, dir, account);
-    return true;
+    if (!remotePath) return { ok: false, detail: `已选 "${best.path}" 但路径转换失败` };
+    this.logger.log(`百度回源：搜索命中 ${best.name} -> ${remotePath}`);
+    try {
+      await this.baidu.downloadByPath(remotePath, dir, account);
+      return { ok: true, detail: `按路径下载 ${remotePath}` };
+    } catch (error) {
+      return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(error as Error).message}` };
+    }
   }
 
   private async resolveAccount(link: StorageLink): Promise<ManagedStorageAccount | undefined> {
