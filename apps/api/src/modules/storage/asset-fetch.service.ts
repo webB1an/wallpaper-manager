@@ -284,26 +284,29 @@ export class AssetFetchService implements OnModuleInit {
     if (!matches.length) return { ok: false, detail: `search("${keyword}") 无匹配${raw ? `（原始输出：${raw.slice(0, 300)}）` : ""}`, localPath: "" };
     const preferVideo = wallpaper.type === "live";
     const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
-    const media = matches.filter((item) => !item.isDir && preferredExts.includes(extname(item.name).toLowerCase()));
-    const pool = media.length ? media : matches.filter((item) => !item.isDir);
-    const best = pool.sort((a, b) => b.size - a.size)[0];
-    const preview = matches.slice(0, 5).map((m) => `${m.name}(${m.path})`).join(" | ");
-    if (!best) return { ok: false, detail: `search("${keyword}") 命中${matches.length}项但无可下载文件：${preview}`, localPath: "" };
-    const remotePath = baiduApiPath(best.path);
-    if (!remotePath) return { ok: false, detail: `已选 "${best.path}" 但路径转换失败`, localPath: "" };
-    this.logger.log(`百度回源：搜索命中 ${best.name} -> ${remotePath}`);
-    const candidates = [remotePath];
-    if (!remotePath.startsWith("/apps")) candidates.push(`/apps${remotePath}`);
+    const pool = matches.filter((item) => !item.isDir && preferredExts.includes(extname(item.name).toLowerCase()));
+    // 优先 /apps/bdpan 授权目录内的文件，再按大小排序，逐个尝试下载。
+    const candidates = (pool.length ? pool : matches.filter((item) => !item.isDir)).sort((a, b) => {
+      const aUnder = a.path.startsWith("/apps/bdpan") ? 1 : 0;
+      const bUnder = b.path.startsWith("/apps/bdpan") ? 1 : 0;
+      if (aUnder !== bUnder) return bUnder - aUnder;
+      return b.size - a.size;
+    });
+    const tried: string[] = [];
     let lastError = "";
     for (const candidate of candidates) {
+      const remotePath = baiduApiPath(candidate.path);
+      if (!remotePath) continue;
+      tried.push(`${candidate.name}(${remotePath})`);
       try {
-        const result = await this.baidu.downloadByPath(candidate, dir, account);
-        return { ok: true, detail: `按路径下载 ${candidate}`, localPath: result.localPath };
+        const result = await this.baidu.downloadByPath(remotePath, dir, account);
+        this.logger.log(`百度回源：搜索命中 ${candidate.name} -> ${remotePath}`);
+        return { ok: true, detail: `按路径下载 ${remotePath}`, localPath: result.localPath };
       } catch (error) {
-        lastError = `downloadByPath("${candidate}") 失败：${(error as Error).message}`;
+        lastError = `downloadByPath("${remotePath}") 失败：${(error as Error).message}`;
       }
     }
-    return { ok: false, detail: lastError, localPath: "" };
+    return { ok: false, detail: `${lastError || "无可用路径"}（候选：${tried.join("；")}）`, localPath: "" };
   }
 
   private async resolveBaiduByPath(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string; localPath: string }> {
