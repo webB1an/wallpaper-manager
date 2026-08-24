@@ -11,6 +11,7 @@ Page({
         primaryPasscode: "",
         sizeText: "",
         typeText: "",
+        orientationText: "",
         loading: true,
         error: "",
         id: "",
@@ -48,7 +49,8 @@ Page({
                 primaryUrl: item.shortLinks[0]?.url || "",
                 primaryPasscode: item.shortLinks[0]?.passcode || "",
                 sizeText: formatBytes(item.fileSize),
-                typeText: formatType(item.type)
+                typeText: formatType(item.type),
+                orientationText: formatOrientation(item.orientation)
             });
             wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
         }
@@ -114,7 +116,7 @@ Page({
         const id = String(event.currentTarget.dataset.id || "");
         if (!id || id === this.data.id)
             return;
-        this.setData({ id, item: null, primaryLink: null, primaryUrl: "", primaryPasscode: "", sizeText: "", typeText: "" });
+        this.setData({ id, item: null, primaryLink: null, primaryUrl: "", primaryPasscode: "", sizeText: "", typeText: "", orientationText: "" });
         this.loadDetail(id);
     },
     openTag(event) {
@@ -188,4 +190,13 @@ function formatType(value) {
         other: "壁纸资源"
     };
     return map[value] || "壁纸资源";
+}
+function formatOrientation(value) {
+    if (value === "portrait")
+        return "手机壁纸";
+    if (value === "landscape")
+        return "电脑壁纸";
+    if (value === "square")
+        return "方图";
+    return "";
 }

@@ -9,6 +9,7 @@
     <text class="detail-title">{{item.title}}</text>
     <view class="detail-meta">
       <text>{{typeText}}</text>
+      <text wx:if="{{orientationText}}">{{orientationText}}</text>
       <text>{{sizeText}}</text>
       <text>{{item.downloadCount}} 次下载</text>
     </view>
