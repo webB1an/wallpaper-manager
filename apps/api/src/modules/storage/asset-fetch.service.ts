@@ -178,17 +178,22 @@ export class AssetFetchService implements OnModuleInit {
     const dir = join(tmpDir, "baidu");
     const steps: string[] = [];
     const cliOutputs: string[] = [];
+    const downloadedPaths: string[] = [];
 
     if (link.remotePath) {
       // 本账号自己上传的文件：直接用网盘路径下载，避免走分享链接触发“自己的分享链接” errno=13045，导致本地目录为空。
       try {
-        cliOutputs.push(await this.baidu.downloadByPath(link.remotePath, dir, account));
+        const result = await this.baidu.downloadByPath(link.remotePath, dir, account);
+        cliOutputs.push(result.stdout);
+        downloadedPaths.push(result.localPath);
         steps.push(`按路径下载 ${link.remotePath}`);
       } catch (error) {
         steps.push(`按路径下载失败：${(error as Error).message}`);
         // 网盘路径异常时退回分享链接方式，避免单一路径导致整条回源失败。
         try {
-          cliOutputs.push(await this.downloadFromShare(link, dir, account));
+          const result = await this.downloadFromShare(link, dir, account);
+          cliOutputs.push(result.stdout);
+          downloadedPaths.push(result.localPath);
           steps.push("退回分享链接");
         } catch (shareError) {
           steps.push(`分享链接失败：${(shareError as Error).message}`);
@@ -197,26 +202,28 @@ export class AssetFetchService implements OnModuleInit {
     } else {
       // 第三方分享链接：先转存到固定网盘目录（相对 /apps/bdpan），再下载到本地。
       try {
-        cliOutputs.push(await this.downloadFromShare(link, dir, account));
+        const result = await this.downloadFromShare(link, dir, account);
+        cliOutputs.push(result.stdout);
+        downloadedPaths.push(result.localPath);
         steps.push("分享链接下载");
       } catch (error) {
         steps.push(`分享链接失败：${(error as Error).message}`);
       }
     }
 
-    let localPath = await pickLargestMediaFile(dir);
+    let localPath = await this.pickDownloadMedia(downloadedPaths, dir);
     let searchDiag = "";
     if (!localPath) {
       // 分享下载为空目录，大概率是同账号分享（errno=13045）。按壁纸文件名在网盘搜到实际路径，再按路径下载。
-      const resolved = await this.resolveBaiduBySearch(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `搜索异常：${(error as Error).message}` }));
+      const resolved = await this.resolveBaiduBySearch(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `搜索异常：${(error as Error).message}`, localPath: "" }));
       searchDiag = resolved.detail;
-      if (resolved.ok) localPath = await pickLargestMediaFile(dir);
+      if (resolved.ok) localPath = resolved.localPath || (await this.pickDownloadMedia([...downloadedPaths, resolved.localPath], dir));
     }
     if (!localPath) {
       // search 不可用时，按上传规则重建路径（并在所在目录 ls）快速定位。
-      const lsResolved = await this.resolveBaiduByPath(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `路径重建异常：${(error as Error).message}` }));
+      const lsResolved = await this.resolveBaiduByPath(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `路径重建异常：${(error as Error).message}`, localPath: "" }));
       searchDiag = searchDiag ? `${searchDiag}；${lsResolved.detail}` : lsResolved.detail;
-      if (lsResolved.ok) localPath = await pickLargestMediaFile(dir);
+      if (lsResolved.ok) localPath = lsResolved.localPath || (await this.pickDownloadMedia([...downloadedPaths, lsResolved.localPath], dir));
     }
     if (!localPath) {
       // 百度分享内容本身可能就是压缩包：能解包时继续找媒体文件，不能解包时保留诊断信息。
@@ -236,14 +243,35 @@ export class AssetFetchService implements OnModuleInit {
     return localPath;
   }
 
-  private async downloadFromShare(link: StorageLink, dir: string, account?: ManagedStorageAccount): Promise<string> {
+  private async downloadFromShare(link: StorageLink, dir: string, account?: ManagedStorageAccount): Promise<{ stdout: string; localPath: string }> {
     const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
     return this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
   }
 
-  private async resolveBaiduBySearch(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
+  private async pickDownloadMedia(paths: string[], dir: string): Promise<string> {
+    const scanDirs = new Set<string>();
+    for (const p of paths) {
+      if (!p) continue;
+      if (!existsSync(p)) continue;
+      const info = await stat(p).catch(() => null);
+      if (!info) continue;
+      if (info.isFile()) {
+        if (MEDIA_EXTENSIONS.includes(extname(p).toLowerCase())) return p;
+        continue;
+      }
+      if (info.isDirectory()) scanDirs.add(p);
+    }
+    scanDirs.add(dir);
+    for (const d of scanDirs) {
+      const found = await pickLargestMediaFile(d);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  private async resolveBaiduBySearch(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string; localPath: string }> {
     const keyword = baiduSearchKeyword(wallpaper);
-    if (!keyword) return { ok: false, detail: "无搜索关键字" };
+    if (!keyword) return { ok: false, detail: "无搜索关键字", localPath: "" };
     let matches: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
     let raw = "";
     try {
@@ -251,40 +279,40 @@ export class AssetFetchService implements OnModuleInit {
       matches = result.items;
       raw = result.raw;
     } catch (error) {
-      return { ok: false, detail: `search拨打异常：${(error as Error).message}` };
+      return { ok: false, detail: `search拨打异常：${(error as Error).message}`, localPath: "" };
     }
-    if (!matches.length) return { ok: false, detail: `search("${keyword}") 无匹配${raw ? `（原始输出：${raw.slice(0, 300)}）` : ""}` };
+    if (!matches.length) return { ok: false, detail: `search("${keyword}") 无匹配${raw ? `（原始输出：${raw.slice(0, 300)}）` : ""}`, localPath: "" };
     const preferVideo = wallpaper.type === "live";
     const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
     const media = matches.filter((item) => !item.isDir && preferredExts.includes(extname(item.name).toLowerCase()));
     const pool = media.length ? media : matches.filter((item) => !item.isDir);
     const best = pool.sort((a, b) => b.size - a.size)[0];
     const preview = matches.slice(0, 5).map((m) => `${m.name}(${m.path})`).join(" | ");
-    if (!best) return { ok: false, detail: `search("${keyword}") 命中${matches.length}项但无可下载文件：${preview}` };
+    if (!best) return { ok: false, detail: `search("${keyword}") 命中${matches.length}项但无可下载文件：${preview}`, localPath: "" };
     const remotePath = baiduApiPath(best.path);
-    if (!remotePath) return { ok: false, detail: `已选 "${best.path}" 但路径转换失败` };
+    if (!remotePath) return { ok: false, detail: `已选 "${best.path}" 但路径转换失败`, localPath: "" };
     this.logger.log(`百度回源：搜索命中 ${best.name} -> ${remotePath}`);
     const candidates = [remotePath];
     if (!remotePath.startsWith("/apps")) candidates.push(`/apps${remotePath}`);
     let lastError = "";
     for (const candidate of candidates) {
       try {
-        await this.baidu.downloadByPath(candidate, dir, account);
-        return { ok: true, detail: `按路径下载 ${candidate}` };
+        const result = await this.baidu.downloadByPath(candidate, dir, account);
+        return { ok: true, detail: `按路径下载 ${candidate}`, localPath: result.localPath };
       } catch (error) {
         lastError = `downloadByPath("${candidate}") 失败：${(error as Error).message}`;
       }
     }
-    return { ok: false, detail: lastError };
+    return { ok: false, detail: lastError, localPath: "" };
   }
 
-  private async resolveBaiduByPath(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
+  private async resolveBaiduByPath(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string; localPath: string }> {
     const reconstructed = reconstructBaiduRemotePath(wallpaper);
-    if (!reconstructed) return { ok: false, detail: "无法重建网盘路径" };
+    if (!reconstructed) return { ok: false, detail: "无法重建网盘路径", localPath: "" };
     // 1) 直接尝试按上传规则重建的路径下载。
     try {
-      await this.baidu.downloadByPath(reconstructed, dir, account);
-      return { ok: true, detail: `重建路径下载 ${reconstructed}` };
+      const result = await this.baidu.downloadByPath(reconstructed, dir, account);
+      return { ok: true, detail: `重建路径下载 ${reconstructed}`, localPath: result.localPath };
     } catch (error) {
       // 2) 重建失败则列出该文件所在目录，按文件名找一个最接近的。
       const parent = reconstructed.slice(0, reconstructed.lastIndexOf("/"));
@@ -293,7 +321,7 @@ export class AssetFetchService implements OnModuleInit {
       try {
         items = (await this.baidu.list(parent, account)).items;
       } catch (listError) {
-        return { ok: false, detail: `重建路径下载失败：${(error as Error).message}；ls(${parent}) 失败：${(listError as Error).message}` };
+        return { ok: false, detail: `重建路径下载失败：${(error as Error).message}；ls(${parent}) 失败：${(listError as Error).message}`, localPath: "" };
       }
       const preferVideo = wallpaper.type === "live";
       const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
@@ -303,15 +331,15 @@ export class AssetFetchService implements OnModuleInit {
       const best = pool.length ? pool.sort((a, b) => b.size - a.size)[0] : null;
       if (!best) {
         const listed = items.slice(0, 5).map((m) => `${m.name}${m.isDir ? "/" : ""}`).join(" | ");
-        return { ok: false, detail: `重建路径下载失败：${(error as Error).message}；目录 ${parent} 无匹配文件${listed ? `（内容：${listed}）` : ""}` };
+        return { ok: false, detail: `重建路径下载失败：${(error as Error).message}；目录 ${parent} 无匹配文件${listed ? `（内容：${listed}）` : ""}`, localPath: "" };
       }
       const remotePath = baiduApiPath(best.path);
       this.logger.log(`百度回源：目录匹配 ${best.name} -> ${remotePath}`);
       try {
-        await this.baidu.downloadByPath(remotePath, dir, account);
-        return { ok: true, detail: `目录匹配下载 ${remotePath}` };
+        const result = await this.baidu.downloadByPath(remotePath, dir, account);
+        return { ok: true, detail: `目录匹配下载 ${remotePath}`, localPath: result.localPath };
       } catch (downloadError) {
-        return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(downloadError as Error).message}` };
+        return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(downloadError as Error).message}`, localPath: "" };
       }
     }
   }

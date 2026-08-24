@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { statSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { runCli } from "../../common/cli";
 import { baiduArgs, ManagedStorageAccount } from "./storage-account.service";
 
@@ -54,21 +54,21 @@ export class BaiduStorageService {
   }
 
   /** 通过分享链接下载文件（或整个分享目录）到本地目录。transferDir 为网盘内转存目录（相对 /apps/bdpan）。 */
-  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount, transferDir?: string): Promise<string> {
+  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount, transferDir?: string): Promise<{ stdout: string; localPath: string }> {
     await mkdir(localDir, { recursive: true });
     const args = [...baiduArgs(account), "download", url, localDir, ...(passcode ? ["-p", passcode] : []), ...(transferDir ? ["-t", transferDir] : []), "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
-    return result.stdout;
+    return { stdout: result.stdout, localPath: resolveLocalPath(result.stdout) };
   }
 
   /** 直接按网盘路径下载（适用于本账号自己上传的文件）。绕开分享链接，避免“自己的分享链接” errno=13045 导致本地目录为空。 */
-  async downloadByPath(remotePath: string, localDir: string, account?: ManagedStorageAccount): Promise<string> {
+  async downloadByPath(remotePath: string, localDir: string, account?: ManagedStorageAccount): Promise<{ stdout: string; localPath: string }> {
     await mkdir(localDir, { recursive: true });
     const args = [...baiduArgs(account), "download", remotePath, localDir, "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
-    return result.stdout;
+    return { stdout: result.stdout, localPath: resolveLocalPath(result.stdout) };
   }
 
   /** 在网盘里按关键字搜索文件。失败时抛出；成功返回匹配项与原始输出。 */
@@ -169,4 +169,45 @@ export function baiduApiPath(value: string): string {
   // 已经是绝对路径（如 /壁纸分享/...、/apps/...）直接使用，避免误加 /apps/bdpan 前缀。
   if (p.startsWith("/")) return p;
   return `/apps/bdpan/${p.replace(/^\//, "")}`;
+}
+
+/** 从 bdpan download 的 JSON 输出里解析实际落地路径（可能相对 cwd）。 */
+function resolveLocalPath(stdout: string): string {
+  const cleaned = (stdout || "").trim();
+  if (!cleaned) return "";
+  const pick = (obj: Record<string, unknown>) => {
+    const data = (obj.data as Record<string, unknown> | undefined) || {};
+    const value = obj.local_path || obj.localPath || data.local_path || data.localPath || data.filePath || "";
+    return String(value || "");
+  };
+  for (const line of cleaned.split(/\r?\n/)) {
+    const text = line.trim();
+    if (!text) continue;
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) continue;
+      const path = pick(parsed as Record<string, unknown>);
+      if (path && path !== "null") return normalizeLocalPath(path);
+    } catch {
+      // 非 JSON 行忽略。
+    }
+  }
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === "object") {
+      const path = pick(parsed as Record<string, unknown>);
+      if (path && path !== "null") return normalizeLocalPath(path);
+    }
+  } catch {
+    // 忽略。
+  }
+  return "";
+}
+
+function normalizeLocalPath(p: string): string {
+  const value = p.replace(/\\/g, "/").trim();
+  if (!value || value === ".") return "";
+  if (value.startsWith("~")) return join(process.cwd(), value.slice(1).replace(/^\//, ""));
+  if (value.startsWith(".")) return join(process.cwd(), value);
+  return value;
 }
