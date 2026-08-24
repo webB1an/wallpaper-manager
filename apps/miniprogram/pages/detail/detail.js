@@ -139,12 +139,22 @@ Page({
     async onDownload() {
         if (!this.data.item)
             return;
+        try {
+            await ensureOpenid();
+            const reward = await this.rewardStatus();
+            if (reward.rewarded && (reward.type === "unlimited" || reward.remaining > 0)) {
+                await this.grantDownload();
+                return;
+            }
+        }
+        catch {
+            // 查询失败或未授权时仍走打广告流程，避免阻断用户。
+        }
         if (!ads_1.AD_UNITS.rewarded) {
             this.showNotice("激励广告未配置");
             return;
         }
         try {
-            await ensureOpenid();
             const ad = wx.createRewardedVideoAd({ adUnitId: ads_1.AD_UNITS.rewarded });
             ad.onClose(async (result) => {
                 const finished = result && result.isEnded;
@@ -170,6 +180,9 @@ Page({
         catch (error) {
             this.showNotice(error instanceof Error ? error.message : "操作失败");
         }
+    },
+    async rewardStatus() {
+        return (0, api_1.request)("/reward/status");
     },
     async grantDownload() {
         if (!this.data.item)
