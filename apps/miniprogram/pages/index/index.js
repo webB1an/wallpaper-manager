@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const ads_1 = require("../../utils/ads");
 let requestToken = 0;
+let lastShareImage = "";
 Page({
     data: {
         items: [],
@@ -132,17 +133,34 @@ Page({
             return;
         wx.navigateTo({ url: `/pages/list/list?tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}` });
     },
+    randomShareImage() {
+        const pool = [...this.data.heroSlides, ...this.data.items, ...this.data.hotTags];
+        const covers = [...new Set(pool.map((item) => item.coverUrl || "").filter(Boolean))];
+        if (!covers.length)
+            return "";
+        if (covers.length === 1)
+            return covers[0];
+        let next = covers[Math.floor(Math.random() * covers.length)];
+        if (next === lastShareImage) {
+            const others = covers.filter((url) => url !== lastShareImage);
+            next = others.length ? others[Math.floor(Math.random() * others.length)] : next;
+        }
+        lastShareImage = next;
+        return next;
+    },
     onShareAppMessage() {
         return {
             title: shareTitle(this.data.tag),
-            path: sharePath(this.data.tag)
+            path: sharePath(this.data.tag),
+            imageUrl: this.randomShareImage() || undefined
         };
     },
     onShareTimeline() {
         const query = shareQuery(this.data.tag);
         return {
             title: shareTitle(this.data.tag),
-            query
+            query,
+            imageUrl: this.randomShareImage() || undefined
         };
     }
 });

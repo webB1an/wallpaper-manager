@@ -2,6 +2,7 @@ import { request, WallpaperCard, WallpaperFacets } from "../../utils/api";
 import { AD_UNITS } from "../../utils/ads";
 
 let requestToken = 0;
+let lastShareImage = "";
 
 Page({
   data: {
@@ -140,10 +141,25 @@ Page({
     wx.navigateTo({ url: `/pages/list/list?tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}` });
   },
 
+  randomShareImage(): string {
+    const pool = [...this.data.heroSlides, ...this.data.items, ...this.data.hotTags];
+    const covers = [...new Set(pool.map((item) => item.coverUrl || "").filter(Boolean))];
+    if (!covers.length) return "";
+    if (covers.length === 1) return covers[0];
+    let next = covers[Math.floor(Math.random() * covers.length)];
+    if (next === lastShareImage) {
+      const others = covers.filter((url) => url !== lastShareImage);
+      next = others.length ? others[Math.floor(Math.random() * others.length)] : next;
+    }
+    lastShareImage = next;
+    return next;
+  },
+
   onShareAppMessage() {
     return {
       title: shareTitle(this.data.tag),
-      path: sharePath(this.data.tag)
+      path: sharePath(this.data.tag),
+      imageUrl: this.randomShareImage() || undefined
     };
   },
 
@@ -151,7 +167,8 @@ Page({
     const query = shareQuery(this.data.tag);
     return {
       title: shareTitle(this.data.tag),
-      query
+      query,
+      imageUrl: this.randomShareImage() || undefined
     };
   }
 });
