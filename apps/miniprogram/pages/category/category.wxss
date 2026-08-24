@@ -18,16 +18,10 @@
 }
 
 .type-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 60rpx;
   height: 60rpx;
   border-radius: 18rpx;
-  color: #ffffff;
   background: #c05621;
-  font-size: 25rpx;
-  font-weight: 840;
 }
 
 .type-card view {

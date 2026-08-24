@@ -6,7 +6,7 @@
   <view class="type-grid">
     <block wx:for="{{types}}" wx:key="key">
       <view class="type-card type-card-{{item.key}}" bindtap="openType" data-type="{{item.key}}">
-        <text class="type-mark">{{item.icon}}</text>
+        <image class="type-mark" src="/assets/icons/{{item.icon}}.png" />
         <view>
           <text>{{item.title}}</text>
           <text>{{item.subtitle}}</text>

@@ -7,8 +7,8 @@ let requestToken = 0;
 Page({
   data: {
     types: [
-      { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", icon: "▶", count: 0 },
-      { key: "static", title: "静态壁纸", subtitle: "单张图片资源", icon: "▣", count: 0 }
+      { key: "live", title: "动态壁纸", subtitle: "视频与动态资源", icon: "dynamic", count: 0 },
+      { key: "static", title: "静态壁纸", subtitle: "单张图片资源", icon: "static", count: 0 }
     ] as TypeCard[],
     tags: [] as Array<{ name: string; count: number; coverUrl: string }>,
     loading: false,
