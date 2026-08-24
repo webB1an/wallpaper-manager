@@ -3,7 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { StorageLink, StorageProvider, TaskStatus, Wallpaper } from "@prisma/client";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, rm, stat, unlink } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { basename, extname, join } from "node:path";
+import { runCli } from "../../common/cli";
 import { PrismaService } from "../prisma/prisma.service";
 import { TasksService } from "../tasks/tasks.service";
 import { BaiduStorageService } from "./baidu-storage.service";
@@ -16,8 +17,9 @@ export interface AssetEnsureResult {
   message?: string;
 }
 
-const MEDIA_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".mov", ".webm"];
-const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm"];
+const MEDIA_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif", ".heic", ".mp4", ".mov", ".webm", ".m4v"];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm", ".m4v"];
+const ARCHIVE_EXTENSIONS = [".zip", ".rar", ".7z", ".tar", ".gz", ".tgz"];
 const FAILED_RETRY_COOLDOWN_MS = 10 * 60_000;
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60_000;
 
@@ -161,8 +163,16 @@ export class AssetFetchService implements OnModuleInit {
     // 转存副本集中到固定目录（相对 /apps/bdpan），CLI 无删除命令，便于定期手动清空
     const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
     await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
-    const localPath = await pickLargestMediaFile(dir);
-    if (!localPath) throw new Error("百度网盘下载完成但未找到媒体文件");
+    let localPath = await pickLargestMediaFile(dir);
+    if (!localPath) {
+      // 百度分享内容本身可能就是压缩包：能解包时继续找媒体文件，不能解包时保留诊断信息。
+      localPath = await pickLargestMediaFileInArchives(dir);
+    }
+    if (!localPath) {
+      // 诊断：把目录里实际下到的内容写进错误，方便在任务队列里定位（比如分享的是压缩包）
+      const found = await listFiles(dir, 5);
+      throw new Error(`百度网盘下载完成但未找到媒体文件${found.length ? `（下载内容：${found.join("、")}）` : "（下载目录为空）"}`);
+    }
     return localPath;
   }
 
@@ -269,6 +279,101 @@ async function pickLargestMediaFile(dir: string): Promise<string> {
   return best;
 }
 
+async function pickLargestMediaFileInArchives(dir: string): Promise<string> {
+  const archives = await findArchives(dir);
+  for (const archive of archives) {
+    const extractDir = join(dir, `.extract-${basename(archive)}`);
+    try {
+      await extractArchive(archive, extractDir);
+      const localPath = await pickLargestMediaFile(extractDir);
+      if (localPath) return localPath;
+      await rm(extractDir, { recursive: true, force: true }).catch(() => undefined);
+    } catch {
+      // 当前工具不支持该压缩格式或解压失败时，尝试下一个压缩包。
+      await rm(extractDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+  return "";
+}
+
+async function findArchives(dir: string): Promise<string[]> {
+  const archives: string[] = [];
+  async function walk(current: string) {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const full = join(current, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (ARCHIVE_EXTENSIONS.includes(extname(entry.name).toLowerCase())) {
+        archives.push(full);
+      }
+    }
+  }
+  await walk(dir);
+  return archives;
+}
+
+async function extractArchive(filePath: string, destDir: string): Promise<void> {
+  await mkdir(destDir, { recursive: true });
+  const attempts = archiveExtractors(filePath, destDir);
+  if (!attempts.length) throw new Error(`不支持的压缩包格式：${extname(filePath)}`);
+  const errors: string[] = [];
+  for (const [command, args] of attempts) {
+    const result = await runCli(command, args, { timeoutMs: 60 * 60_000 });
+    if (result.ok) return;
+    errors.push(`${command}: ${result.stderr || result.stdout || "解压失败"}`);
+  }
+  throw new Error(errors.join("; "));
+}
+
+function archiveExtractors(filePath: string, destDir: string): Array<[string, string[]]> {
+  const lower = filePath.toLowerCase();
+  const ext = extname(filePath).toLowerCase();
+  if (lower.endsWith(".tar.gz") || lower.endsWith(".tgz")) {
+    return [["tar", ["-xzf", filePath, "-C", destDir]]];
+  }
+  if (ext === ".zip") {
+    return [
+      ["unzip", ["-o", "-q", filePath, "-d", destDir]],
+      ["7z", ["x", "-y", `-o${destDir}`, filePath]],
+    ];
+  }
+  if (ext === ".rar") {
+    return [
+      ["7z", ["x", "-y", `-o${destDir}`, filePath]],
+      ["unrar", ["x", "-y", filePath, `${destDir}/`]],
+    ];
+  }
+  if (ext === ".7z") {
+    return [["7z", ["x", "-y", `-o${destDir}`, filePath]]];
+  }
+  if (ext === ".tar") {
+    return [["tar", ["-xf", filePath, "-C", destDir]]];
+  }
+  if (ext === ".gz") {
+    return [["tar", ["-xzf", filePath, "-C", destDir]]];
+  }
+  return [];
+}
+
+async function listFiles(dir: string, limit: number): Promise<string[]> {
+  const found: string[] = [];
+  async function walk(current: string, prefix = "") {
+    if (found.length >= limit) return;
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      if (found.length >= limit) return;
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        found.push(`${relative}/`);
+        await walk(join(current, entry.name), relative);
+      } else {
+        found.push(relative);
+      }
+    }
+  }
+  await walk(dir);
+  return found.slice(0, limit);
+}
+
 function mimeTypeOf(ext: string) {
   const map: Record<string, string> = {
     ".jpg": "image/jpeg",
@@ -276,9 +381,13 @@ function mimeTypeOf(ext: string) {
     ".png": "image/png",
     ".webp": "image/webp",
     ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".avif": "image/avif",
+    ".heic": "image/heic",
     ".mp4": "video/mp4",
     ".mov": "video/quicktime",
     ".webm": "video/webm",
+    ".m4v": "video/x-m4v",
   };
   return map[ext] || "application/octet-stream";
 }
