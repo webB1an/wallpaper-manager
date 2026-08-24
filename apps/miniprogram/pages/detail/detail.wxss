@@ -179,6 +179,38 @@
   text-align: center;
 }
 
+.album-guide {
+  position: fixed;
+  z-index: 9998;
+  right: 60rpx;
+  bottom: calc(280rpx + env(safe-area-inset-bottom));
+  left: 60rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 16rpx;
+  background: rgba(43, 33, 27, 0.92);
+  color: #ffffff;
+  font-size: 26rpx;
+}
+
+.album-guide-btn {
+  width: 220rpx;
+  height: 64rpx;
+  padding: 0;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #c05621;
+  font-size: 24rpx;
+  line-height: 64rpx;
+}
+
+.album-guide-btn::after {
+  border: 0;
+}
+
 .primary-download > view {
   min-width: 0;
 }

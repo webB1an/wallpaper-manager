@@ -20,7 +20,8 @@ Page({
     capsuleTop: 48,
     capsuleHeight: 32,
     adUnit: AD_UNITS.detailBanner,
-    toastText: ""
+    toastText: "",
+    showAlbumGuide: false
   },
 
   onAdError() {
@@ -209,8 +210,8 @@ Page({
         filePath: tempFilePath,
         success: () => { this.showNotice("已保存到相册"); resolve(); },
         fail: () => {
-          this.showNotice("需要相册权限，请在设置中开启");
-          wx.openSetting({});
+          this.showNotice("需要相册权限，请点击“去开启权限”");
+          this.setData({ showAlbumGuide: true });
           reject(new Error("保存到相册失败"));
         },
       };
@@ -222,6 +223,13 @@ Page({
   showNotice(text: string) {
     this.setData({ toastText: text });
     setTimeout(() => this.setData({ toastText: "" }), 2200);
+  },
+
+  openAlbumSetting() {
+    wx.openSetting({
+      success: () => this.setData({ showAlbumGuide: false }),
+      fail: () => this.setData({ showAlbumGuide: false }),
+    });
   },
 
   onShareAppMessage() {
