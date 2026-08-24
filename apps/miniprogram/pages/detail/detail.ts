@@ -1,6 +1,5 @@
 import { API_BASE, post, request, WallpaperDetail } from "../../utils/api";
 import { AD_UNITS } from "../../utils/ads";
-import { ensureOpenid } from "../../utils/auth";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -271,4 +270,28 @@ function formatOrientation(value?: string) {
   if (value === "landscape") return "电脑壁纸";
   if (value === "square") return "方图";
   return "";
+}
+
+function ensureOpenid(): Promise<string> {
+  const cached = String(wx.getStorageSync("openid") || "");
+  if (cached) return Promise.resolve(cached);
+  return new Promise((resolve, reject) => {
+    wx.login({
+      success: async (result) => {
+        if (!result.code) {
+          reject(new Error("微信登录失败"));
+          return;
+        }
+        try {
+          const login = await post<{ openid: string }>("/auth/login", { code: result.code });
+          if (!login.openid) throw new Error("微信登录失败");
+          wx.setStorageSync("openid", login.openid);
+          resolve(login.openid);
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error("微信登录失败"));
+        }
+      },
+      fail: () => reject(new Error("微信登录失败")),
+    });
+  });
 }

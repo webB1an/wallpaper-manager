@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const ads_1 = require("../../utils/ads");
-const auth_1 = require("../../utils/auth");
 const HISTORY_KEY = "wallpaper_download_history";
 let requestToken = 0;
 Page({
@@ -144,7 +143,7 @@ Page({
             return;
         }
         try {
-            await (0, auth_1.ensureOpenid)();
+            await ensureOpenid();
             const ad = wx.createRewardedVideoAd({ adUnitId: ads_1.AD_UNITS.rewarded });
             ad.onClose(async (result) => {
                 const finished = result && result.isEnded;
@@ -270,4 +269,30 @@ function formatOrientation(value) {
     if (value === "square")
         return "方图";
     return "";
+}
+function ensureOpenid() {
+    const cached = String(wx.getStorageSync("openid") || "");
+    if (cached)
+        return Promise.resolve(cached);
+    return new Promise((resolve, reject) => {
+        wx.login({
+            success: async (result) => {
+                if (!result.code) {
+                    reject(new Error("微信登录失败"));
+                    return;
+                }
+                try {
+                    const login = await (0, api_1.post)("/auth/login", { code: result.code });
+                    if (!login.openid)
+                        throw new Error("微信登录失败");
+                    wx.setStorageSync("openid", login.openid);
+                    resolve(login.openid);
+                }
+                catch (error) {
+                    reject(error instanceof Error ? error : new Error("微信登录失败"));
+                }
+            },
+            fail: () => reject(new Error("微信登录失败")),
+        });
+    });
 }
