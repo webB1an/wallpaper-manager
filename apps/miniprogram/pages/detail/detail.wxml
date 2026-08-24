@@ -27,6 +27,7 @@
       </view>
       <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制主链' : '暂无短链'}}</button>
     </view>
+    <button class="download-wallpaper" bindtap="onDownload">直接下载壁纸</button>
     <ad wx:if="{{adUnit}}" class="detail-ad" unit-id="{{adUnit}}" binderror="onAdError" />
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">

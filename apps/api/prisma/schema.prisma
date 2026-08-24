@@ -31,6 +31,11 @@ enum WallpaperOrientation {
   unknown
 }
 
+enum RewardDownloadType {
+  daily10
+  unlimited
+}
+
 enum StorageProvider {
   quark
   baidu
@@ -69,6 +74,7 @@ model Wallpaper {
   storageLinks    StorageLink[]
   shortLinks      ShortLink[]
   clicks          WallpaperClick[]
+  downloadTokens  DownloadToken[]
   aiAnalysis      AiAnalysis?
   matchKey        String?         @db.VarChar(512)
   matchConfidence Float?
@@ -91,6 +97,29 @@ model WallpaperClick {
   createdAt   DateTime @default(now())
 
   @@index([createdAt, wallpaperId])
+}
+
+model WallpaperReward {
+  id        String             @id @default(cuid())
+  userId    String
+  date      DateTime
+  type      RewardDownloadType
+  usedCount Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@unique([userId, date])
+}
+
+model DownloadToken {
+  token       String   @id
+  wallpaperId String
+  userId      String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model Tag {

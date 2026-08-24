@@ -5,4 +5,5 @@ export const AD_UNITS = {
   listBanner: "adunit-d816603ff2347e3f",
   detailBanner: "adunit-7e8102dfa72fa78b",
   interstitial: "" as string,
+  rewarded: "adunit-a22e3707c941a4e1",
 };

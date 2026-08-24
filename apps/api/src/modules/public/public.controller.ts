@@ -1,4 +1,6 @@
-import { Controller, Get, Param, Post, Query, Redirect } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post, Query, Redirect, Res } from "@nestjs/common";
+import type { Response } from "express";
+import { join } from "node:path";
 import { PublicService } from "./public.service";
 
 @Controller()
@@ -29,6 +31,34 @@ export class PublicController {
   async click(@Param("id") id: string) {
     await this.service.click(id);
     return { code: 200, data: { ok: true } };
+  }
+
+  @Post("auth/login")
+  async login(@Body() body: { code: string }) {
+    return { code: 200, data: await this.service.loginWechat(body.code || "") };
+  }
+
+  @Get("reward/status")
+  async rewardStatus(@Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.rewardStatus(openid || "") };
+  }
+
+  @Post("reward/watch")
+  async rewardWatch(@Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.watchReward(openid || "") };
+  }
+
+  @Post("wallpapers/:id/download")
+  async download(@Headers("x-openid") openid: string, @Param("id") id: string) {
+    return { code: 200, data: await this.service.createDownload(openid || "", id) };
+  }
+
+  @Get("downloads/file/:token")
+  async downloadFile(@Param("token") token: string, @Res() response: Response) {
+    const wallpaper = await this.service.resolveDownloadToken(token);
+    const absolute = join(process.cwd(), "storage", "public", wallpaper.assetPath!);
+    response.setHeader("Content-Type", wallpaper.mimeType || "application/octet-stream");
+    return response.sendFile(absolute);
   }
 
   @Get("/r/:code")

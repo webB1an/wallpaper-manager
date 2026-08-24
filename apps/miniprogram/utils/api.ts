@@ -1,4 +1,4 @@
-const API_BASE = "https://wall-api.wdbzk.com/api";
+export const API_BASE = "https://wall-api.wdbzk.com/api";
 
 export function request<T>(path: string, data?: Record<string, string | number | undefined>): Promise<T> {
   return requestWithMethod<T>("GET", path, data);
@@ -15,11 +15,18 @@ function requestWithMethod<T>(method: "GET" | "POST", path: string, data?: Recor
       .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
       .join("&")
     : "";
+  const useBody = method === "POST" && data && Object.keys(data).length > 0;
   return new Promise((resolve, reject) => {
+    const openid = wx.getStorageSync("openid") || "";
     wx.request({
-      url: `${API_BASE}${path}${query}`,
+      url: `${API_BASE}${path}${useBody ? "" : query}`,
       method,
       timeout: 12000,
+      header: {
+        ...(openid ? { "X-Openid": openid } : {}),
+        ...(useBody ? { "Content-Type": "application/json" } : {}),
+      },
+      data: useBody ? JSON.stringify(data) : undefined,
       success(response) {
         const body = response.data as { code?: number; data?: T; message?: string };
         if (response.statusCode >= 200 && response.statusCode < 300 && body.code === 200) {

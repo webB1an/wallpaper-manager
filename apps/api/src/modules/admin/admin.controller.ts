@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { AdminService } from "./admin.service";
 import { AdminAuthGuard } from "./auth.guard";
 
@@ -82,7 +82,7 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Patch("settings")
-  async updateSettings(@Body() body: { defaultAutoProcess?: boolean; defaultAutoPublish?: boolean }) {
+  async updateSettings(@Body() body: { defaultAutoProcess?: boolean; defaultAutoPublish?: boolean; rewardDownloadType?: RewardDownloadType }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
   }
 

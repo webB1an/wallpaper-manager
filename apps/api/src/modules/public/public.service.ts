@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { nanoid } from "nanoid";
 import { shortUrl } from "../../common/public-url";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -117,6 +118,97 @@ export class PublicService {
       data: { downloadCount: { increment: 1 } },
     });
     await this.prisma.wallpaperClick.create({ data: { wallpaperId: id } });
+  }
+
+  async loginWechat(code: string) {
+    const appid = this.config.get<string>("MINIPROGRAM_APPID")?.trim() || this.config.get<string>("WECHAT_APPID")?.trim();
+    const secret = this.config.get<string>("WECHAT_APP_SECRET")?.trim();
+    if (!appid || !secret) throw new BadRequestException("微信登录未配置：请在服务器 .env 填写 MINIPROGRAM_APPID 和 WECHAT_APP_SECRET");
+    const url = new URL("https://api.weixin.qq.com/sns/jscode2session");
+    url.searchParams.set("appid", appid);
+    url.searchParams.set("secret", secret);
+    url.searchParams.set("js_code", code);
+    url.searchParams.set("grant_type", "authorization_code");
+    const response = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+    const body = (await response.json()) as { openid?: string; errcode?: number; errmsg?: string };
+    if (!body.openid) throw new BadRequestException(body.errmsg || "微信登录失败");
+    return { openid: body.openid };
+  }
+
+  async rewardStatus(openid: string) {
+    const reward = await this.todayReward(openid);
+    if (!reward) return { rewarded: false, remaining: 0, type: "none" };
+    if (reward.type === "unlimited") return { rewarded: true, remaining: -1, type: "unlimited" };
+    return { rewarded: true, remaining: Math.max(0, 10 - reward.usedCount), type: "daily10" };
+  }
+
+  async watchReward(openid: string) {
+    const type = await this.rewardType();
+    const today = this.startOfDay();
+    const reward = await this.prisma.wallpaperReward.upsert({
+      where: { userId_date: { userId: openid, date: today } },
+      update: { type: type as RewardDownloadType, usedCount: 0 },
+      create: { userId: openid, date: today, type, usedCount: 0 },
+    });
+    return { rewarded: true, remaining: reward.type === "unlimited" ? -1 : 10, type: reward.type };
+  }
+
+  async createDownload(openid: string, wallpaperId: string) {
+    const wallpaper = await this.prisma.wallpaper.findFirst({
+      where: { id: wallpaperId, status: WallpaperStatus.published },
+      select: { id: true, coverPath: true, assetPath: true, mimeType: true },
+    });
+    if (!wallpaper) throw new NotFoundException("壁纸不存在或未上架");
+    if (!wallpaper.assetPath) throw new BadRequestException("该壁纸暂无源文件");
+    const reward = await this.requireTodayReward(openid);
+    if (reward.type === "daily10" && reward.usedCount >= 10) {
+      throw new BadRequestException("今日免费下载次数已用完，明天再来或观看一次视频");
+    }
+    const token = nanoid(24);
+    await this.prisma.downloadToken.create({ data: { token, wallpaperId, userId: openid, expiresAt: new Date(Date.now() + 5 * 60_000) } });
+    if (reward.type === "daily10") {
+      await this.prisma.wallpaperReward.update({
+        where: { id: reward.id },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
+    const remaining = reward.type === "unlimited" ? -1 : 10 - reward.usedCount - 1;
+    return { token, expiresIn: 300, remaining: Math.max(0, remaining), type: reward.type };
+  }
+
+  async resolveDownloadToken(token: string) {
+    const record = await this.prisma.downloadToken.findUnique({ where: { token } });
+    if (!record || record.expiresAt < new Date()) throw new NotFoundException("下载链接已失效");
+    const wallpaper = await this.prisma.wallpaper.findUnique({
+      where: { id: record.wallpaperId },
+      select: { assetPath: true, mimeType: true },
+    });
+    if (!wallpaper?.assetPath) throw new NotFoundException("源文件不存在");
+    return wallpaper;
+  }
+
+  private async todayReward(openid: string) {
+    return this.prisma.wallpaperReward.findUnique({
+      where: { userId_date: { userId: openid, date: this.startOfDay() } },
+    });
+  }
+
+  private async requireTodayReward(openid: string) {
+    const reward = await this.todayReward(openid);
+    if (!reward) throw new BadRequestException("请先观看激励视频获取下载次数");
+    return reward;
+  }
+
+  private async rewardType() {
+    const row = await this.prisma.setting.findUnique({ where: { key: "system" } });
+    const value = (row?.value || {}) as { rewardDownloadType?: string };
+    return value.rewardDownloadType === "unlimited" ? "unlimited" : "daily10";
+  }
+
+  private startOfDay() {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
   }
 
   async tags() {

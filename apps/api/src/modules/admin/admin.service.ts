@@ -9,7 +9,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
-import { Prisma, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { Prisma, RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
@@ -27,6 +27,7 @@ import { WALLPAPER_QUEUE } from "./admin.queue";
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
+  rewardDownloadType: RewardDownloadType;
 };
 
 type DiagnosticItem = {
@@ -48,6 +49,7 @@ type StorageSelection = { quarkAccountId?: string; baiduAccountId?: string };
 const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
+  rewardDownloadType: "daily10",
 };
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -163,6 +165,9 @@ export class AdminService {
       ...current,
       ...(typeof input.defaultAutoProcess === "boolean" ? { defaultAutoProcess: input.defaultAutoProcess } : {}),
       ...(typeof input.defaultAutoPublish === "boolean" ? { defaultAutoPublish: input.defaultAutoPublish } : {}),
+      ...(input.rewardDownloadType === "daily10" || input.rewardDownloadType === "unlimited"
+        ? { rewardDownloadType: input.rewardDownloadType }
+        : {}),
     };
     await this.prisma.setting.upsert({
       where: { key: "system" },

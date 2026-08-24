@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.API_BASE = void 0;
 exports.request = request;
 exports.post = post;
-const API_BASE = "https://wall-api.wdbzk.com/api";
+exports.API_BASE = "https://wall-api.wdbzk.com/api";
 function request(path, data) {
     return requestWithMethod("GET", path, data);
 }
@@ -16,11 +17,18 @@ function requestWithMethod(method, path, data) {
             .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
             .join("&")
         : "";
+    const useBody = method === "POST" && data && Object.keys(data).length > 0;
     return new Promise((resolve, reject) => {
+        const openid = wx.getStorageSync("openid") || "";
         wx.request({
-            url: `${API_BASE}${path}${query}`,
+            url: `${exports.API_BASE}${path}${useBody ? "" : query}`,
             method,
             timeout: 12000,
+            header: {
+                ...(openid ? { "X-Openid": openid } : {}),
+                ...(useBody ? { "Content-Type": "application/json" } : {}),
+            },
+            data: useBody ? JSON.stringify(data) : undefined,
             success(response) {
                 const body = response.data;
                 if (response.statusCode >= 200 && response.statusCode < 300 && body.code === 200) {

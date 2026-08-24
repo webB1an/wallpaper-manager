@@ -1300,6 +1300,12 @@ function Settings() {
           <Switch disabled={!defaultChannelReady} />
           {!defaultChannelReady ? <span className="form-hint">未配置默认腾讯频道账号</span> : null}
         </Form.Item>
+        <Form.Item label="激励视频下载模式" name="rewardDownloadType">
+          <Select options={[
+            { value: "daily10", label: "当天 10 次" },
+            { value: "unlimited", label: "无限次" },
+          ]} />
+        </Form.Item>
         <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
       </Form>
     </section>

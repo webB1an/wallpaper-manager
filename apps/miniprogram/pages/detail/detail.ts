@@ -1,5 +1,6 @@
-import { post, request, WallpaperDetail } from "../../utils/api";
+import { API_BASE, post, request, WallpaperDetail } from "../../utils/api";
 import { AD_UNITS } from "../../utils/ads";
+import { ensureOpenid } from "../../utils/auth";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -138,6 +139,62 @@ Page({
     const tag = String(event.currentTarget.dataset.tag || "").trim();
     if (!tag) return;
     wx.navigateTo({ url: `/pages/list/list?tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}` });
+  },
+
+  async onDownload() {
+    if (!this.data.item) return;
+    if (!AD_UNITS.rewarded) {
+      wx.showToast({ title: "激励广告未配置", icon: "none" });
+      return;
+    }
+    try {
+      await ensureOpenid();
+      const ad = wx.createRewardedVideoAd({ adUnitId: AD_UNITS.rewarded });
+      ad.onClose(async (result) => {
+        const finished = result && result.isEnded;
+        if (!finished) {
+          wx.showToast({ title: "完整观看视频后才能下载", icon: "none" });
+          return;
+        }
+        try {
+          await this.grantDownload();
+        } catch (error) {
+          wx.showToast({ title: error instanceof Error ? error.message : "下载失败", icon: "none" });
+        }
+      });
+      ad.onError(() => wx.showToast({ title: "广告加载失败，请稍后再试", icon: "none" }));
+      try {
+        await ad.show();
+      } catch {
+        await ad.load();
+        await ad.show();
+      }
+    } catch (error) {
+      wx.showToast({ title: error instanceof Error ? error.message : "操作失败", icon: "none" });
+    }
+  },
+
+  async grantDownload() {
+    if (!this.data.item) return;
+    await post("/reward/watch", {});
+    const result = await post<{ token: string }>(`/wallpapers/${this.data.item.id}/download`, {});
+    await this.downloadToAlbum(result.token);
+  },
+
+  async downloadToAlbum(token: string) {
+    const tempFilePath = await new Promise<string>((resolve, reject) => {
+      wx.downloadFile({
+        url: `${API_BASE}/downloads/file/${token}`,
+        success: (res) => res.statusCode === 200 ? resolve(res.tempFilePath) : reject(new Error("文件下载失败")),
+        fail: (error) => reject(new Error(error.errMsg || "文件下载失败")),
+      });
+    });
+    const isVideo = this.data.item?.type === "live";
+    await new Promise<void>((resolve, reject) => {
+      const options = { filePath: tempFilePath, success: () => { wx.showToast({ title: "已保存到相册", icon: "success" }); resolve(); }, fail: () => reject(new Error("保存到相册失败")) };
+      if (isVideo) wx.saveVideoToPhotosAlbum(options);
+      else wx.saveImageToPhotosAlbum(options);
+    });
   },
 
   onShareAppMessage() {
