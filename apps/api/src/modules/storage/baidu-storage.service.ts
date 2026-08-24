@@ -53,10 +53,10 @@ export class BaiduStorageService {
     }
   }
 
-  /** 通过分享链接下载文件（或整个分享目录）到本地目录。 */
-  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount): Promise<void> {
+  /** 通过分享链接下载文件（或整个分享目录）到本地目录。transferDir 为网盘内转存目录（相对 /apps/bdpan）。 */
+  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount, transferDir?: string): Promise<void> {
     await mkdir(localDir, { recursive: true });
-    const args = [...baiduArgs(account), "download", url, localDir, ...(passcode ? ["-p", passcode] : []), "--json"];
+    const args = [...baiduArgs(account), "download", url, localDir, ...(passcode ? ["-p", passcode] : []), ...(transferDir ? ["-t", transferDir] : []), "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
   }

@@ -138,6 +138,8 @@ export class AssetFetchService implements OnModuleInit {
     } catch (error) {
       await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: "回源失败" });
     } finally {
+      // 已复制进 fetched/ 的本地原件（夸克链路在 quark-runtime 下）一并清掉，避免堆积
+      if (localPath) await unlink(localPath).catch(() => undefined);
       await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
     }
   }
@@ -147,14 +149,18 @@ export class AssetFetchService implements OnModuleInit {
     const files = await this.quark.shareDetail(link.url, passcode, account);
     const target = pickShareFile(files, wallpaper.type === "live");
     if (!target) throw new Error("分享链接里没有可下载的文件");
-    await this.quark.saveas(link.url, [target.fid], passcode, account);
+    // 转存副本集中到固定目录，CLI 无删除命令，便于定期在夸克网盘里手动清空
+    const saveDir = this.config.get<string>("QUARK_FETCH_SAVE_DIR")?.trim() || "/wallpaper-fetch-tmp";
+    await this.quark.saveas(link.url, [target.fid], passcode, account, saveDir);
     const fid = await this.quark.searchFileFid(target.fileName, account);
     return this.quark.readFileToLocal(fid, account);
   }
 
   private async fetchFromBaidu(link: StorageLink, tmpDir: string, account?: ManagedStorageAccount): Promise<string> {
     const dir = join(tmpDir, "baidu");
-    await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account);
+    // 转存副本集中到固定目录（相对 /apps/bdpan），CLI 无删除命令，便于定期手动清空
+    const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
+    await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
     const localPath = await pickLargestMediaFile(dir);
     if (!localPath) throw new Error("百度网盘下载完成但未找到媒体文件");
     return localPath;

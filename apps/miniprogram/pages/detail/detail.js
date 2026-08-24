@@ -313,7 +313,7 @@ Page({
             }
             if (result.preparing) {
                 if (attempt === 1)
-                    this.showNotice("正在从网盘准备资源，请稍候…");
+                    this.showNotice("正在下载资源，请稍候…");
                 (0, logger_1.logDownload)("preparing", { attempt });
                 await sleep(Math.min(Math.max(result.retryAfterSec || 5, 3), 15) * 1000);
                 continue;

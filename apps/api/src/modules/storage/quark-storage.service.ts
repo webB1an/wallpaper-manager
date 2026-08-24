@@ -107,9 +107,11 @@ export class QuarkStorageService {
     })).filter((file) => file.fid);
   }
 
-  /** 转存分享链接中的指定文件到自己的网盘。 */
-  async saveas(url: string, fids: string[], passcode?: string, account?: ManagedStorageAccount): Promise<void> {
-    await this.runQuarkCli(account, ["saveas", "--url", withPasscode(url, passcode), "--fid-list", fids.join(",")], 15 * 60_000);
+  /** 转存分享链接中的指定文件到自己的网盘。saveDir 传固定目录便于定期手动清理转存副本。 */
+  async saveas(url: string, fids: string[], passcode?: string, account?: ManagedStorageAccount, saveDir?: string): Promise<void> {
+    const args = ["saveas", "--url", withPasscode(url, passcode), "--fid-list", fids.join(",")];
+    if (saveDir) args.push("--to-pdir-path", saveDir);
+    await this.runQuarkCli(account, args, 15 * 60_000);
   }
 
   /** 在自己网盘里按文件名搜索，返回精确匹配的 fid（转存后找回文件用）。 */
