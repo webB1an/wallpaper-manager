@@ -27,6 +27,7 @@
       </view>
       <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制主链' : '暂无短链'}}</button>
     </view>
+    <ad wx:if="{{adUnit}}" unit-id="{{adUnit}}" binderror="onAdError" />
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">
         <text>继续看看</text>
@@ -41,7 +42,6 @@
         </block>
       </view>
     </view>
-    <ad wx:if="{{adUnit}}" unit-id="{{adUnit}}" binderror="onAdError" />
   </view>
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty state-card">
