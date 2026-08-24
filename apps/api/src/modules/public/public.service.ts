@@ -7,12 +7,14 @@ import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { shortUrl } from "../../common/public-url";
 import { PrismaService } from "../prisma/prisma.service";
+import { AssetFetchService } from "../storage/asset-fetch.service";
 
 @Injectable()
 export class PublicService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly assetFetch: AssetFetchService,
   ) {}
 
   async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }) {
@@ -162,14 +164,24 @@ export class PublicService {
       select: { id: true, coverPath: true, assetPath: true, mimeType: true },
     });
     if (!wallpaper) throw new NotFoundException("壁纸不存在或未上架");
-    if (!wallpaper.assetPath) throw new BadRequestException("该壁纸暂无源文件");
+    // 服务器没有源文件时按需从网盘回源：先返回 preparing，由客户端稍后重试，不发 token、不扣次数。
+    if (!wallpaper.assetPath || !existsSync(join(process.cwd(), "storage", "public", wallpaper.assetPath))) {
+      const ensure = await this.assetFetch.ensureAsset(wallpaperId);
+      if (!ensure.ready) {
+        if (ensure.fetching) return { preparing: true, retryAfterSec: 10 };
+        throw new BadRequestException(ensure.message || "该壁纸暂无源文件");
+      }
+    }
+    const fresh = await this.prisma.wallpaper.findUnique({ where: { id: wallpaper.id }, select: { assetPath: true } });
+    if (!fresh?.assetPath) throw new BadRequestException("该壁纸暂无源文件");
+    const assetPath = fresh.assetPath;
     const reward = await this.requireTodayReward(openid);
     if (reward.type === "daily10" && reward.usedCount >= 10) {
       throw new BadRequestException("今日免费下载次数已用完，明天再来或观看一次视频");
     }
     await this.cleanupExpiredTokens();
     const token = nanoid(24);
-    const filePath = await this.copyAssetToTemp(wallpaper.assetPath, token);
+    const filePath = await this.copyAssetToTemp(assetPath, token);
     await this.prisma.downloadToken.create({
       data: { token, wallpaperId, userId: openid, filePath, expiresAt: new Date(Date.now() + 5 * 60_000) },
     });

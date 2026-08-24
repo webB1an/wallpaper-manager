@@ -57,6 +57,7 @@ enum TaskType {
   wdbzk_sync
   channel_publish
   old_cover_import
+  asset_fetch
 }
 
 model Wallpaper {

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const ads_1 = require("../../utils/ads");
+const logger_1 = require("../../utils/logger");
 const HISTORY_KEY = "wallpaper_download_history";
 let requestToken = 0;
 Page({
@@ -141,8 +142,10 @@ Page({
     async onDownload() {
         if (!this.data.item || this.data.downloading)
             return;
+        (0, logger_1.logDownload)("onDownload", { id: this.data.item.id, type: this.data.item.type });
         // 下载前先确认隐私同意 + 相册授权，避免看完激励广告才发现无法保存。
         const permission = await this.ensureSavePermission();
+        (0, logger_1.logDownload)("permission", permission);
         if (permission === "privacy") {
             this.showNotice("请先同意《用户隐私保护指引》再保存");
             return;
@@ -155,6 +158,7 @@ Page({
         try {
             await ensureOpenid();
             const reward = await this.rewardStatus();
+            (0, logger_1.logDownload)("rewardStatus", reward);
             if (reward.rewarded && (reward.type === "unlimited" || reward.remaining > 0)) {
                 this.setData({ downloading: true });
                 await this.grantDownload().finally(() => this.setData({ downloading: false }));
@@ -162,10 +166,12 @@ Page({
             }
         }
         catch (error) {
-            this.showNotice(error instanceof Error ? error.message : "微信登录失败，请稍后再试");
+            (0, logger_1.logDownloadError)("prepare", error);
+            this.showNotice(downloadErrorText(error));
             return;
         }
         if (!ads_1.AD_UNITS.rewarded) {
+            (0, logger_1.logDownload)("noRewardedAdUnit");
             this.showNotice("激励广告未配置");
             return;
         }
@@ -173,6 +179,7 @@ Page({
             const ad = wx.createRewardedVideoAd({ adUnitId: ads_1.AD_UNITS.rewarded });
             ad.onClose(async (result) => {
                 const finished = result && result.isEnded;
+                (0, logger_1.logDownload)("adClosed", { isEnded: finished });
                 setTimeout(() => {
                     if (!finished) {
                         this.showNotice("完整观看视频后才能下载");
@@ -181,21 +188,28 @@ Page({
                     this.setData({ downloading: true });
                     this.grantDownload()
                         .catch((error) => {
-                        this.showNotice(error instanceof Error ? error.message : "下载失败");
+                        (0, logger_1.logDownloadError)("grantDownload", error);
+                        this.showNotice(downloadErrorText(error));
                     })
                         .finally(() => this.setData({ downloading: false }));
                 }, 400);
             });
-            ad.onError(() => this.showNotice("广告加载失败，请稍后再试"));
+            ad.onError((error) => {
+                (0, logger_1.logDownloadError)("rewardedAd", error && error.errMsg ? error.errMsg : error);
+                this.showNotice("广告加载失败，请稍后再试");
+            });
             try {
                 await ad.show();
+                (0, logger_1.logDownload)("adShown");
             }
             catch {
                 await ad.load();
                 await ad.show();
+                (0, logger_1.logDownload)("adShownAfterReload");
             }
         }
         catch (error) {
+            (0, logger_1.logDownloadError)("adShow", error);
             this.showNotice(error instanceof Error ? error.message : "操作失败");
         }
     },
@@ -206,10 +220,15 @@ Page({
         return new Promise((resolve) => {
             wx.getSetting({
                 success: (settings) => {
-                    const value = settings.authSetting["scope.writePhotosAlbum"];
+                    const authSetting = settings.authSetting;
+                    (0, logger_1.logDownload)("authSetting", authSetting);
+                    const value = authSetting["scope.writePhotosAlbum"];
                     resolve(value === true ? "granted" : value === false ? "denied" : "unknown");
                 },
-                fail: () => resolve("unknown"),
+                fail: (error) => {
+                    (0, logger_1.logDownloadError)("getSetting", (error && error.errMsg) || error);
+                    resolve("unknown");
+                },
             });
         });
     },
@@ -233,21 +252,29 @@ Page({
     ensurePrivacyAgreed() {
         return new Promise((resolve) => {
             if (!wx.getPrivacySetting || !wx.requirePrivacyAuthorize) {
+                (0, logger_1.logDownload)("privacyApiUnsupported");
                 resolve(true);
                 return;
             }
             wx.getPrivacySetting({
                 success: (res) => {
+                    (0, logger_1.logDownload)("privacySetting", { needAuthorization: res.needAuthorization });
                     if (!res.needAuthorization) {
                         resolve(true);
                         return;
                     }
                     wx.requirePrivacyAuthorize({
                         success: () => resolve(true),
-                        fail: () => resolve(false),
+                        fail: (error) => {
+                            (0, logger_1.logDownloadError)("requirePrivacyAuthorize", (error && error.errMsg) || error);
+                            resolve(false);
+                        },
                     });
                 },
-                fail: () => resolve(true),
+                fail: (error) => {
+                    (0, logger_1.logDownloadError)("getPrivacySetting", (error && error.errMsg) || error);
+                    resolve(true);
+                },
             });
         });
     },
@@ -255,8 +282,15 @@ Page({
         return new Promise((resolve) => {
             wx.authorize({
                 scope: "scope.writePhotosAlbum",
-                success: () => resolve(true),
-                fail: () => resolve(false),
+                success: () => {
+                    (0, logger_1.logDownload)("authorizeAlbum", "granted");
+                    resolve(true);
+                },
+                fail: (error) => {
+                    // 关键：这里能看到没弹窗的直接原因，比如隐私指引未声明相册权限
+                    (0, logger_1.logDownloadError)("authorizeAlbum", (error && error.errMsg) || error);
+                    resolve(false);
+                },
             });
         });
     },
@@ -264,30 +298,59 @@ Page({
         if (!this.data.item)
             return;
         await (0, api_1.post)("/reward/watch", {});
-        const result = await (0, api_1.post)(`/wallpapers/${this.data.item.id}/download`, {});
+        const result = await this.requestDownloadToken(this.data.item.id);
         await this.downloadToAlbum(result.token);
     },
+    // 服务器没有源文件时后端会异步从网盘回源，接口返回 preparing：
+    // 轮询重试同一接口（不发 token 时不扣激励次数），拿到 token 后走正常下载。
+    async requestDownloadToken(id) {
+        const maxAttempts = 36;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const result = await (0, api_1.post)(`/wallpapers/${id}/download`, {});
+            if (result.token) {
+                (0, logger_1.logDownload)("token", { token: result.token });
+                return { token: result.token };
+            }
+            if (result.preparing) {
+                if (attempt === 1)
+                    this.showNotice("正在从网盘准备资源，请稍候…");
+                (0, logger_1.logDownload)("preparing", { attempt });
+                await sleep(Math.min(Math.max(result.retryAfterSec || 5, 3), 15) * 1000);
+                continue;
+            }
+            throw new Error("下载失败：未获取到下载凭证");
+        }
+        throw new Error("资源准备超时，请稍后再试");
+    },
     async downloadToAlbum(token) {
+        const url = `${api_1.API_BASE}/downloads/file/${token}`;
+        (0, logger_1.logDownload)("downloadFileStart", url);
         const tempFilePath = await new Promise((resolve, reject) => {
             wx.downloadFile({
-                url: `${api_1.API_BASE}/downloads/file/${token}`,
+                url,
                 success: (res) => {
+                    (0, logger_1.logDownload)("downloadFileSuccess", { statusCode: res.statusCode, tempFilePath: res.tempFilePath });
                     if (res.statusCode !== 200) {
-                        reject(new Error("文件下载失败"));
+                        reject(new Error(`文件下载失败：HTTP ${res.statusCode}`));
                         return;
                     }
                     (0, api_1.post)(`/downloads/file/${token}/complete`, {}).catch(() => undefined);
                     resolve(res.tempFilePath);
                 },
-                fail: (error) => reject(new Error(`文件下载失败：${error.errMsg || "未知错误"}`)),
+                fail: (error) => {
+                    (0, logger_1.logDownloadError)("downloadFile", error.errMsg || error);
+                    reject(new Error(`文件下载失败：${error.errMsg || "未知错误"}`));
+                },
             });
         });
         const isVideo = this.data.item?.type === "live";
         // 安卓真机有时无法直接保存 downloadFile 的临时路径（invalid file），
         // 先复制到用户数据目录，再校验文件有效性，最后用持久路径保存更稳。
         const filePath = await this.persistDownloadFile(tempFilePath, isVideo ? "mp4" : "jpg");
+        (0, logger_1.logDownload)("persisted", filePath);
         if (!isVideo) {
             const valid = await this.validateImageFile(filePath);
+            (0, logger_1.logDownload)("validateImage", valid);
             if (!valid) {
                 this.showNotice("图片文件无效，请稍后重试");
                 return;
@@ -296,9 +359,14 @@ Page({
         await new Promise((resolve, reject) => {
             const options = {
                 filePath,
-                success: () => { this.showNotice("已保存到相册"); resolve(); },
+                success: () => {
+                    (0, logger_1.logDownload)("savedToAlbum", filePath);
+                    this.showNotice("已保存到相册");
+                    resolve();
+                },
                 fail: (error) => {
                     const message = (error && error.errMsg) || "";
+                    (0, logger_1.logDownloadError)("saveToAlbum", message || error);
                     if (/auth|deny|denial|permission|album|privacy/i.test(message)) {
                         this.showNotice("需要相册权限，请点击“去开启权限”");
                         this.setData({ showAlbumGuide: true });
@@ -395,6 +463,13 @@ function readHistory() {
 }
 function formatClipboardText(url, passcode) {
     return passcode ? `链接：${url}\n提取码：${passcode}` : url;
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function downloadErrorText(error) {
+    const message = error instanceof Error ? error.message : "下载失败";
+    return message.includes("暂无源文件") ? `${message}，可复制短链到网盘下载` : message;
 }
 function recordDownloadClick(id) {
     if (!id)

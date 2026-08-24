@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { statSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { basename } from "node:path";
 import { runCli } from "../../common/cli";
 import { baiduArgs, ManagedStorageAccount } from "./storage-account.service";
@@ -50,6 +51,14 @@ export class BaiduStorageService {
       if (link) return { url: link };
       throw new Error("无法解析百度分享结果");
     }
+  }
+
+  /** 通过分享链接下载文件（或整个分享目录）到本地目录。 */
+  async downloadShare(url: string, localDir: string, passcode?: string, account?: ManagedStorageAccount): Promise<void> {
+    await mkdir(localDir, { recursive: true });
+    const args = [...baiduArgs(account), "download", url, localDir, ...(passcode ? ["-p", passcode] : []), "--json"];
+    const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
+    if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
   }
 
   async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {

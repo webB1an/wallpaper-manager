@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { lastResult, parseNdjson, runCli } from "../../common/cli";
 import { ManagedStorageAccount, quarkAccountEnv } from "./storage-account.service";
@@ -14,6 +15,13 @@ export interface QuarkUploadResult {
 export interface QuarkShareResult {
   url: string;
   passcode?: string;
+}
+
+export interface QuarkShareFile {
+  fid: string;
+  fileName: string;
+  size: number;
+  isDir: boolean;
 }
 
 @Injectable()
@@ -86,6 +94,84 @@ export class QuarkStorageService {
     }
   }
 
+  /** 列出分享链接里的文件（分享详情，第一页）。 */
+  async shareDetail(url: string, passcode?: string, account?: ManagedStorageAccount): Promise<QuarkShareFile[]> {
+    const result = await this.runQuarkCli(account, ["share-detail", "--url", withPasscode(url, passcode)], 120_000);
+    const data = (result.data || {}) as { files?: Array<Record<string, unknown>> };
+    const files = Array.isArray(data.files) ? data.files : [];
+    return files.map((file) => ({
+      fid: String(file.fid || ""),
+      fileName: String(file.file_name ?? file.filename ?? ""),
+      size: Number(file.size ?? 0),
+      isDir: String(file.file_type ?? file.dir ?? "") === "0" || file.file_type === 0,
+    })).filter((file) => file.fid);
+  }
+
+  /** 转存分享链接中的指定文件到自己的网盘。 */
+  async saveas(url: string, fids: string[], passcode?: string, account?: ManagedStorageAccount): Promise<void> {
+    await this.runQuarkCli(account, ["saveas", "--url", withPasscode(url, passcode), "--fid-list", fids.join(",")], 15 * 60_000);
+  }
+
+  /** 在自己网盘里按文件名搜索，返回精确匹配的 fid（转存后找回文件用）。 */
+  async searchFileFid(fileName: string, account?: ManagedStorageAccount): Promise<string> {
+    const skillDir = this.requireSkillDir();
+    const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
+    const result = await runCli(process.execPath, [
+      cliPath, "search", "--keyword", fileName, "--stdout-only",
+      "--session-input", "wallpaper-manager fetch", "--session-id", this.sessionId(),
+    ], { cwd: skillDir, timeoutMs: 120_000, env: quarkAccountEnv(account) });
+    const lines = parseNdjson(result.stdout);
+    const artifact = lines.find((line) => line.type === "artifact");
+    const artifactPath = String((artifact?.data as { file_path?: string } | undefined)?.file_path || "");
+    if (!artifactPath) throw new Error("夸克搜索未返回结果文件");
+    const entries = (await readFile(artifactPath, "utf8"))
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const matched = entries.find((entry) => String(entry.file_name ?? entry.filename ?? "") === fileName);
+    const fid = String(matched?.fid || "");
+    if (!fid) throw new Error(`夸克网盘中未找到转存文件：${fileName}`);
+    return fid;
+  }
+
+  /** 把自己网盘里的文件读取（下载）到本地，返回本地绝对路径。 */
+  async readFileToLocal(fid: string, account?: ManagedStorageAccount): Promise<string> {
+    const skillDir = this.requireSkillDir();
+    const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
+    const runtimeDir = this.config.get<string>("QUARK_RUNTIME_DIR")?.trim()
+      || join(process.cwd(), "storage", "private", "quark-runtime");
+    const result = await runCli(process.execPath, [
+      cliPath, "read-file", "--fid", fid, "--overwrite",
+      "--session-input", "wallpaper-manager fetch", "--session-id", this.sessionId(),
+    ], { cwd: skillDir, timeoutMs: 60 * 60_000, env: { ...quarkAccountEnv(account), OPENCLAW_RUNTIME_DIR: runtimeDir } });
+    const lines = parseNdjson(result.stdout);
+    const final = lastResult(result.stdout);
+    const code = Number(final?.code ?? (result.ok ? 0 : -1));
+    if (!result.ok || code !== 0) {
+      throw new Error(String(final?.msg || result.stderr || "夸克读取文件失败"));
+    }
+    const fromList = lines.find((line) => line.type === "list" && Number(line.code ?? 0) === 0);
+    const filePath = String((fromList?.data as { filePath?: string } | undefined)?.filePath || "");
+    if (!filePath || !existsSync(filePath)) throw new Error("夸克读取成功但未找到本地文件");
+    return filePath;
+  }
+
+  private async runQuarkCli(account: ManagedStorageAccount | undefined, args: string[], timeoutMs: number) {
+    const skillDir = this.requireSkillDir();
+    const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
+    const result = await runCli(process.execPath, [
+      cliPath, ...args,
+      "--session-input", "wallpaper-manager fetch", "--session-id", this.sessionId(),
+    ], { cwd: skillDir, timeoutMs, env: quarkAccountEnv(account) });
+    const final = lastResult(result.stdout);
+    const code = Number(final?.code ?? (result.ok ? 0 : -1));
+    if (!result.ok || code !== 0) {
+      throw new Error(String(final?.msg || result.stderr || "夸克网盘操作失败"));
+    }
+    return { data: (final?.data || {}) as Record<string, unknown> };
+  }
+
   private requireSkillDir(): string {
     const skillDir = this.config.get<string>("QUARK_SKILL_DIR")?.trim();
     if (!skillDir || !existsSync(join(skillDir, "scripts", "quark-drive.cjs"))) {
@@ -132,4 +218,9 @@ export class QuarkStorageService {
   private sessionId(): string {
     return `${Math.floor(Date.now() / 1000)}-wmgr01`;
   }
+}
+
+function withPasscode(url: string, passcode?: string) {
+  if (!passcode || url.includes("pwd=")) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}pwd=${encodeURIComponent(passcode)}`;
 }
