@@ -160,9 +160,18 @@ export class AssetFetchService implements OnModuleInit {
 
   private async fetchFromBaidu(link: StorageLink, tmpDir: string, account?: ManagedStorageAccount): Promise<string> {
     const dir = join(tmpDir, "baidu");
-    // 转存副本集中到固定目录（相对 /apps/bdpan），CLI 无删除命令，便于定期手动清空
-    const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
-    await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
+    if (link.remotePath) {
+      // 本账号自己上传的文件：直接用网盘路径下载，避免走分享链接触发“自己的分享链接” errno=13045，导致本地目录为空。
+      try {
+        await this.baidu.downloadByPath(link.remotePath, dir, account);
+      } catch (error) {
+        // 网盘路径异常时退回分享链接方式，避免单一路径导致整条回源失败。
+        await this.downloadFromShare(link, dir, account);
+      }
+    } else {
+      // 第三方分享链接：先转存到固定网盘目录（相对 /apps/bdpan），再下载到本地。
+      await this.downloadFromShare(link, dir, account);
+    }
     let localPath = await pickLargestMediaFile(dir);
     if (!localPath) {
       // 百度分享内容本身可能就是压缩包：能解包时继续找媒体文件，不能解包时保留诊断信息。
@@ -174,6 +183,11 @@ export class AssetFetchService implements OnModuleInit {
       throw new Error(`百度网盘下载完成但未找到媒体文件${found.length ? `（下载内容：${found.join("、")}）` : "（下载目录为空）"}`);
     }
     return localPath;
+  }
+
+  private async downloadFromShare(link: StorageLink, dir: string, account?: ManagedStorageAccount) {
+    const transferDir = this.config.get<string>("BAIDU_FETCH_TRANSFER_DIR")?.trim() || "wallpaper-fetch-tmp";
+    await this.baidu.downloadShare(link.url, dir, link.passcode || undefined, account, transferDir);
   }
 
   private async resolveAccount(link: StorageLink): Promise<ManagedStorageAccount | undefined> {

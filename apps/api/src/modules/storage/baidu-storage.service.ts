@@ -61,6 +61,14 @@ export class BaiduStorageService {
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
   }
 
+  /** 直接按网盘路径下载（适用于本账号自己上传的文件）。绕开分享链接，避免“自己的分享链接” errno=13045 导致本地目录为空。 */
+  async downloadByPath(remotePath: string, localDir: string, account?: ManagedStorageAccount): Promise<void> {
+    await mkdir(localDir, { recursive: true });
+    const args = [...baiduArgs(account), "download", remotePath, localDir, "--json"];
+    const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
+    if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
+  }
+
   async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "whoami"], { timeoutMs: 15_000 });
     const output = `${result.stdout}\n${result.stderr}`.trim();
