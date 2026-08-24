@@ -158,3 +158,21 @@
     background-position: 420rpx 0, 0 0;
   }
 }
+
+.back-top {
+  position: fixed;
+  z-index: 99;
+  right: 24rpx;
+  bottom: calc(120rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #c05621;
+  box-shadow: 0 10rpx 30rpx rgba(43, 33, 27, 0.22);
+  font-size: 24rpx;
+  font-weight: 700;
+}

@@ -16,7 +16,17 @@ Page({
         sort: "latest",
         sectionTitle: "最新壁纸",
         loading: false,
-        error: ""
+        error: "",
+        backTopVisible: false
+    },
+    onPageScroll(event) {
+        const visible = event.scrollTop > 600;
+        if (visible !== this.data.backTopVisible) {
+            this.setData({ backTopVisible: visible });
+        }
+    },
+    backTop() {
+        wx.pageScrollTo({ scrollTop: 0, duration: 300 });
     },
     onLoad(options) {
         if (options?.tag) {

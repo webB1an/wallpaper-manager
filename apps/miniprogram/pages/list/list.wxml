@@ -59,4 +59,5 @@
     <text>暂无壁纸</text>
     <text class="empty-subtitle">换个标签或类型再看看</text>
   </view>
+  <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop">顶部</view>
 </view>

@@ -14,7 +14,19 @@ Page({
     total: 0,
     page: 1,
     loading: false,
-    error: ""
+    error: "",
+    backTopVisible: false
+  },
+
+  onPageScroll(event: { scrollTop: number }) {
+    const visible = event.scrollTop > 600;
+    if (visible !== this.data.backTopVisible) {
+      this.setData({ backTopVisible: visible });
+    }
+  },
+
+  backTop() {
+    wx.pageScrollTo({ scrollTop: 0, duration: 300 });
   },
 
   onLoad(options?: { tag?: string; type?: string; title?: string }) {
