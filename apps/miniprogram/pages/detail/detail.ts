@@ -201,7 +201,7 @@ Page({
       wx.downloadFile({
         url: `${API_BASE}/downloads/file/${token}`,
         success: (res) => res.statusCode === 200 ? resolve(res.tempFilePath) : reject(new Error("文件下载失败")),
-        fail: (error) => reject(new Error(error.errMsg || "文件下载失败")),
+        fail: (error) => reject(new Error(`文件下载失败：${error.errMsg || "未知错误"}`)),
       });
     });
     const isVideo = this.data.item?.type === "live";
@@ -209,9 +209,14 @@ Page({
       const options = {
         filePath: tempFilePath,
         success: () => { this.showNotice("已保存到相册"); resolve(); },
-        fail: () => {
-          this.showNotice("需要相册权限，请点击“去开启权限”");
-          this.setData({ showAlbumGuide: true });
+        fail: (error: { errMsg?: string }) => {
+          const message = (error && error.errMsg) || "";
+          if (/auth|deny|derial|permission|album/i.test(message)) {
+            this.showNotice("需要相册权限，请点击“去开启权限”");
+            this.setData({ showAlbumGuide: true });
+          } else {
+            this.showNotice(`保存失败：${message || "未知错误"}`);
+          }
           reject(new Error("保存到相册失败"));
         },
       };
