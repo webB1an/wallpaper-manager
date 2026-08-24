@@ -295,6 +295,10 @@
   margin-top: 42rpx;
 }
 
+.detail-ad {
+  margin-top: 28rpx;
+}
+
 .related-head {
   display: flex;
   justify-content: space-between;
