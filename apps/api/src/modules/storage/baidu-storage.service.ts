@@ -59,7 +59,9 @@ export class BaiduStorageService {
     const args = [...baiduArgs(account), "download", url, localDir, ...(passcode ? ["-p", passcode] : []), ...(transferDir ? ["-t", transferDir] : []), "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
-    return { stdout: result.stdout, localPath: resolveLocalPath(result.stdout) };
+    const outcome = parseBaiduDownloadOutcome(result.stdout);
+    if (!outcome.ok) throw new Error(outcome.error || "百度网盘下载失败");
+    return { stdout: result.stdout, localPath: outcome.localPath };
   }
 
   /** 直接按网盘路径下载（适用于本账号自己上传的文件）。绕开分享链接，避免“自己的分享链接” errno=13045 导致本地目录为空。 */
@@ -68,7 +70,9 @@ export class BaiduStorageService {
     const args = [...baiduArgs(account), "download", remotePath, localDir, "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
-    return { stdout: result.stdout, localPath: resolveLocalPath(result.stdout) };
+    const outcome = parseBaiduDownloadOutcome(result.stdout);
+    if (!outcome.ok) throw new Error(outcome.error || "百度网盘下载失败");
+    return { stdout: result.stdout, localPath: outcome.localPath };
   }
 
   /** 在网盘里按关键字搜索文件。失败时抛出；成功返回匹配项与原始输出。 */
@@ -171,37 +175,41 @@ export function baiduApiPath(value: string): string {
   return `/apps/bdpan/${p.replace(/^\//, "")}`;
 }
 
-/** 从 bdpan download 的 JSON 输出里解析实际落地路径（可能相对 cwd）。 */
-function resolveLocalPath(stdout: string): string {
+/** 解析 bdpan download 的 JSON 输出：判断 code/status 是否成功，并取实际落地路径。 */
+function parseBaiduDownloadOutcome(stdout: string): { ok: boolean; localPath: string; error: string } {
   const cleaned = (stdout || "").trim();
-  if (!cleaned) return "";
-  const pick = (obj: Record<string, unknown>) => {
+  const parseObject = (obj: Record<string, unknown>): { ok: boolean; localPath: string; error: string } => {
     const data = (obj.data as Record<string, unknown> | undefined) || {};
-    const value = obj.local_path || obj.localPath || data.local_path || data.localPath || data.filePath || "";
-    return String(value || "");
+    const status = String(obj.status ?? data.status ?? "");
+    const code = Number(obj.code ?? data.code ?? (status === "success" ? 0 : -1));
+    const ok = code === 0;
+    const value = String(obj.local_path || obj.localPath || data.local_path || data.localPath || data.filePath || "");
+    const error = String(obj.error || data.error || obj.msg || data.msg || "");
+    return { ok, localPath: ok && value ? normalizeLocalPath(value) : "", error: ok ? "" : error };
   };
-  for (const line of cleaned.split(/\r?\n/)) {
-    const text = line.trim();
-    if (!text) continue;
+  const last = (() => {
+    let found: Record<string, unknown> | null = null;
+    for (const line of cleaned.split(/\r?\n/)) {
+      const text = line.trim();
+      if (!text) continue;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) found = parsed as Record<string, unknown>;
+      } catch {
+        // 忽略非 JSON 行。
+      }
+    }
+    if (found) return found;
     try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) continue;
-      const path = pick(parsed as Record<string, unknown>);
-      if (path && path !== "null") return normalizeLocalPath(path);
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
     } catch {
-      // 非 JSON 行忽略。
+      // 忽略。
     }
-  }
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (parsed && typeof parsed === "object") {
-      const path = pick(parsed as Record<string, unknown>);
-      if (path && path !== "null") return normalizeLocalPath(path);
-    }
-  } catch {
-    // 忽略。
-  }
-  return "";
+    return null;
+  })();
+  if (!last) return { ok: false, localPath: "", error: "" };
+  return parseObject(last);
 }
 
 function normalizeLocalPath(p: string): string {
