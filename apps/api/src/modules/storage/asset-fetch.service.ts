@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, rm, stat, unlink } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { runCli } from "../../common/cli";
+import { buildWallpaperRemoteDir } from "../../common/wallpaper-path";
 import { PrismaService } from "../prisma/prisma.service";
 import { TasksService } from "../tasks/tasks.service";
 import { BaiduStorageService, baiduApiPath } from "./baidu-storage.service";
@@ -49,7 +50,7 @@ export class AssetFetchService implements OnModuleInit {
   async ensureAsset(wallpaperId: string): Promise<AssetEnsureResult> {
     const wallpaper = await this.prisma.wallpaper.findUnique({
       where: { id: wallpaperId },
-      include: { storageLinks: { where: { isActive: true } } },
+      include: { storageLinks: { where: { isActive: true } }, tags: { include: { tag: true } } },
     });
     if (!wallpaper) return { ready: false, fetching: false, message: "壁纸不存在" };
     if (wallpaper.assetPath && existsSync(this.assetAbsolutePath(wallpaper.assetPath))) {
@@ -198,8 +199,8 @@ export class AssetFetchService implements OnModuleInit {
       if (resolved.ok) localPath = await pickLargestMediaFile(dir);
     }
     if (!localPath) {
-      // search 不可用时，遍历网盘 wallpapers 目录，按文件名匹配定位。
-      const lsResolved = await this.resolveBaiduByLs(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `遍历异常：${(error as Error).message}` }));
+      // search 不可用时，按上传规则重建路径（并在所在目录 ls）快速定位。
+      const lsResolved = await this.resolveBaiduByPath(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `路径重建异常：${(error as Error).message}` }));
       searchDiag = searchDiag ? `${searchDiag}；${lsResolved.detail}` : lsResolved.detail;
       if (lsResolved.ok) localPath = await pickLargestMediaFile(dir);
     }
@@ -257,48 +258,40 @@ export class AssetFetchService implements OnModuleInit {
     }
   }
 
-  private async resolveBaiduByLs(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
-    const token = baiduSearchKeyword(wallpaper);
-    if (!token) return { ok: false, detail: "无关键字" };
-    const matches: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
-    let visited = 0;
-    await this.walkBaiduTree("/apps/bdpan", account, (item) => {
-      if (item.isDir) return;
-      const ext = extname(item.name).toLowerCase();
-      if (ext && !MEDIA_EXTENSIONS.includes(ext)) return;
-      matches.push(item);
-    }, 0, 4, () => { visited += 1; }).catch((error) => {
-      this.logger.warn(`百度回源 ls 遍历异常：${(error as Error).message}`);
-    });
-    if (!matches.length) return { ok: false, detail: `遍历 ${visited} 个节点后无媒体文件` };
-    const preferVideo = wallpaper.type === "live";
-    const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
-    const byName = matches.filter((m) => m.name.includes(token) || token.includes(m.name.replace(/\.[^.]+$/, "")));
-    const media = byName.filter((m) => preferredExts.includes(extname(m.name).toLowerCase()));
-    const pool = media.length ? media : byName;
-    const best = pool.length ? pool.sort((a, b) => b.size - a.size)[0] : null;
-    if (!best) {
-      return { ok: false, detail: `遍历到 ${matches.length} 个媒体文件但无名称匹配（${token}）：${matches.slice(0, 5).map((m) => m.name).join(" | ")}` };
-    }
-    const remotePath = baiduApiPath(best.path);
-    this.logger.log(`百度回源：ls 定位 ${best.name} -> ${remotePath}（共 ${matches.length} 个媒体）`);
+  private async resolveBaiduByPath(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
+    const reconstructed = reconstructBaiduRemotePath(wallpaper);
+    if (!reconstructed) return { ok: false, detail: "无法重建网盘路径" };
+    // 1) 直接尝试按上传规则重建的路径下载。
     try {
-      await this.baidu.downloadByPath(remotePath, dir, account);
-      return { ok: true, detail: `按路径下载 ${remotePath}` };
+      await this.baidu.downloadByPath(reconstructed, dir, account);
+      return { ok: true, detail: `重建路径下载 ${reconstructed}` };
     } catch (error) {
-      return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(error as Error).message}` };
-    }
-  }
-
-  private async walkBaiduTree(path: string, account: ManagedStorageAccount | undefined, onFile: (item: { path: string; name: string; size: number; isDir: boolean }) => void, depth: number, maxDepth: number, onVisit?: () => void): Promise<void> {
-    if (depth > maxDepth) return;
-    onVisit?.();
-    const { items } = await this.baidu.list(path, account).catch(() => ({ items: [], raw: "" }));
-    for (const item of items) {
-      if (item.isDir) {
-        if (depth < maxDepth) await this.walkBaiduTree(baiduApiPath(item.path), account, onFile, depth + 1, maxDepth, onVisit);
-      } else {
-        onFile(item);
+      // 2) 重建失败则列出该文件所在目录，按文件名找一个最接近的。
+      const parent = reconstructed.slice(0, reconstructed.lastIndexOf("/"));
+      const token = baiduSearchKeyword(wallpaper);
+      let items: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
+      try {
+        items = (await this.baidu.list(parent, account)).items;
+      } catch (listError) {
+        return { ok: false, detail: `重建路径下载失败：${(error as Error).message}；ls(${parent}) 失败：${(listError as Error).message}` };
+      }
+      const preferVideo = wallpaper.type === "live";
+      const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
+      const byName = items.filter((m) => !m.isDir && token && (m.name.includes(token) || token.includes(m.name.replace(/\.[^.]+$/, ""))));
+      const media = byName.filter((m) => preferredExts.includes(extname(m.name).toLowerCase()));
+      const pool = media.length ? media : byName;
+      const best = pool.length ? pool.sort((a, b) => b.size - a.size)[0] : null;
+      if (!best) {
+        const listed = items.slice(0, 5).map((m) => `${m.name}${m.isDir ? "/" : ""}`).join(" | ");
+        return { ok: false, detail: `重建路径下载失败：${(error as Error).message}；目录 ${parent} 无匹配文件${listed ? `（内容：${listed}）` : ""}` };
+      }
+      const remotePath = baiduApiPath(best.path);
+      this.logger.log(`百度回源：目录匹配 ${best.name} -> ${remotePath}`);
+      try {
+        await this.baidu.downloadByPath(remotePath, dir, account);
+        return { ok: true, detail: `目录匹配下载 ${remotePath}` };
+      } catch (downloadError) {
+        return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(downloadError as Error).message}` };
       }
     }
   }
@@ -505,6 +498,21 @@ function baiduSearchKeyword(wallpaper: Wallpaper): string {
   const name = (wallpaper.originalName || "").replace(/\.[^.]+$/, "").trim();
   if (name) return name.slice(0, 24);
   return (wallpaper.title || "").trim().slice(0, 24);
+}
+
+function reconstructBaiduRemotePath(wallpaper: Wallpaper): string {
+  const tags = (wallpaper as unknown as { tags?: Array<{ tag?: { name?: string } }> }).tags || [];
+  const tagNames = tags
+    .map((item) => item.tag?.name || "")
+    .filter(Boolean);
+  const dir = buildWallpaperRemoteDir(String(wallpaper.type || ""), tagNames).baiduRelativeDir;
+  const file = sanitizeBaiduName(wallpaper.originalName || "");
+  if (!file) return "";
+  return `/apps/bdpan/wallpapers/${dir}/${file}`.replace(/\/+/g, "/");
+}
+
+function sanitizeBaiduName(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, "_").trim();
 }
 
 function mimeTypeOf(ext: string) {
