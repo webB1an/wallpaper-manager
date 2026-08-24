@@ -125,10 +125,12 @@ function parseBaiduSearchItems(stdout: string): Array<{ path: string; name: stri
     else if (rows && typeof rows === "object") {
       const obj = rows as Record<string, unknown>;
       if (Array.isArray(obj.results)) (obj.results as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+      else if (Array.isArray(obj.items)) (obj.items as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
       else if (Array.isArray(obj.data)) (obj.data as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
       else if (obj.data && typeof obj.data === "object") {
         const data = obj.data as Record<string, unknown>;
         if (Array.isArray(data.results)) (data.results as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
+        else if (Array.isArray(data.items)) (data.items as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
         else if (Array.isArray(data.list)) (data.list as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
         else if (Array.isArray(data.files)) (data.files as unknown[]).forEach((row) => push((row as Record<string, unknown>) || {}));
         else push(data);
@@ -164,5 +166,7 @@ export function baiduApiPath(value: string): string {
   if (p === "/apps/bdpan") return p;
   if (p.startsWith("/apps/bdpan/")) return p;
   if (p.startsWith("我的应用数据")) return `/apps/bdpan/${p.replace("我的应用数据", "").replace(/^\//, "")}`;
+  // 已经是绝对路径（如 /壁纸分享/...、/apps/...）直接使用，避免误加 /apps/bdpan 前缀。
+  if (p.startsWith("/")) return p;
   return `/apps/bdpan/${p.replace(/^\//, "")}`;
 }

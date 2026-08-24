@@ -110,7 +110,7 @@ export class AssetFetchService implements OnModuleInit {
   private async runFetch(taskId: string, wallpaperId: string) {
     const wallpaper = await this.prisma.wallpaper.findUnique({
       where: { id: wallpaperId },
-      include: { storageLinks: { where: { isActive: true } } },
+      include: { storageLinks: { where: { isActive: true } }, tags: { include: { tag: true } } },
     });
     if (!wallpaper) {
       await this.tasks.update(taskId, { status: "failed", error: "壁纸不存在", message: "回源失败" });
@@ -264,12 +264,18 @@ export class AssetFetchService implements OnModuleInit {
     const remotePath = baiduApiPath(best.path);
     if (!remotePath) return { ok: false, detail: `已选 "${best.path}" 但路径转换失败` };
     this.logger.log(`百度回源：搜索命中 ${best.name} -> ${remotePath}`);
-    try {
-      await this.baidu.downloadByPath(remotePath, dir, account);
-      return { ok: true, detail: `按路径下载 ${remotePath}` };
-    } catch (error) {
-      return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(error as Error).message}` };
+    const candidates = [remotePath];
+    if (!remotePath.startsWith("/apps")) candidates.push(`/apps${remotePath}`);
+    let lastError = "";
+    for (const candidate of candidates) {
+      try {
+        await this.baidu.downloadByPath(candidate, dir, account);
+        return { ok: true, detail: `按路径下载 ${candidate}` };
+      } catch (error) {
+        lastError = `downloadByPath("${candidate}") 失败：${(error as Error).message}`;
+      }
     }
+    return { ok: false, detail: lastError };
   }
 
   private async resolveBaiduByPath(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
