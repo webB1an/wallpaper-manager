@@ -12,6 +12,7 @@
     "navigationBarTextStyle": "black",
     "backgroundColor": "#FBF7F0"
   },
+  "__usePrivacyCheck__": true,
   "tabBar": {
     "color": "#A89484",
     "selectedColor": "#C05621",

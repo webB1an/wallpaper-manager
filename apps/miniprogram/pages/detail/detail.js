@@ -140,8 +140,14 @@ Page({
     async onDownload() {
         if (!this.data.item)
             return;
-        if (await this.albumPermissionDenied()) {
-            this.showNotice("请先开启相册权限，再点击下载");
+        // 下载前先确认隐私同意 + 相册授权，避免看完激励广告才发现无法保存。
+        const permission = await this.ensureSavePermission();
+        if (permission === "privacy") {
+            this.showNotice("请先同意《用户隐私保护指引》再保存");
+            return;
+        }
+        if (permission === "album") {
+            this.showNotice("需要相册权限，请点击“去开启权限”");
             this.setData({ showAlbumGuide: true });
             return;
         }
@@ -191,10 +197,60 @@ Page({
     async rewardStatus() {
         return (0, api_1.request)("/reward/status");
     },
-    albumPermissionDenied() {
+    albumState() {
         return new Promise((resolve) => {
             wx.getSetting({
-                success: (settings) => resolve(settings.authSetting["scope.album"] === false),
+                success: (settings) => {
+                    const value = settings.authSetting["scope.writePhotosAlbum"];
+                    resolve(value === true ? "granted" : value === false ? "denied" : "unknown");
+                },
+                fail: () => resolve("unknown"),
+            });
+        });
+    },
+    async ensureSavePermission() {
+        if (!(await this.ensurePrivacyAgreed()))
+            return "privacy";
+        const state = await this.albumState();
+        if (state === "granted")
+            return "ok";
+        if (state === "denied") {
+            this.setData({ showAlbumGuide: true });
+            return "album";
+        }
+        const granted = await this.requestAlbum();
+        if (!granted) {
+            this.setData({ showAlbumGuide: true });
+            return "album";
+        }
+        return "ok";
+    },
+    ensurePrivacyAgreed() {
+        return new Promise((resolve) => {
+            if (!wx.getPrivacySetting || !wx.requirePrivacyAuthorize) {
+                resolve(true);
+                return;
+            }
+            wx.getPrivacySetting({
+                success: (res) => {
+                    if (!res.needAuthorization) {
+                        resolve(true);
+                        return;
+                    }
+                    wx.requirePrivacyAuthorize({
+                        success: () => resolve(true),
+                        fail: () => resolve(false),
+                    });
+                },
+                fail: () => resolve(true),
+            });
+        });
+    },
+    requestAlbum() {
+        return new Promise((resolve) => {
+            wx.authorize({
+                scope: "scope.writePhotosAlbum",
+                success: () => resolve(true),
                 fail: () => resolve(false),
             });
         });
@@ -228,7 +284,7 @@ Page({
                 success: () => { this.showNotice("已保存到相册"); resolve(); },
                 fail: (error) => {
                     const message = (error && error.errMsg) || "";
-                    if (/auth|deny|derial|permission|album/i.test(message)) {
+                    if (/auth|deny|denial|permission|album|privacy/i.test(message)) {
                         this.showNotice("需要相册权限，请点击“去开启权限”");
                         this.setData({ showAlbumGuide: true });
                     }
