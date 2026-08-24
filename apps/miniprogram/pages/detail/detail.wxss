@@ -302,19 +302,6 @@
   font-weight: 760;
 }
 
-.download-button {
-  width: 100%;
-  min-width: 0;
-  height: 70rpx;
-  padding: 0;
-  border-radius: 10rpx;
-  color: #ffffff;
-  background: #c05621;
-  font-size: 27rpx;
-  font-weight: 760;
-  line-height: 70rpx;
-}
-
 .related-section {
   margin-top: 42rpx;
 }
