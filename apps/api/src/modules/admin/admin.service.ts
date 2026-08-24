@@ -9,7 +9,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
-import { Prisma, StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { Prisma, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
@@ -120,6 +120,7 @@ export class AdminService {
       }
       let wallpaper;
       try {
+        const orientation = await detectOrientation(cover.path).catch(() => "unknown" as WallpaperOrientation);
         wallpaper = await this.prisma.wallpaper.create({
           data: {
             title: saved.originalName.replace(/\.[^.]+$/, ""),
@@ -131,6 +132,7 @@ export class AdminService {
             coverUrl: publicAssetUrl(this.config, cover.relativePath),
             status: autoProcess ? WallpaperStatus.processing : WallpaperStatus.draft,
             type: detectType(saved.mimeType, saved.originalName),
+            orientation,
             autoPublish,
           },
         });
@@ -391,12 +393,13 @@ export class AdminService {
     return analysis;
   }
 
-  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; aiReview?: AiReviewFilter; storage?: StorageFilter }) {
+  async listWallpapers(query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; orientation?: WallpaperOrientation; aiReview?: AiReviewFilter; storage?: StorageFilter }) {
     const page = positiveInt(query.page, 1, "页码");
     const pageSize = positiveInt(query.pageSize, 20, "每页数量", 100);
     const where: Prisma.WallpaperWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.type ? { type: query.type } : {}),
+      ...(query.orientation ? { orientation: query.orientation } : {}),
       ...(query.keyword ? { title: { contains: query.keyword } } : {}),
       ...aiReviewWhere(query.aiReview),
       ...storageWhere(query.storage),
@@ -776,6 +779,30 @@ export class AdminService {
     return this.storageAccounts.probeAccount(id);
   }
 
+  async backfillOrientation() {
+    const wallpapers = await this.prisma.wallpaper.findMany({
+      where: { coverPath: { not: null } },
+      select: { id: true, coverPath: true },
+    });
+    let updated = 0;
+    let skipped = 0;
+    for (const wallpaper of wallpapers) {
+      if (!wallpaper.coverPath) {
+        skipped += 1;
+        continue;
+      }
+      const absolute = join(process.cwd(), "storage", "public", wallpaper.coverPath);
+      if (!existsSync(absolute)) {
+        skipped += 1;
+        continue;
+      }
+      const orientation = await detectOrientation(absolute).catch(() => "unknown" as WallpaperOrientation);
+      await this.prisma.wallpaper.update({ where: { id: wallpaper.id }, data: { orientation } });
+      updated += 1;
+    }
+    return { total: wallpapers.length, updated, skipped };
+  }
+
   private async persistFile(file: Express.Multer.File) {
     const dir = join(process.cwd(), "storage", "public", "originals");
     await mkdir(dir, { recursive: true });
@@ -1135,6 +1162,17 @@ export class AdminService {
       lockedUntil: count >= MAX_LOGIN_ATTEMPTS ? now + LOGIN_LOCK_MS : undefined,
     });
   }
+}
+
+async function detectOrientation(path: string): Promise<WallpaperOrientation> {
+  const meta = await sharp(path).metadata();
+  const width = meta.width || 0;
+  const height = meta.height || 0;
+  if (!width || !height) return "unknown";
+  const ratio = width / height;
+  if (ratio > 1.2) return "landscape";
+  if (ratio < 0.833) return "portrait";
+  return "square";
 }
 
 function safeExtension(name: string): string {

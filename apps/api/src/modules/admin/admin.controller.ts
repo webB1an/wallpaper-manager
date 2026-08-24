@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import { StorageProvider, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { AdminService } from "./admin.service";
 import { AdminAuthGuard } from "./auth.guard";
 
@@ -118,12 +118,13 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Get("wallpapers")
-  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; aiReview?: "unreviewed" | "safe" | "blocked"; storage?: string }) {
+  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; status?: WallpaperStatus; type?: WallpaperType; orientation?: WallpaperOrientation; aiReview?: "unreviewed" | "safe" | "blocked"; storage?: string }) {
     const status = optionalEnum(query.status, WallpaperStatus, "壁纸状态");
     const type = optionalEnum(query.type, WallpaperType, "壁纸类型");
+    const orientation = optionalEnum(query.orientation, WallpaperOrientation, "壁纸方向");
     const aiReview = optionalSet(query.aiReview, AI_REVIEW_FILTERS, "AI 审核筛选") as AiReviewQuery | undefined;
     const storage = optionalSet(query.storage, STORAGE_FILTERS, "网盘筛选") as StorageFilterQuery | undefined;
-    return { code: 200, data: await this.admin.listWallpapers({ ...query, status, type, aiReview, storage }) };
+    return { code: 200, data: await this.admin.listWallpapers({ ...query, status, type, orientation, aiReview, storage }) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -173,6 +174,12 @@ export class AdminController {
   async bulk(@Body() body?: { ids?: string[]; status?: WallpaperStatus; tags?: string[] }) {
     const status = optionalEnum(body?.status, WallpaperStatus, "壁纸状态");
     return { code: 200, data: await this.admin.bulkUpdate(body?.ids, { ...(body || {}), status }) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("wallpapers/backfill-orientation")
+  async backfillOrientation() {
+    return { code: 200, data: await this.admin.backfillOrientation() };
   }
 
   @UseGuards(AdminAuthGuard)

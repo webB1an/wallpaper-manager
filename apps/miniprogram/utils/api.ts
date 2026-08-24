@@ -48,6 +48,8 @@ export interface WallpaperCard {
   title: string;
   type: string;
   typeLabel?: string;
+  orientation?: string;
+  orientationLabel?: string;
   coverUrl: string;
   tags: string[];
   viewCount: number;

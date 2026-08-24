@@ -109,7 +109,7 @@ Page({
 });
 
 function decorateCard(item: WallpaperCard): WallpaperCard {
-  return { ...item, typeLabel: formatTypeLabel(item.type) };
+  return { ...item, typeLabel: formatTypeLabel(item.type), orientationLabel: formatOrientationLabel(item.orientation) };
 }
 
 function splitMasonry(items: WallpaperCard[]) {
@@ -134,6 +134,12 @@ function formatTypeTitle(value: string) {
 
 function formatTypeLabel(value: string) {
   return value === "live" ? "动态" : "静态";
+}
+
+function formatOrientationLabel(value?: string) {
+  if (value === "portrait") return "手机";
+  if (value === "landscape") return "电脑";
+  return "";
 }
 
 function sharePath(tag: string, type: string, title: string) {

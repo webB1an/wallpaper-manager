@@ -6,6 +6,7 @@
       <text class="poster-title">{{item.title}}</text>
       <view class="poster-meta-row">
         <text class="pill">{{item.typeLabel}}</text>
+        <text wx:if="{{item.orientationLabel}}" class="pill">{{item.orientationLabel}}</text>
         <text class="count">{{item.downloadCount}} 次下载</text>
       </view>
       <view class="card-tags" wx:if="{{item.tags.length}}">

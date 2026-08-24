@@ -697,6 +697,16 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           }
           setBulkEditing(true);
         }}>批量编辑</Button>
+        <Button onClick={async () => {
+          message.loading({ content: "正在回填方向...", key: "backfillOrientation" });
+          try {
+            const result = await request<{ total: number; updated: number; skipped: number }>("/api/admin/wallpapers/backfill-orientation", { method: "POST" });
+            message.success({ content: `回填完成：更新 ${result.updated}，跳过 ${result.skipped}`, key: "backfillOrientation" });
+            await load();
+          } catch (error) {
+            message.error({ content: error instanceof Error ? error.message : "回填失败", key: "backfillOrientation" });
+          }
+        }}>回填方向</Button>
         <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
         {storageFilter === "unpublished_active_short" ? (
@@ -743,6 +753,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         },
         { title: "标题", dataIndex: "title", render: (text, row) => <div><strong>{text}</strong><small>{row.originalName}</small></div> },
         { title: "类型", dataIndex: "type", render: (type) => <Tag>{typeText(type)}</Tag> },
+        { title: "方向", dataIndex: "orientation", render: (orientation) => <Tag>{orientationText(orientation)}</Tag> },
         { title: "状态", dataIndex: "status", render: (status) => <StatusTag status={status} /> },
         { title: "AI审核", width: 170, render: (_, row) => <AiReviewCell wallpaper={row} /> },
         { title: "标签", render: (_, row) => row.tags?.map((item) => <Tag key={item.tag.name}>{item.tag.name}</Tag>) },
@@ -2251,6 +2262,16 @@ function typeText(value: string) {
     other: "其他",
   };
   return map[value] || value;
+}
+
+function orientationText(value: string) {
+  const map: Record<string, string> = {
+    portrait: "手机壁纸",
+    landscape: "电脑壁纸",
+    square: "方图",
+    unknown: "未知",
+  };
+  return map[value] || value || "未知";
 }
 
 function aiReviewText(value: string) {

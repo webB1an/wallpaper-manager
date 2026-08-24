@@ -84,6 +84,7 @@ export class PublicService {
       id: item.id,
       title: item.title,
       type: item.type,
+      orientation: item.orientation,
       coverUrl: publicCoverUrl(item.coverUrl),
       tags: tagNames,
       viewCount: item.viewCount + 1,
@@ -229,6 +230,7 @@ function wallpaperCard(item: {
   id: string;
   title: string;
   type: string;
+  orientation: string;
   coverUrl: string | null;
   viewCount: number;
   downloadCount: number;
@@ -239,6 +241,7 @@ function wallpaperCard(item: {
     id: item.id,
     title: item.title,
     type: item.type,
+    orientation: item.orientation,
     coverUrl: publicCoverUrl(item.coverUrl),
     tags: item.tags.map(({ tag }) => tag.name),
     viewCount: item.viewCount,

@@ -24,6 +24,13 @@ enum WallpaperStatus {
   archived
 }
 
+enum WallpaperOrientation {
+  portrait
+  landscape
+  square
+  unknown
+}
+
 enum StorageProvider {
   quark
   baidu
@@ -66,6 +73,7 @@ model Wallpaper {
   matchKey        String?         @db.VarChar(512)
   matchConfidence Float?
   sortOrder       Int             @default(0)
+  orientation     WallpaperOrientation @default(unknown)
   viewCount       Int             @default(0)
   downloadCount   Int             @default(0)
   autoPublish     Boolean         @default(false)
