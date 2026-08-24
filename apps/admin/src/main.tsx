@@ -2187,6 +2187,7 @@ async function processBatch(ids: React.Key[], selection: StorageSelectionForm, r
 
 async function patch(id: string, data: unknown, reload: () => void) {
   await request(`/api/admin/wallpapers/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  message.success("操作完成");
   reload();
 }
 
