@@ -150,8 +150,9 @@ Page({
         await this.grantDownload();
         return;
       }
-    } catch {
-      // 查询失败或未授权时仍走打广告流程，避免阻断用户。
+    } catch (error) {
+      this.showNotice(error instanceof Error ? error.message : "微信登录失败，请稍后再试");
+      return;
     }
     if (!AD_UNITS.rewarded) {
       this.showNotice("激励广告未配置");
