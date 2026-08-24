@@ -25,12 +25,12 @@
     </view>
     <view class="primary-download">
       <view>
-        <text>原图短链</text>
+        <text>壁纸资源</text>
         <text wx:if="{{primaryUrl}}">{{primaryUrl}}</text>
         <text wx:else>暂无可用短链</text>
         <text wx:if="{{primaryPasscode}}" class="primary-passcode">提取码 {{primaryPasscode}}</text>
       </view>
-      <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制主链' : '暂无短链'}}</button>
+      <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制链接' : '暂无短链'}}</button>
     </view>
     <ad wx:if="{{adUnit}}" class="detail-ad" unit-id="{{adUnit}}" binderror="onAdError" />
     <view wx:if="{{item.related.length}}" class="related-section">
