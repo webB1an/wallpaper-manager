@@ -67,12 +67,14 @@ export class BaiduStorageService {
   /** 直接按网盘路径下载（适用于本账号自己上传的文件）。绕开分享链接，避免“自己的分享链接” errno=13045 导致本地目录为空。 */
   async downloadByPath(remotePath: string, localDir: string, account?: ManagedStorageAccount): Promise<{ stdout: string; localPath: string }> {
     await mkdir(localDir, { recursive: true });
-    const args = [...baiduArgs(account), "download", remotePath, localDir, "--json"];
+    // bdpan download 对单个文件，本地参数必须是完整文件路径（不能是目录），否则报 “is a directory”。
+    const target = join(localDir, sanitizeRemoteName(basename(remotePath)) || "download");
+    const args = [...baiduArgs(account), "download", remotePath, target, "--json"];
     const result = await runCli(this.bdpan(), args, { timeoutMs: 60 * 60_000 });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘下载失败");
     const outcome = parseBaiduDownloadOutcome(result.stdout);
     if (!outcome.ok) throw new Error(outcome.error || "百度网盘下载失败");
-    return { stdout: result.stdout, localPath: outcome.localPath };
+    return { stdout: result.stdout, localPath: outcome.localPath || target };
   }
 
   /** 在网盘里按关键字搜索文件。失败时抛出；成功返回匹配项与原始输出。 */
