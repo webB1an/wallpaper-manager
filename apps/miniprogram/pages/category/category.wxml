@@ -24,7 +24,7 @@
     <view class="masonry-column">
       <block wx:for="{{leftTags}}" wx:key="name">
         <view class="poster-card" bindtap="openTag" data-tag="{{item.name}}">
-          <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
+          <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
           <view class="poster-info">
             <text class="poster-title">#{{item.name}}</text>
             <text class="poster-count">{{item.count}} 张</text>
@@ -35,7 +35,7 @@
     <view class="masonry-column">
       <block wx:for="{{rightTags}}" wx:key="name">
         <view class="poster-card" bindtap="openTag" data-tag="{{item.name}}">
-          <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
+          <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
           <view class="poster-info">
             <text class="poster-title">#{{item.name}}</text>
             <text class="poster-count">{{item.count}} 张</text>
