@@ -385,7 +385,7 @@
   position: fixed;
   z-index: 99;
   right: 24rpx;
-  bottom: calc(210rpx + env(safe-area-inset-bottom));
+  bottom: calc(120rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,12 +399,9 @@
   font-weight: 700;
 }
 
-.ad-float {
-  position: fixed;
-  z-index: 90;
-  right: 16rpx;
-  bottom: calc(100rpx + env(safe-area-inset-bottom));
-  left: 16rpx;
+.ad-inline {
+  width: 100%;
+  margin-bottom: 18rpx;
   overflow: hidden;
   border-radius: 12rpx;
   background: #ffffff;
