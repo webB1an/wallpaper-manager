@@ -58,5 +58,5 @@
     <text>暂无标签</text>
     <text class="empty-subtitle">上传并完成识别后会自动生成标签</text>
   </view>
-  <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop">顶部</view>
+  <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop"><image class="back-top-icon" src="/assets/icons/top.png" /></view>
 </view>

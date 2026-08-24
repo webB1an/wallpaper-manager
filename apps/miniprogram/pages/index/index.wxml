@@ -98,5 +98,5 @@
     <text>暂无壁纸</text>
     <text class="empty-subtitle">换个关键词或标签再试试</text>
   </view>
-  <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop">顶部</view>
+  <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop"><image class="back-top-icon" src="/assets/icons/top.png" /></view>
 </view>

@@ -176,3 +176,8 @@
   font-size: 24rpx;
   font-weight: 700;
 }
+
+.back-top-icon {
+  width: 44rpx;
+  height: 44rpx;
+}
