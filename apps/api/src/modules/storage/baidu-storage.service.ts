@@ -79,6 +79,13 @@ export class BaiduStorageService {
     return { items: parseBaiduSearchItems(result.stdout), raw: result.stdout };
   }
 
+  /** 列出网盘目录内容（用于遍历定位文件）。失败时抛出；成功返回匹配项与原始输出。 */
+  async list(remotePath: string, account?: ManagedStorageAccount): Promise<{ items: Array<{ path: string; name: string; size: number; isDir: boolean }>; raw: string }> {
+    const result = await runCli(this.bdpan(), [...baiduArgs(account), "ls", remotePath, "--json"], { timeoutMs: 60_000 });
+    if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘列出目录失败");
+    return { items: parseBaiduSearchItems(result.stdout), raw: result.stdout };
+  }
+
   async probe(account?: ManagedStorageAccount): Promise<{ ok: boolean; message: string }> {
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "whoami"], { timeoutMs: 15_000 });
     const output = `${result.stdout}\n${result.stderr}`.trim();

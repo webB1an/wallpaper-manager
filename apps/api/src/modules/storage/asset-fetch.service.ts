@@ -198,6 +198,12 @@ export class AssetFetchService implements OnModuleInit {
       if (resolved.ok) localPath = await pickLargestMediaFile(dir);
     }
     if (!localPath) {
+      // search 不可用时，遍历网盘 wallpapers 目录，按文件名匹配定位。
+      const lsResolved = await this.resolveBaiduByLs(dir, account, wallpaper).catch((error) => ({ ok: false, detail: `遍历异常：${(error as Error).message}` }));
+      searchDiag = searchDiag ? `${searchDiag}；${lsResolved.detail}` : lsResolved.detail;
+      if (lsResolved.ok) localPath = await pickLargestMediaFile(dir);
+    }
+    if (!localPath) {
       // 百度分享内容本身可能就是压缩包：能解包时继续找媒体文件，不能解包时保留诊断信息。
       localPath = await pickLargestMediaFileInArchives(dir);
     }
@@ -248,6 +254,52 @@ export class AssetFetchService implements OnModuleInit {
       return { ok: true, detail: `按路径下载 ${remotePath}` };
     } catch (error) {
       return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(error as Error).message}` };
+    }
+  }
+
+  private async resolveBaiduByLs(dir: string, account: ManagedStorageAccount | undefined, wallpaper: Wallpaper): Promise<{ ok: boolean; detail: string }> {
+    const token = baiduSearchKeyword(wallpaper);
+    if (!token) return { ok: false, detail: "无关键字" };
+    const matches: Array<{ path: string; name: string; size: number; isDir: boolean }> = [];
+    let visited = 0;
+    await this.walkBaiduTree("/apps/bdpan", account, (item) => {
+      if (item.isDir) return;
+      const ext = extname(item.name).toLowerCase();
+      if (ext && !MEDIA_EXTENSIONS.includes(ext)) return;
+      matches.push(item);
+    }, 0, 4, () => { visited += 1; }).catch((error) => {
+      this.logger.warn(`百度回源 ls 遍历异常：${(error as Error).message}`);
+    });
+    if (!matches.length) return { ok: false, detail: `遍历 ${visited} 个节点后无媒体文件` };
+    const preferVideo = wallpaper.type === "live";
+    const preferredExts = preferVideo ? VIDEO_EXTENSIONS : MEDIA_EXTENSIONS.filter((ext) => !VIDEO_EXTENSIONS.includes(ext));
+    const byName = matches.filter((m) => m.name.includes(token) || token.includes(m.name.replace(/\.[^.]+$/, "")));
+    const media = byName.filter((m) => preferredExts.includes(extname(m.name).toLowerCase()));
+    const pool = media.length ? media : byName;
+    const best = pool.length ? pool.sort((a, b) => b.size - a.size)[0] : null;
+    if (!best) {
+      return { ok: false, detail: `遍历到 ${matches.length} 个媒体文件但无名称匹配（${token}）：${matches.slice(0, 5).map((m) => m.name).join(" | ")}` };
+    }
+    const remotePath = baiduApiPath(best.path);
+    this.logger.log(`百度回源：ls 定位 ${best.name} -> ${remotePath}（共 ${matches.length} 个媒体）`);
+    try {
+      await this.baidu.downloadByPath(remotePath, dir, account);
+      return { ok: true, detail: `按路径下载 ${remotePath}` };
+    } catch (error) {
+      return { ok: false, detail: `downloadByPath("${remotePath}") 失败：${(error as Error).message}` };
+    }
+  }
+
+  private async walkBaiduTree(path: string, account: ManagedStorageAccount | undefined, onFile: (item: { path: string; name: string; size: number; isDir: boolean }) => void, depth: number, maxDepth: number, onVisit?: () => void): Promise<void> {
+    if (depth > maxDepth) return;
+    onVisit?.();
+    const { items } = await this.baidu.list(path, account).catch(() => ({ items: [], raw: "" }));
+    for (const item of items) {
+      if (item.isDir) {
+        if (depth < maxDepth) await this.walkBaiduTree(baiduApiPath(item.path), account, onFile, depth + 1, maxDepth, onVisit);
+      } else {
+        onFile(item);
+      }
     }
   }
 
