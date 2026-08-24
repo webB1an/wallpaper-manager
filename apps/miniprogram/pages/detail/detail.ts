@@ -151,15 +151,15 @@ Page({
       const ad = wx.createRewardedVideoAd({ adUnitId: AD_UNITS.rewarded });
       ad.onClose(async (result) => {
         const finished = result && result.isEnded;
-        if (!finished) {
-          wx.showToast({ title: "完整观看视频后才能下载", icon: "none" });
-          return;
-        }
-        try {
-          await this.grantDownload();
-        } catch (error) {
-          wx.showToast({ title: error instanceof Error ? error.message : "下载失败", icon: "none" });
-        }
+        setTimeout(() => {
+          if (!finished) {
+            wx.showToast({ title: "完整观看视频后才能下载", icon: "none" });
+            return;
+          }
+          this.grantDownload().catch((error: unknown) => {
+            wx.showToast({ title: error instanceof Error ? error.message : "下载失败", icon: "none" });
+          });
+        }, 400);
       });
       ad.onError(() => wx.showToast({ title: "广告加载失败，请稍后再试", icon: "none" }));
       try {
