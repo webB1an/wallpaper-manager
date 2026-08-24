@@ -1,4 +1,5 @@
 import { post, request, WallpaperDetail } from "../../utils/api";
+import { AD_UNITS } from "../../utils/ads";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -17,13 +18,23 @@ Page({
     error: "",
     id: "",
     capsuleTop: 48,
-    capsuleHeight: 32
+    capsuleHeight: 32,
+    adUnit: AD_UNITS.detailBanner
+  },
+
+  onAdError() {
+    // 广告加载失败时静默隐藏。
   },
 
   async onLoad(options: { id?: string }) {
     const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
     if (menu) {
       this.setData({ capsuleTop: menu.top, capsuleHeight: menu.height });
+    }
+    if (AD_UNITS.interstitial) {
+      const interstitial = wx.createInterstitialAd({ adUnitId: AD_UNITS.interstitial });
+      interstitial.onError(() => undefined);
+      interstitial.onLoad(() => interstitial.show());
     }
     if (!options.id) {
       this.setData({ loading: false, error: "没有找到壁纸，请返回首页重新打开" });

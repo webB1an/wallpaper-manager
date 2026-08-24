@@ -60,5 +60,6 @@
     <text>暂无壁纸</text>
     <text class="empty-subtitle">换个标签或类型再看看</text>
   </view>
+  <ad wx:if="{{adUnit}}" unit-id="{{adUnit}}" binderror="onAdError" />
   <view wx:if="{{backTopVisible}}" class="back-top" bindtap="backTop"><image class="back-top-icon" src="/assets/icons/top.png" /></view>
 </view>

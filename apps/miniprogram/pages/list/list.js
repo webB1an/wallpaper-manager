@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
+const ads_1 = require("../../utils/ads");
 let requestToken = 0;
 Page({
     data: {
@@ -16,7 +17,11 @@ Page({
         page: 1,
         loading: false,
         error: "",
-        backTopVisible: false
+        backTopVisible: false,
+        adUnit: ads_1.AD_UNITS.listBanner
+    },
+    onAdError() {
+        // 广告加载失败时静默隐藏。
     },
     onPageScroll(event) {
         const visible = event.scrollTop > 600;

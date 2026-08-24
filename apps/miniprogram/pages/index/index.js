@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
+const ads_1 = require("../../utils/ads");
 let requestToken = 0;
 Page({
     data: {
@@ -17,7 +18,11 @@ Page({
         sectionTitle: "最新壁纸",
         loading: false,
         error: "",
-        backTopVisible: false
+        backTopVisible: false,
+        adUnit: ads_1.AD_UNITS.homeBanner
+    },
+    onAdError() {
+        // 广告加载失败时静默隐藏，不影响正常浏览。
     },
     onPageScroll(event) {
         const visible = event.scrollTop > 600;

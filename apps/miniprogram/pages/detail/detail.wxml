@@ -41,6 +41,7 @@
         </block>
       </view>
     </view>
+    <ad wx:if="{{adUnit}}" unit-id="{{adUnit}}" binderror="onAdError" />
   </view>
 </view>
 <view wx:elif="{{error}}" class="empty detail-empty state-card">

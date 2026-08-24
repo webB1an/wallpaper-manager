@@ -1,4 +1,5 @@
 import { request, WallpaperCard } from "../../utils/api";
+import { AD_UNITS } from "../../utils/ads";
 
 let requestToken = 0;
 
@@ -16,7 +17,12 @@ Page({
     page: 1,
     loading: false,
     error: "",
-    backTopVisible: false
+    backTopVisible: false,
+    adUnit: AD_UNITS.listBanner
+  },
+
+  onAdError() {
+    // 广告加载失败时静默隐藏。
   },
 
   onPageScroll(event: { scrollTop: number }) {

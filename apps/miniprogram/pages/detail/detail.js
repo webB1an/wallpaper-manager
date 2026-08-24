@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
+const ads_1 = require("../../utils/ads");
 const HISTORY_KEY = "wallpaper_download_history";
 let requestToken = 0;
 Page({
@@ -16,12 +17,21 @@ Page({
         error: "",
         id: "",
         capsuleTop: 48,
-        capsuleHeight: 32
+        capsuleHeight: 32,
+        adUnit: ads_1.AD_UNITS.detailBanner
+    },
+    onAdError() {
+        // 广告加载失败时静默隐藏。
     },
     async onLoad(options) {
         const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
         if (menu) {
             this.setData({ capsuleTop: menu.top, capsuleHeight: menu.height });
+        }
+        if (ads_1.AD_UNITS.interstitial) {
+            const interstitial = wx.createInterstitialAd({ adUnitId: ads_1.AD_UNITS.interstitial });
+            interstitial.onError(() => undefined);
+            interstitial.onLoad(() => interstitial.show());
         }
         if (!options.id) {
             this.setData({ loading: false, error: "没有找到壁纸，请返回首页重新打开" });

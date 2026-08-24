@@ -1,4 +1,5 @@
 import { request, WallpaperCard, WallpaperFacets } from "../../utils/api";
+import { AD_UNITS } from "../../utils/ads";
 
 let requestToken = 0;
 
@@ -17,7 +18,12 @@ Page({
     sectionTitle: "最新壁纸",
     loading: false,
     error: "",
-    backTopVisible: false
+    backTopVisible: false,
+    adUnit: AD_UNITS.homeBanner
+  },
+
+  onAdError() {
+    // 广告加载失败时静默隐藏，不影响正常浏览。
   },
 
   onPageScroll(event: { scrollTop: number }) {
