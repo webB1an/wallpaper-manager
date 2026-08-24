@@ -25,7 +25,6 @@
           <view class="hero-slide" bindtap="openDetail" data-id="{{item.id}}">
             <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
             <view class="hero-overlay">
-              <text class="hero-kicker">热门壁纸</text>
               <text class="hero-title">{{item.title}}</text>
               <view class="hero-meta">
                 <text>{{item.typeLabel}}</text>
