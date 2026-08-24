@@ -164,6 +164,21 @@
   height: 48rpx;
 }
 
+.custom-toast {
+  position: fixed;
+  z-index: 9999;
+  right: 60rpx;
+  bottom: calc(160rpx + env(safe-area-inset-bottom));
+  left: 60rpx;
+  padding: 22rpx 28rpx;
+  border-radius: 16rpx;
+  color: #ffffff;
+  background: rgba(43, 33, 27, 0.88);
+  font-size: 26rpx;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .primary-download > view {
   min-width: 0;
 }

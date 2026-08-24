@@ -71,3 +71,4 @@
     <view class="skeleton-download small"></view>
   </view>
 </view>
+<view wx:if="{{toastText}}" class="custom-toast">{{toastText}}</view>

@@ -19,7 +19,8 @@ Page({
     id: "",
     capsuleTop: 48,
     capsuleHeight: 32,
-    adUnit: AD_UNITS.detailBanner
+    adUnit: AD_UNITS.detailBanner,
+    toastText: ""
   },
 
   onAdError() {
@@ -143,7 +144,7 @@ Page({
   async onDownload() {
     if (!this.data.item) return;
     if (!AD_UNITS.rewarded) {
-      wx.showToast({ title: "激励广告未配置", icon: "none" });
+      this.showNotice("激励广告未配置");
       return;
     }
     try {
@@ -153,15 +154,15 @@ Page({
         const finished = result && result.isEnded;
         setTimeout(() => {
           if (!finished) {
-            wx.showToast({ title: "完整观看视频后才能下载", icon: "none" });
+            this.showNotice("完整观看视频后才能下载");
             return;
           }
           this.grantDownload().catch((error: unknown) => {
-            wx.showToast({ title: error instanceof Error ? error.message : "下载失败", icon: "none" });
+            this.showNotice(error instanceof Error ? error.message : "下载失败");
           });
         }, 400);
       });
-      ad.onError(() => wx.showToast({ title: "广告加载失败，请稍后再试", icon: "none" }));
+      ad.onError(() => this.showNotice("广告加载失败，请稍后再试"));
       try {
         await ad.show();
       } catch {
@@ -169,7 +170,7 @@ Page({
         await ad.show();
       }
     } catch (error) {
-      wx.showToast({ title: error instanceof Error ? error.message : "操作失败", icon: "none" });
+      this.showNotice(error instanceof Error ? error.message : "操作失败");
     }
   },
 
@@ -190,10 +191,15 @@ Page({
     });
     const isVideo = this.data.item?.type === "live";
     await new Promise<void>((resolve, reject) => {
-      const options = { filePath: tempFilePath, success: () => { wx.showToast({ title: "已保存到相册", icon: "success" }); resolve(); }, fail: () => reject(new Error("保存到相册失败")) };
+      const options = { filePath: tempFilePath, success: () => { this.showNotice("已保存到相册"); resolve(); }, fail: () => reject(new Error("保存到相册失败")) };
       if (isVideo) wx.saveVideoToPhotosAlbum(options);
       else wx.saveImageToPhotosAlbum(options);
     });
+  },
+
+  showNotice(text: string) {
+    this.setData({ toastText: text });
+    setTimeout(() => this.setData({ toastText: "" }), 2200);
   },
 
   onShareAppMessage() {
