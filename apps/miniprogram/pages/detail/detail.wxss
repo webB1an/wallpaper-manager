@@ -82,10 +82,17 @@
 }
 
 .detail-title {
-  display: block;
+  flex: 1;
+  min-width: 0;
   font-size: 38rpx;
   font-weight: 820;
   line-height: 1.35;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
 }
 
 .detail-meta {
@@ -140,21 +147,21 @@
   box-shadow: 0 14rpx 34rpx rgba(29, 37, 33, 0.18);
 }
 
-.download-wallpaper {
-  width: 100%;
-  height: 76rpx;
-  margin-top: 22rpx;
-  padding: 0;
-  border-radius: 12rpx;
-  color: #ffffff;
-  background: #c05621;
-  font-size: 27rpx;
-  font-weight: 700;
-  line-height: 76rpx;
+.download-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #e57355, #c05621);
+  box-shadow: 0 10rpx 24rpx rgba(192, 86, 33, 0.38);
 }
 
-.download-wallpaper::after {
-  border: 0;
+.download-icon {
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .primary-download > view {

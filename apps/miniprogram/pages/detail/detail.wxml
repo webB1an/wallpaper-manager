@@ -6,7 +6,12 @@
     <image class="detail-cover" src="{{item.coverUrl}}" mode="aspectFill" />
   </view>
   <view class="detail-panel">
-    <text class="detail-title">{{item.title}}</text>
+    <view class="detail-title-row">
+      <text class="detail-title">{{item.title}}</text>
+      <view class="download-button" bindtap="onDownload">
+        <image class="download-icon" src="/assets/icons/download.png" />
+      </view>
+    </view>
     <view class="detail-meta">
       <text>{{typeText}}</text>
       <text wx:if="{{orientationText}}">{{orientationText}}</text>
@@ -27,7 +32,6 @@
       </view>
       <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制主链' : '暂无短链'}}</button>
     </view>
-    <button class="download-wallpaper" bindtap="onDownload">直接下载壁纸</button>
     <ad wx:if="{{adUnit}}" class="detail-ad" unit-id="{{adUnit}}" binderror="onAdError" />
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">
