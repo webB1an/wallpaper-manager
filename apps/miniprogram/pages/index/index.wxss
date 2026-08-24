@@ -228,7 +228,11 @@
   display: block;
   width: 100%;
   height: auto;
-  background: #f0e4d6;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
+    #f0e4d6;
+  background-size: 240rpx 100%, 100% 100%;
+  animation: cardShimmer 1.4s ease-in-out infinite;
 }
 
 .live-ribbon {
@@ -360,6 +364,15 @@
 }
 
 @keyframes skeletonSweep {
+  0% {
+    background-position: -260rpx 0, 0 0;
+  }
+  100% {
+    background-position: 420rpx 0, 0 0;
+  }
+}
+
+@keyframes cardShimmer {
   0% {
     background-position: -260rpx 0, 0 0;
   }
