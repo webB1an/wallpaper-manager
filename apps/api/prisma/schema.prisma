@@ -115,6 +115,7 @@ model DownloadToken {
   token       String   @id
   wallpaperId String
   userId      String
+  filePath    String?
   expiresAt   DateTime
   createdAt   DateTime @default(now())
   wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)

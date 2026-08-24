@@ -1,6 +1,5 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, Redirect, Res } from "@nestjs/common";
 import type { Response } from "express";
-import { join } from "node:path";
 import { PublicService } from "./public.service";
 
 @Controller()
@@ -56,9 +55,13 @@ export class PublicController {
   @Get("downloads/file/:token")
   async downloadFile(@Param("token") token: string, @Res() response: Response) {
     const wallpaper = await this.service.resolveDownloadToken(token);
-    const absolute = join(process.cwd(), "storage", "public", wallpaper.assetPath!);
-    response.setHeader("Content-Type", wallpaper.mimeType || "application/octet-stream");
-    return response.sendFile(absolute);
+    response.setHeader("Content-Type", wallpaper.mimeType);
+    return response.sendFile(wallpaper.filePath);
+  }
+
+  @Post("downloads/file/:token/complete")
+  async downloadComplete(@Param("token") token: string) {
+    return { code: 200, data: await this.service.completeDownload(token) };
   }
 
   @Get("/r/:code")

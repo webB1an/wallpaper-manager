@@ -197,7 +197,14 @@ Page({
         const tempFilePath = await new Promise((resolve, reject) => {
             wx.downloadFile({
                 url: `${api_1.API_BASE}/downloads/file/${token}`,
-                success: (res) => res.statusCode === 200 ? resolve(res.tempFilePath) : reject(new Error("文件下载失败")),
+                success: (res) => {
+                    if (res.statusCode !== 200) {
+                        reject(new Error("文件下载失败"));
+                        return;
+                    }
+                    (0, api_1.post)(`/downloads/file/${token}/complete`, {}).catch(() => undefined);
+                    resolve(res.tempFilePath);
+                },
                 fail: (error) => reject(new Error(`文件下载失败：${error.errMsg || "未知错误"}`)),
             });
         });

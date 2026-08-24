@@ -2,6 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { ConfigService } from "@nestjs/config";
 import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { nanoid } from "nanoid";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, unlink } from "node:fs/promises";
+import { join } from "node:path";
 import { shortUrl } from "../../common/public-url";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -164,8 +167,12 @@ export class PublicService {
     if (reward.type === "daily10" && reward.usedCount >= 10) {
       throw new BadRequestException("今日免费下载次数已用完，明天再来或观看一次视频");
     }
+    await this.cleanupExpiredTokens();
     const token = nanoid(24);
-    await this.prisma.downloadToken.create({ data: { token, wallpaperId, userId: openid, expiresAt: new Date(Date.now() + 5 * 60_000) } });
+    const filePath = await this.copyAssetToTemp(wallpaper.assetPath, token);
+    await this.prisma.downloadToken.create({
+      data: { token, wallpaperId, userId: openid, filePath, expiresAt: new Date(Date.now() + 5 * 60_000) },
+    });
     if (reward.type === "daily10") {
       await this.prisma.wallpaperReward.update({
         where: { id: reward.id },
@@ -179,12 +186,23 @@ export class PublicService {
   async resolveDownloadToken(token: string) {
     const record = await this.prisma.downloadToken.findUnique({ where: { token } });
     if (!record || record.expiresAt < new Date()) throw new NotFoundException("下载链接已失效");
+    if (!record.filePath || !existsSync(record.filePath)) throw new NotFoundException("下载文件不存在或已删除");
     const wallpaper = await this.prisma.wallpaper.findUnique({
       where: { id: record.wallpaperId },
-      select: { assetPath: true, mimeType: true },
+      select: { mimeType: true },
     });
-    if (!wallpaper?.assetPath) throw new NotFoundException("源文件不存在");
-    return wallpaper;
+    if (!wallpaper) throw new NotFoundException("壁纸不存在");
+    return { filePath: record.filePath, mimeType: wallpaper.mimeType || "application/octet-stream", token };
+  }
+
+  async completeDownload(token: string) {
+    const record = await this.prisma.downloadToken.findUnique({ where: { token } });
+    if (!record) return { ok: true };
+    if (record.filePath && existsSync(record.filePath)) {
+      await unlink(record.filePath).catch(() => undefined);
+    }
+    await this.prisma.downloadToken.deleteMany({ where: { token } });
+    return { ok: true };
   }
 
   private async todayReward(openid: string) {
@@ -209,6 +227,27 @@ export class PublicService {
     const date = new Date();
     date.setHours(0, 0, 0, 0);
     return date;
+  }
+
+  private async copyAssetToTemp(assetPath: string, token: string) {
+    const dir = join(process.cwd(), "storage", "private", "downloads");
+    await mkdir(dir, { recursive: true });
+    const source = join(process.cwd(), "storage", "public", assetPath);
+    const destination = join(dir, token);
+    await copyFile(source, destination);
+    return destination;
+  }
+
+  private async cleanupExpiredTokens() {
+    const expired = await this.prisma.downloadToken.findMany({ where: { expiresAt: { lt: new Date() } } });
+    for (const item of expired) {
+      if (item.filePath && existsSync(item.filePath)) {
+        await unlink(item.filePath).catch(() => undefined);
+      }
+    }
+    if (expired.length) {
+      await this.prisma.downloadToken.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+    }
   }
 
   async tags() {
