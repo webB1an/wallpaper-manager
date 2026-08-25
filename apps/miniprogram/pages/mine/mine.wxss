@@ -199,3 +199,17 @@
 .empty-state button::after {
   border: 0;
 }
+
+.openid-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin: 30rpx 0 10rpx;
+  color: #a89484;
+  font-size: 22rpx;
+}
+
+.openid-tip {
+  color: #c05621;
+}

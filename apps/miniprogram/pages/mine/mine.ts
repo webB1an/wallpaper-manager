@@ -24,7 +24,8 @@ Page({
     records: [] as DownloadRecord[],
     downloads: [] as LocalWallpaper[],
     favorites: [] as LocalWallpaper[],
-    quotaText: ""
+    quotaText: "",
+    userOpenid: ""
   },
 
   onShow() {
@@ -35,6 +36,28 @@ Page({
     });
     void this.loadQuota();
     void this.syncFromServer();
+    void this.loadOpenid();
+  },
+
+  async loadOpenid() {
+    try {
+      const openid = await ensureOpenid();
+      this.setData({ userOpenid: openid });
+    } catch {
+      // 未登录时留空。
+    }
+  },
+
+  copyOpenid() {
+    const openid = this.data.userOpenid;
+    if (!openid) {
+      wx.showToast({ title: "暂无用户 ID", icon: "none" });
+      return;
+    }
+    wx.setClipboardData({
+      data: openid,
+      success: () => wx.showToast({ title: "已复制用户 ID", icon: "success" })
+    });
   },
 
   async loadQuota() {

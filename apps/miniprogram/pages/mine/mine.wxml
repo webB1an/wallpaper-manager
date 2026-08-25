@@ -84,4 +84,9 @@
       <text class="muted">Wallpaper 壁纸库</text>
     </view>
   </view>
+
+  <view class="openid-row" bindtap="copyOpenid">
+    <text>用户 ID：{{userOpenid || '未登录'}}</text>
+    <text class="openid-tip">点击复制</text>
+  </view>
 </view>
