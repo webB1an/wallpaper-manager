@@ -46,7 +46,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem
     method: "POST",
     headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
     body: JSON.stringify({ exclude: ctx.exclude }),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(90_000),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -60,7 +60,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem
 
   const imageResponse = await fetch(`${bridgeBase}${item.downloadUrl}`, {
     headers: { "x-bridge-key": bridgeKey },
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(180_000),
   });
   if (!imageResponse.ok) throw new Error(`下载原图失败（${imageResponse.status}）`);
   const bytes = Buffer.from(await imageResponse.arrayBuffer());
