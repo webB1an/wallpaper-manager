@@ -111,7 +111,13 @@ UPLOAD_MAX_FILE_MB=300
 FFMPEG_PATH=ffmpeg
 TENCENT_CHANNEL_CLI=
 TENCENT_CHANNEL_RUN_ROOT=/www/wwwroot/wallpaper-manager/.runs/tencent-channel
+WALLPOST_BASE_URL=
+WALLPOST_BRIDGE_KEY=
 ```
+
+- `WALLPOST_BASE_URL`：WallPost 桥接服务的地址（例如 `http://<wallpost-host>:4000`），用于「定时自动下载壁纸」从 WallPost 拉取未收录的 Wallhaven 壁纸。
+- `WALLPOST_BRIDGE_KEY`：与 WallPost 端 `BRIDGE_API_KEY` 一致，用作服务端对服务端的 `x-bridge-key`。
+- 该自动下载流程默认关闭，需在管理端「系统设置」开启「定时从 WallPost 自动下载壁纸」，并设置周期（默认 4 小时）与目标频道/版块。
 
 ## 6. 首次服务器启动
 
