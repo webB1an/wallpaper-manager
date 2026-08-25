@@ -1687,6 +1687,7 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
   const [boards, setBoards] = useState<AutoPublishBoardRow[]>([]);
   const [sources, setSources] = useState<Array<{ id: string; label: string; description: string; enabled: boolean }>>([]);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string>();
   const [runningId, setRunningId] = useState<string>();
   const [form] = Form.useForm();
   const load = () => request<AutoPublishBoardRow[]>("/api/admin/auto-publish-boards").then(setBoards);
@@ -1713,10 +1714,29 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
     }
   };
 
+  const guildLabel = (guildId: string, guildName?: string) =>
+    guildName || accounts.find((account) => account.guildId === guildId)?.guildName || guildId;
+  const channelLabel = (channelId: string, channelName?: string) =>
+    channelName || accounts.find((account) => account.channelId === channelId)?.channelName || channelId;
+  const openEdit = (row: AutoPublishBoardRow) => {
+    setEditingId(row.id);
+    setOpen(true);
+    form.setFieldsValue({
+      guildId: row.guildId,
+      guildName: row.guildName,
+      channelId: row.channelId,
+      channelName: row.channelName,
+      source: row.source,
+      intervalHours: row.intervalHours,
+      enabled: row.enabled,
+      sourceConfig: row.sourceConfig ? JSON.stringify(row.sourceConfig) : "",
+    });
+  };
+
   return (
     <div className="board-manager">
       <Space className="toolbar">
-        <Button type="primary" onClick={() => setOpen(true)}>新增自动发帖板块</Button>
+        <Button type="primary" onClick={() => { setEditingId(undefined); form.resetFields(); setOpen(true); }}>新增自动发帖板块</Button>
         <Button onClick={load}>刷新</Button>
       </Space>
       <Alert
@@ -1742,7 +1762,7 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
         ))}
       </div>
       <Table rowKey="id" dataSource={boards} pagination={false} columns={[
-        { title: "频道 / 版块", render: (_, row) => `${row.guildName || row.guildId} / ${row.channelName || row.channelId}` },
+        { title: "频道 / 版块", render: (_, row) => `${guildLabel(row.guildId, row.guildName)} / ${channelLabel(row.channelId, row.channelName)}` },
         { title: "来源", dataIndex: "source" },
         { title: "周期(小时)", dataIndex: "intervalHours" },
         { title: "启用", dataIndex: "enabled", render: (value, row) => (
@@ -1754,20 +1774,33 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
         { title: "上次运行", dataIndex: "lastRunAt", render: (value) => value ? new Date(value).toLocaleString("zh-CN") : "—" },
         { title: "最近结果", dataIndex: "lastMessage", render: (value) => value ? <span className="form-hint">{value}</span> : "—" },
         { title: "操作", render: (_, row) => (
-          <Popconfirm title="立即执行这个板块？" okText="执行" cancelText="取消" onConfirm={() => runBoard(row.id)}>
-            <Button size="small" type="primary" loading={runningId === row.id}>立即执行</Button>
-          </Popconfirm>
+          <Space>
+            <Popconfirm title="立即执行这个板块？" okText="执行" cancelText="取消" onConfirm={() => runBoard(row.id)}>
+              <Button size="small" type="primary" loading={runningId === row.id}>立即执行</Button>
+            </Popconfirm>
+            <Button size="small" onClick={() => openEdit(row)}>修改</Button>
+            <Popconfirm title="删除这个自动发帖板块？" okText="删除" cancelText="取消" onConfirm={async () => {
+              await request(`/api/admin/auto-publish-boards/${row.id}`, { method: "DELETE" });
+              message.success("已删除");
+              await load();
+            }}>
+              <Button size="small" danger>删除</Button>
+            </Popconfirm>
+          </Space>
         ) },
       ]} />
-      <Modal title="新增自动发帖板块" open={open} onCancel={() => setOpen(false)} onOk={async () => {
+      <Modal title={editingId ? "编辑自动发帖板块" : "新增自动发帖板块"} open={open} onCancel={() => { setOpen(false); setEditingId(undefined); form.resetFields(); }} onOk={async () => {
         const values = await form.validateFields();
         const sourceConfig = typeof values.sourceConfig === "string" && values.sourceConfig.trim()
           ? JSON.parse(values.sourceConfig)
           : undefined;
-        await request("/api/admin/auto-publish-boards", { method: "POST", body: JSON.stringify({ ...values, sourceConfig }) });
+        const payload = { ...values, sourceConfig };
+        if (editingId) await request(`/api/admin/auto-publish-boards/${editingId}`, { method: "PATCH", body: JSON.stringify(payload) });
+        else await request("/api/admin/auto-publish-boards", { method: "POST", body: JSON.stringify(payload) });
         message.success("已保存");
         form.resetFields();
         setOpen(false);
+        setEditingId(undefined);
         await load();
       }} okText="保存" cancelText="取消">
         <Form form={form} layout="vertical">
