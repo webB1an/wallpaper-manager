@@ -167,8 +167,17 @@ export class AdminService implements OnModuleInit {
       await this.tasks.update(task.id, { progress: 45, message: "正在 AI 识别分类" });
       const analysis = await this.analyzeNow(record.id);
       if (!analysis.safe) {
-        const message = `AI 审核未通过，已跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）`;
-        await this.tasks.update(task.id, { status: "skipped", progress: 100, message, result: { ok: true, skipped: true } });
+        // 清理：删除本地原图与封面，释放磁盘；保留库记录并清空路径以维持去重（WallpaperSource）。
+        await Promise.all([
+          this.removeUploadedFile(persisted.path),
+          this.removeUploadedFile(cover.path),
+        ]);
+        const message = `AI 审核未通过，已清理并跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）`;
+        await this.prisma.wallpaper.update({
+          where: { id: record.id },
+          data: { assetPath: null, coverPath: null, coverUrl: null, title: `[已清理] ${record.title}` },
+        }).catch(() => undefined);
+        await this.tasks.update(task.id, { status: "skipped", progress: 100, message, result: { ok: true, skipped: true, cleaned: true } });
         await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
         return { ok: true, message };
       }
