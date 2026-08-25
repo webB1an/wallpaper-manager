@@ -75,7 +75,15 @@
 <view wx:if="{{downloading}}" class="download-loading">
   <view class="download-loading-box">
     <view class="download-spinner"></view>
-    <text>正在保存壁纸…</text>
+    <text>{{downloadMessage}}</text>
+  </view>
+</view>
+<view wx:if="{{showRewardGuide}}" class="reward-guide">
+  <view class="reward-guide-title">解锁下载权限</view>
+  <view class="reward-guide-body">{{rewardModalText}}</view>
+  <view class="reward-guide-actions">
+    <button class="reward-guide-btn cancel" bindtap="onRewardCancel">取消</button>
+    <button class="reward-guide-btn confirm" bindtap="onRewardConfirm">去观看</button>
   </view>
 </view>
 <view wx:if="{{showAlbumGuide}}" class="album-guide">

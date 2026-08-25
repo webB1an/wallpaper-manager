@@ -23,7 +23,10 @@ Page({
     adUnit: AD_UNITS.detailBanner,
     toastText: "",
     showAlbumGuide: false,
-    downloading: false
+    downloading: false,
+    downloadMessage: "正在保存壁纸…",
+    showRewardGuide: false,
+    rewardModalText: ""
   },
 
   onAdError() {
@@ -159,12 +162,14 @@ Page({
       this.setData({ showAlbumGuide: true });
       return;
     }
+    let rewardType = "daily10";
     try {
       await ensureOpenid();
       const reward = await this.rewardStatus();
       logDownload("rewardStatus", reward);
+      rewardType = reward.rewardType || "daily10";
       if (reward.rewarded && (reward.type === "unlimited" || reward.remaining > 0)) {
-        this.setData({ downloading: true });
+        this.setData({ downloading: true, downloadMessage: this.downloadMessageFor() });
         await this.grantDownload().finally(() => this.setData({ downloading: false }));
         return;
       }
@@ -178,6 +183,33 @@ Page({
       this.showNotice("激励广告未配置");
       return;
     }
+    // 没有下载次数：先弹窗确认，用户点确认才播放激励广告，取消则不执行。
+    this.setData({ rewardModalText: this.rewardGuideText(rewardType), showRewardGuide: true });
+  },
+
+  rewardGuideText(rewardType?: string): string {
+    return rewardType === "unlimited" ? "观看一次视频，解锁今日下载权限" : "观看一次视频，解锁10次下载权限";
+  },
+
+  downloadMessageFor(): string {
+    const size = Number(this.data.item?.fileSize || 0);
+    return size > 20 * 1024 * 1024 ? "资源过大，请等待下载完成…" : "正在保存壁纸…";
+  },
+
+  onRewardConfirm() {
+    this.setData({ showRewardGuide: false });
+    void this.playRewardAd();
+  },
+
+  onRewardCancel() {
+    this.setData({ showRewardGuide: false });
+  },
+
+  async playRewardAd() {
+    if (!AD_UNITS.rewarded) {
+      this.showNotice("激励广告未配置");
+      return;
+    }
     try {
       const ad = wx.createRewardedVideoAd({ adUnitId: AD_UNITS.rewarded });
       ad.onClose(async (result) => {
@@ -188,7 +220,7 @@ Page({
             this.showNotice("完整观看视频后才能下载");
             return;
           }
-          this.setData({ downloading: true });
+          this.setData({ downloading: true, downloadMessage: this.downloadMessageFor() });
           this.grantDownload()
             .catch((error: unknown) => {
               logDownloadError("grantDownload", error);
@@ -216,7 +248,7 @@ Page({
   },
 
   async rewardStatus() {
-    return request<{ rewarded: boolean; remaining: number; type: string }>("/reward/status");
+    return request<{ rewarded: boolean; remaining: number; type: string; rewardType?: string }>("/reward/status");
   },
 
   albumState(): Promise<"granted" | "denied" | "unknown"> {

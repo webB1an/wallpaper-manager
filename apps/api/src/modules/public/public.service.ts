@@ -142,9 +142,10 @@ export class PublicService {
 
   async rewardStatus(openid: string) {
     const reward = await this.todayReward(openid);
-    if (!reward) return { rewarded: false, remaining: 0, type: "none" };
-    if (reward.type === "unlimited") return { rewarded: true, remaining: -1, type: "unlimited" };
-    return { rewarded: true, remaining: Math.max(0, 10 - reward.usedCount), type: "daily10" };
+    const rewardType = await this.rewardType();
+    if (!reward) return { rewarded: false, remaining: 0, type: "none", rewardType };
+    if (reward.type === "unlimited") return { rewarded: true, remaining: -1, type: "unlimited", rewardType };
+    return { rewarded: true, remaining: Math.max(0, 10 - reward.usedCount), type: "daily10", rewardType };
   }
 
   async watchReward(openid: string) {
