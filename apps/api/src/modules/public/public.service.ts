@@ -192,6 +192,7 @@ export class PublicService {
         data: { usedCount: { increment: 1 } },
       });
     }
+    await this.recordDownload(openid, wallpaper.id);
     const remaining = reward.type === "unlimited" ? -1 : 10 - reward.usedCount - 1;
     return { token, expiresIn: 300, remaining: Math.max(0, remaining), type: reward.type };
   }
@@ -215,6 +216,62 @@ export class PublicService {
       await unlink(record.filePath).catch(() => undefined);
     }
     await this.prisma.downloadToken.deleteMany({ where: { token } });
+    return { ok: true };
+  }
+
+  async favoriteIds(openid: string) {
+    if (!openid) return [];
+    const rows = await this.prisma.userFavorite.findMany({ where: { userId: openid }, select: { wallpaperId: true } });
+    return rows.map((row) => row.wallpaperId);
+  }
+
+  async favorites(openid: string) {
+    if (!openid) return [];
+    const rows = await this.prisma.userFavorite.findMany({
+      where: { userId: openid },
+      include: { wallpaper: { select: { id: true, title: true, coverUrl: true, type: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    return rows.map((row) => ({ wallpaperId: row.wallpaperId, createdAt: row.createdAt, wallpaper: row.wallpaper }));
+  }
+
+  async setFavorite(openid: string, wallpaperId: string, action: "add" | "remove") {
+    if (!openid) throw new BadRequestException("请先完成微信登录");
+    const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId }, select: { id: true } });
+    if (!wallpaper) throw new NotFoundException("壁纸不存在");
+    if (action === "add") {
+      await this.prisma.userFavorite.upsert({
+        where: { userId_wallpaperId: { userId: openid, wallpaperId } },
+        update: { createdAt: new Date() },
+        create: { userId: openid, wallpaperId },
+      });
+    } else {
+      await this.prisma.userFavorite.deleteMany({ where: { userId: openid, wallpaperId } });
+    }
+    return { ok: true };
+  }
+
+  async downloads(openid: string) {
+    if (!openid) return [];
+    const rows = await this.prisma.userDownload.findMany({
+      where: { userId: openid },
+      include: { wallpaper: { select: { id: true, title: true, coverUrl: true, type: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    return rows.map((row) => ({ wallpaperId: row.wallpaperId, createdAt: row.createdAt, wallpaper: row.wallpaper }));
+  }
+
+  async recordDownload(openid: string, wallpaperId: string) {
+    if (!openid) return { ok: true };
+    const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId }, select: { id: true } });
+    if (!wallpaper) return { ok: true };
+    await this.prisma.userDownload.upsert({
+      where: { userId_wallpaperId: { userId: openid, wallpaperId } },
+      update: { createdAt: new Date() },
+      create: { userId: openid, wallpaperId },
+    });
     return { ok: true };
   }
 

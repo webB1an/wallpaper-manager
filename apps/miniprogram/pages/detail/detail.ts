@@ -1,7 +1,7 @@
 import { API_BASE, post, request, WallpaperDetail } from "../../utils/api";
 import { AD_UNITS } from "../../utils/ads";
 import { logDownload, logDownloadError } from "../../utils/logger";
-import { isFavorite, saveDownloadHistory, toggleFavorite } from "../../utils/local-history";
+import { isFavorite, saveDownloadHistory, setFavoritePresence } from "../../utils/local-history";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -76,6 +76,7 @@ Page({
         fav: isFavorite(item.id)
       });
       wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
+      void this.loadFavStatus(item.id);
     } catch (error) {
       if (token !== requestToken) return;
       const message = error instanceof Error ? error.message : "详情加载失败";
@@ -107,11 +108,28 @@ Page({
     }
   },
 
-  toggleFav() {
+  async toggleFav() {
     if (!this.data.item) return;
-    const fav = toggleFavorite(this.data.item);
-    this.setData({ fav });
-    wx.showToast({ title: fav ? "已加入收藏" : "已取消收藏", icon: "none" });
+    const adding = !this.data.fav;
+    setFavoritePresence(this.data.item, adding);
+    this.setData({ fav: adding });
+    wx.showToast({ title: adding ? "已加入收藏" : "已取消收藏", icon: "none" });
+    try {
+      await ensureOpenid();
+      await post(`/user/favorites/${this.data.item.id}`, { action: adding ? "add" : "remove" });
+    } catch {
+      wx.showToast({ title: "收藏同步失败，请稍后重试", icon: "none" });
+    }
+  },
+
+  async loadFavStatus(id: string) {
+    try {
+      await ensureOpenid();
+      const ids = await request<string[]>("/user/favorites/ids");
+      if (Array.isArray(ids) && ids.includes(id)) this.setData({ fav: true });
+    } catch {
+      // 未同步时保留本地收藏状态。
+    }
   },
 
   copyLink(event: WechatMiniprogram.TouchEvent) {

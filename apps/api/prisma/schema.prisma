@@ -76,6 +76,8 @@ model Wallpaper {
   shortLinks      ShortLink[]
   clicks          WallpaperClick[]
   downloadTokens  DownloadToken[]
+  favorites       UserFavorite[]
+  downloads       UserDownload[]
   aiAnalysis      AiAnalysis?
   matchKey        String?         @db.VarChar(512)
   matchConfidence Float?
@@ -122,6 +124,28 @@ model DownloadToken {
   wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
+}
+
+model UserFavorite {
+  id          String   @id @default(cuid())
+  userId      String
+  wallpaperId String
+  wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, wallpaperId])
+  @@index([userId, createdAt])
+}
+
+model UserDownload {
+  id          String   @id @default(cuid())
+  userId      String
+  wallpaperId String
+  wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, wallpaperId])
+  @@index([userId, createdAt])
 }
 
 model Tag {

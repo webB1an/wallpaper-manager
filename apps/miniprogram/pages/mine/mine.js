@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const api_1 = require("../../utils/api");
 const reward_1 = require("../../utils/reward");
 const local_history_1 = require("../../utils/local-history");
 const HISTORY_KEY = "wallpaper_download_history";
@@ -17,6 +18,7 @@ Page({
             favorites: (0, local_history_1.readFavorites)().map((record) => ({ ...record, atText: formatTime(record.at) }))
         });
         void this.loadQuota();
+        void this.syncFromServer();
     },
     async loadQuota() {
         try {
@@ -32,6 +34,26 @@ Page({
         }
         catch {
             this.setData({ quotaText: "今日额度获取失败，请稍后重试" });
+        }
+    },
+    async syncFromServer() {
+        try {
+            await (0, reward_1.ensureOpenid)();
+            const [favorites, downloads] = await Promise.all([
+                (0, api_1.request)("/user/favorites"),
+                (0, api_1.request)("/user/downloads"),
+            ]);
+            const favList = favorites.map((record) => ({ id: record.wallpaperId, title: record.wallpaper.title, coverUrl: record.wallpaper.coverUrl, at: toTimestamp(record.createdAt) }));
+            const dlList = downloads.map((record) => ({ id: record.wallpaperId, title: record.wallpaper.title, coverUrl: record.wallpaper.coverUrl, at: toTimestamp(record.createdAt) }));
+            (0, local_history_1.replaceFavorites)(favList);
+            (0, local_history_1.replaceDownloads)(dlList);
+            this.setData({
+                favorites: favList.map((record) => ({ ...record, atText: formatTime(record.at) })),
+                downloads: dlList.map((record) => ({ ...record, atText: formatTime(record.at) }))
+            });
+        }
+        catch {
+            // 保留本地缓存。
         }
     },
     clearDownloads() {
@@ -102,4 +124,10 @@ function formatTime(value) {
 }
 function formatClipboardText(url, passcode) {
     return passcode ? `链接：${url}\n提取码：${passcode}` : url;
+}
+function toTimestamp(value) {
+    if (typeof value === "number")
+        return value;
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? time : Date.now();
 }

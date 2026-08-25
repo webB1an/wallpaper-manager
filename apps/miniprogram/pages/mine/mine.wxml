@@ -2,6 +2,10 @@
   <view class="hero">
     <text class="hero-title">服务中心</text>
     <text class="hero-subtitle">下载与收藏，随时找回</text>
+    <view class="mine-meter">
+      <text>{{favorites.length + downloads.length + records.length}}</text>
+      <text>条记录</text>
+    </view>
   </view>
 
   <view wx:if="{{quotaText}}" class="quota-card">{{quotaText}}</view>

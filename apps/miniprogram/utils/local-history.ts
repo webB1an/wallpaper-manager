@@ -32,6 +32,10 @@ export function readDownloadHistory(): LocalWallpaper[] {
   return readList(DOWNLOAD_KEY);
 }
 
+export function replaceDownloads(list: LocalWallpaper[]) {
+  writeList(DOWNLOAD_KEY, list);
+}
+
 export function toggleFavorite(item: { id?: string; title: string; coverUrl: string }): boolean {
   const list = readList(FAVORITE_KEY);
   if (item.id && list.some((record) => record.id === item.id)) {
@@ -42,10 +46,20 @@ export function toggleFavorite(item: { id?: string; title: string; coverUrl: str
   return true;
 }
 
+export function setFavoritePresence(item: { id?: string; title: string; coverUrl: string }, on: boolean) {
+  const list = readList(FAVORITE_KEY).filter((record) => record.id !== item.id);
+  if (on) writeList(FAVORITE_KEY, [{ id: item.id, title: item.title, coverUrl: item.coverUrl, at: Date.now() }, ...list]);
+  else writeList(FAVORITE_KEY, list);
+}
+
 export function isFavorite(id?: string): boolean {
   return Boolean(id && readList(FAVORITE_KEY).some((record) => record.id === id));
 }
 
 export function readFavorites(): LocalWallpaper[] {
   return readList(FAVORITE_KEY);
+}
+
+export function replaceFavorites(list: LocalWallpaper[]) {
+  writeList(FAVORITE_KEY, list);
 }

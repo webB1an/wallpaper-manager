@@ -64,6 +64,31 @@ export class PublicController {
     return { code: 200, data: await this.service.completeDownload(token) };
   }
 
+  @Get("user/favorites/ids")
+  async favoriteIds(@Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.favoriteIds(openid || "") };
+  }
+
+  @Get("user/favorites")
+  async favorites(@Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.favorites(openid || "") };
+  }
+
+  @Post("user/favorites/:id")
+  async setFavorite(@Headers("x-openid") openid: string, @Param("id") id: string, @Body() body: { action?: string }) {
+    return { code: 200, data: await this.service.setFavorite(openid || "", id, body.action === "remove" ? "remove" : "add") };
+  }
+
+  @Get("user/downloads")
+  async downloads(@Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.downloads(openid || "") };
+  }
+
+  @Post("user/downloads/:id")
+  async recordDownload(@Headers("x-openid") openid: string, @Param("id") id: string) {
+    return { code: 200, data: await this.service.recordDownload(openid || "", id) };
+  }
+
   @Get("/r/:code")
   @Redirect()
   async short(@Param("code") code: string) {

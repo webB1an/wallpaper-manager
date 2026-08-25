@@ -1,8 +1,12 @@
-import { getRewardStatus } from "../../utils/reward";
-import { readDownloadHistory, readFavorites } from "../../utils/local-history";
+import { request } from "../../utils/api";
+import { ensureOpenid, getRewardStatus } from "../../utils/reward";
+import { readDownloadHistory, readFavorites, replaceDownloads, replaceFavorites } from "../../utils/local-history";
 import type { LocalWallpaper } from "../../utils/local-history";
 
 const HISTORY_KEY = "wallpaper_download_history";
+
+type UserWallpaper = { id: string; title: string; coverUrl: string };
+type UserRecord = { wallpaperId: string; createdAt: string | number; wallpaper: UserWallpaper };
 
 type DownloadRecord = {
   id?: string;
@@ -30,6 +34,7 @@ Page({
       favorites: readFavorites().map((record) => ({ ...record, atText: formatTime(record.at) }))
     });
     void this.loadQuota();
+    void this.syncFromServer();
   },
 
   async loadQuota() {
@@ -42,6 +47,26 @@ Page({
       this.setData({ quotaText: text });
     } catch {
       this.setData({ quotaText: "今日额度获取失败，请稍后重试" });
+    }
+  },
+
+  async syncFromServer() {
+    try {
+      await ensureOpenid();
+      const [favorites, downloads] = await Promise.all([
+        request<UserRecord[]>("/user/favorites"),
+        request<UserRecord[]>("/user/downloads"),
+      ]);
+      const favList = favorites.map((record) => ({ id: record.wallpaperId, title: record.wallpaper.title, coverUrl: record.wallpaper.coverUrl, at: toTimestamp(record.createdAt) }));
+      const dlList = downloads.map((record) => ({ id: record.wallpaperId, title: record.wallpaper.title, coverUrl: record.wallpaper.coverUrl, at: toTimestamp(record.createdAt) }));
+      replaceFavorites(favList);
+      replaceDownloads(dlList);
+      this.setData({
+        favorites: favList.map((record) => ({ ...record, atText: formatTime(record.at) })),
+        downloads: dlList.map((record) => ({ ...record, atText: formatTime(record.at) }))
+      });
+    } catch {
+      // 保留本地缓存。
     }
   },
 
@@ -115,4 +140,10 @@ function formatTime(value: number) {
 
 function formatClipboardText(url: string, passcode?: string) {
   return passcode ? `链接：${url}\n提取码：${passcode}` : url;
+}
+
+function toTimestamp(value: string | number): number {
+  if (typeof value === "number") return value;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : Date.now();
 }
