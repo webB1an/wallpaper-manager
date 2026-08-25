@@ -78,6 +78,8 @@ type ChannelAccount = {
   id: string;
   label: string;
   tokenTail: string;
+  guildId: string;
+  channelId: string;
   guildName?: string;
   channelName?: string;
   isDefault: boolean;
@@ -113,10 +115,6 @@ type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   rewardDownloadType: string;
-  autoDownloadEnabled: boolean;
-  autoDownloadIntervalHours: number;
-  autoDownloadTargetGuildId?: string;
-  autoDownloadTargetChannelId?: string;
 };
 
 type StorageSelectionForm = {
@@ -1312,46 +1310,10 @@ function Settings() {
             { value: "unlimited", label: "无限次" },
           ]} />
         </Form.Item>
-        <Form.Item
-          label="定时从 WallPost 自动下载壁纸（每 N 小时）"
-          name="autoDownloadEnabled"
-          valuePropName="checked"
-          extra="开启后每 N 小时会自动拉取一张 Wallhaven 壁纸并上传网盘、发布到腾讯频道静态壁纸板块（独立于手动发帖）"
-        >
-          <Switch />
-        </Form.Item>
-        <Form.Item label="自动下载周期（小时）" name="autoDownloadIntervalHours">
-          <InputNumber min={1} max={72} style={{ width: "100%" }} />
-        </Form.Item>
-        <Form.Item label="目标频道 ID（可选）" name="autoDownloadTargetGuildId">
-          <Input placeholder="留空则按「Wallpaper壁纸库」匹配" />
-        </Form.Item>
-        <Form.Item label="目标版块 ID（可选）" name="autoDownloadTargetChannelId">
-          <Input placeholder="留空则按「静态壁纸」匹配" />
-        </Form.Item>
-        <Space>
-          <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
-          <AutoDownloadRunButton />
-        </Space>
+        <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
       </Form>
     </section>
   );
-}
-
-function AutoDownloadRunButton() {
-  const [running, setRunning] = useState(false);
-  const run = async () => {
-    setRunning(true);
-    try {
-      const data = await request<{ ok: boolean; message: string }>("/api/admin/auto-download/run", { method: "POST" });
-      message.success(data.message || "已触发");
-    } catch {
-      message.error("触发失败，请检查配置");
-    } finally {
-      setRunning(false);
-    }
-  };
-  return <Button onClick={run} loading={running} disabled={running}>立即执行一次</Button>;
 }
 
 function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
@@ -1697,6 +1659,116 @@ function OldImport() {
   );
 }
 
+type AutoPublishBoardRow = {
+  id: string;
+  guildId: string;
+  guildName?: string;
+  channelId: string;
+  channelName?: string;
+  source: string;
+  sourceConfig?: Record<string, unknown> | null;
+  enabled: boolean;
+  intervalHours: number;
+  lastRunAt?: string | null;
+};
+
+function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
+  const [boards, setBoards] = useState<AutoPublishBoardRow[]>([]);
+  const [sources, setSources] = useState<string[]>(["wallpost"]);
+  const [open, setOpen] = useState(false);
+  const [runningId, setRunningId] = useState<string>();
+  const [form] = Form.useForm();
+  const load = () => request<AutoPublishBoardRow[]>("/api/admin/auto-publish-boards").then(setBoards);
+  useEffect(() => {
+    void load();
+    void request<string[]>("/api/admin/auto-publish-sources").then(setSources);
+  }, []);
+  const guildOptions = Array.from(new Map(
+    accounts.map((account): [string, string] => [account.guildId, account.guildName || account.guildId]),
+  ).entries()).map(([value, label]) => ({ value, label }));
+  const channelOptions = Array.from(new Map(
+    accounts.map((account): [string, string] => [account.channelId, account.channelName || account.channelId]),
+  ).entries()).map(([value, label]) => ({ value, label }));
+
+  const runBoard = async (id: string) => {
+    setRunningId(id);
+    try {
+      const data = await request<{ ok: boolean; message: string }>(`/api/admin/auto-publish-boards/${id}/run`, { method: "POST" });
+      if (data.ok) message.success(data.message);
+      else message.warning(data.message);
+      await load();
+    } finally {
+      setRunningId(undefined);
+    }
+  };
+
+  return (
+    <div className="board-manager">
+      <Space className="toolbar">
+        <Button type="primary" onClick={() => setOpen(true)}>新增自动发帖板块</Button>
+        <Button onClick={load}>刷新</Button>
+      </Space>
+      <Table rowKey="id" dataSource={boards} pagination={false} columns={[
+        { title: "频道 / 版块", render: (_, row) => `${row.guildName || row.guildId} / ${row.channelName || row.channelId}` },
+        { title: "来源", dataIndex: "source" },
+        { title: "周期(小时)", dataIndex: "intervalHours" },
+        { title: "启用", dataIndex: "enabled", render: (value, row) => (
+          <Switch checked={Boolean(value)} size="small" onChange={async (checked) => {
+            await request(`/api/admin/auto-publish-boards/${row.id}`, { method: "PATCH", body: JSON.stringify({ enabled: checked }) });
+            await load();
+          }} />
+        ) },
+        { title: "上次运行", dataIndex: "lastRunAt", render: (value) => value ? new Date(value).toLocaleString("zh-CN") : "—" },
+        { title: "操作", render: (_, row) => (
+          <Popconfirm title="立即执行这个板块？" okText="执行" cancelText="取消" onConfirm={() => runBoard(row.id)}>
+            <Button size="small" type="primary" loading={runningId === row.id}>立即执行</Button>
+          </Popconfirm>
+        ) },
+      ]} />
+      <Modal title="新增自动发帖板块" open={open} onCancel={() => setOpen(false)} onOk={async () => {
+        const values = await form.validateFields();
+        const sourceConfig = typeof values.sourceConfig === "string" && values.sourceConfig.trim()
+          ? JSON.parse(values.sourceConfig)
+          : undefined;
+        await request("/api/admin/auto-publish-boards", { method: "POST", body: JSON.stringify({ ...values, sourceConfig }) });
+        message.success("已保存");
+        form.resetFields();
+        setOpen(false);
+        await load();
+      }} okText="保存" cancelText="取消">
+        <Form form={form} layout="vertical">
+          <Form.Item label="频道" name="guildId" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label" placeholder="选择频道" options={guildOptions}
+              onChange={(guildId) => {
+                const account = accounts.find((item) => item.guildId === guildId);
+                form.setFieldsValue({ guildName: account?.guildName });
+              }} />
+          </Form.Item>
+          <Form.Item label="版块" name="channelId" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label" placeholder="选择版块" options={channelOptions}
+              onChange={(channelId) => {
+                const account = accounts.find((item) => item.channelId === channelId);
+                form.setFieldsValue({ channelName: account?.channelName });
+              }} />
+          </Form.Item>
+          <Form.Item label="数据来源" name="source" initialValue="wallpost" rules={[{ required: true }]}>
+            <Select options={sources.map((source) => ({ value: source, label: source }))} />
+          </Form.Item>
+          <Form.Item label="周期（小时）" name="intervalHours" initialValue={4} rules={[{ required: true }]}>
+            <InputNumber min={1} max={72} style={{ width: "100%" }} />
+          </Form.Item>
+          <Form.Item label="启用" name="enabled" valuePropName="checked" initialValue={true}>
+            <Switch />
+          </Form.Item>
+          <Form.Item label="来源配置（JSON，可选）" name="sourceConfig">
+            <Input.TextArea rows={3} placeholder='例如 {"query":"wallpaper","categories":"111"}（WallPost 来源可留空）' />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
 function Channels() {
   const [items, setItems] = useState<ChannelAccount[]>([]);
   const [activeTab, setActiveTab] = useState("accounts");
@@ -1914,6 +1986,11 @@ function Channels() {
             </Form.Item>
             <Button htmlType="submit" type="primary">保存账号</Button>
           </Form>,
+        },
+        {
+          key: "boards",
+          label: "自动发帖板块",
+          children: <BoardManager accounts={items} />,
         },
       ]} />
       <Modal

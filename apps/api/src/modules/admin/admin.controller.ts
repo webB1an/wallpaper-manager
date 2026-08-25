@@ -3,6 +3,7 @@ import { FilesInterceptor } from "@nestjs/platform-express";
 import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { AdminService } from "./admin.service";
 import { AdminAuthGuard } from "./auth.guard";
+import { autoSourceIds } from "./auto-publish-sources";
 
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -86,18 +87,49 @@ export class AdminController {
     defaultAutoProcess?: boolean;
     defaultAutoPublish?: boolean;
     rewardDownloadType?: RewardDownloadType;
-    autoDownloadEnabled?: boolean;
-    autoDownloadIntervalHours?: number;
-    autoDownloadTargetGuildId?: string;
-    autoDownloadTargetChannelId?: string;
   }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
   }
 
   @UseGuards(AdminAuthGuard)
-  @Post("auto-download/run")
-  async runAutoDownload() {
-    return { code: 200, data: await this.admin.autoDownloadWallpaper() };
+  @Get("auto-publish-boards")
+  async autoPublishBoards() {
+    return { code: 200, data: await this.admin.listAutoPublishBoards() };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Get("auto-publish-sources")
+  async autoPublishSources() {
+    return { code: 200, data: autoSourceIds() };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("auto-publish-boards")
+  async createAutoPublishBoard(@Body() body: {
+    guildId: string; guildName?: string; channelId: string; channelName?: string;
+    source?: string; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number;
+  }) {
+    return { code: 200, data: await this.admin.saveAutoPublishBoard(body) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch("auto-publish-boards/:id")
+  async updateAutoPublishBoard(@Param("id") id: string, @Body() body: {
+    guildName?: string; channelName?: string; source?: string; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number;
+  }) {
+    return { code: 200, data: await this.admin.updateAutoPublishBoard(id, body) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Delete("auto-publish-boards/:id")
+  async deleteAutoPublishBoard(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.deleteAutoPublishBoard(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("auto-publish-boards/:id/run")
+  async runAutoPublishBoard(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.runAutoPublishBoardById(id) };
   }
 
   @UseGuards(AdminAuthGuard)

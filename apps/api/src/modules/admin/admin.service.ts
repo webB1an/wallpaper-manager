@@ -22,16 +22,13 @@ import { StorageAccountService } from "../storage/storage-account.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
+import { autoSourceIds, fetchAutoSource } from "./auto-publish-sources";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   rewardDownloadType: RewardDownloadType;
-  autoDownloadEnabled: boolean;
-  autoDownloadIntervalHours: number;
-  autoDownloadTargetGuildId?: string;
-  autoDownloadTargetChannelId?: string;
 };
 
 type DiagnosticItem = {
@@ -54,8 +51,6 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
   rewardDownloadType: "daily10",
-  autoDownloadEnabled: false,
-  autoDownloadIntervalHours: 4,
 };
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -96,122 +91,154 @@ export class AdminService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    void this.startAutoDownloadLoop();
+    void this.startAutoPublishLoop();
   }
 
-  private async startAutoDownloadLoop() {
-    const schedule = async () => {
-      try {
-        const settings = await this.getSettings();
-        if (settings.autoDownloadEnabled) {
-          await this.autoDownloadWallpaper().catch((error) => {
-            this.logger.warn(`自动下载壁纸失败：${(error as Error).message}`);
-          });
-        }
-      } finally {
-        const settings = await this.getSettings().catch(() => null);
-        const hours = settings?.autoDownloadIntervalHours || 4;
-        const ms = hours * 60 * 60 * 1000;
-        if (this.autoScheduleTimer) clearTimeout(this.autoScheduleTimer);
-        this.autoScheduleTimer = setTimeout(() => void schedule(), ms);
-        this.autoScheduleTimer.unref?.();
-      }
+  private startAutoPublishLoop() {
+    const tick = () => {
+      void this.runDueAutoPublishBoards().catch((error) => {
+        this.logger.warn(`自动发帖调度出错：${(error as Error).message}`);
+      });
     };
-    const settings = await this.getSettings().catch(() => null);
-    const hours = settings?.autoDownloadIntervalHours || 4;
-    const ms = hours * 60 * 60 * 1000;
-    this.autoScheduleTimer = setTimeout(() => void schedule(), ms);
+    setTimeout(tick, 60_000).unref?.();
+    this.autoScheduleTimer = setInterval(tick, 5 * 60_000);
     this.autoScheduleTimer.unref?.();
   }
 
-  /** 从 WallPost 下载一张未收录壁纸 → 入库 → AI 分类 → 上传网盘 → 发帖，并记录来源用于去重。 */
-  async autoDownloadWallpaper(): Promise<{ ok: boolean; message: string }> {
-    if (this.autoDownloadRunning) return { ok: false, message: "自动下载任务正在运行" };
-    const settings = await this.getSettings();
-    if (!settings.autoDownloadEnabled) return { ok: false, message: "自动下载未开启" };
-    const baseUrl = this.config.get<string>("WALLPOST_BASE_URL")?.trim();
-    const bridgeKey = this.config.get<string>("WALLPOST_BRIDGE_KEY")?.trim();
-    if (!baseUrl || !bridgeKey) throw new BadRequestException("未配置 WALLPOST_BASE_URL / WALLPOST_BRIDGE_KEY");
+  /** 调度：每个启用板块按各自的周期运行，超期即触发一次。 */
+  private async runDueAutoPublishBoards() {
+    const boards = await this.prisma.autoPublishBoard.findMany({ where: { enabled: true } });
+    const now = Date.now();
+    for (const board of boards) {
+      if (this.autoDownloadRunning) break;
+      const due = !board.lastRunAt || now - board.lastRunAt.getTime() >= board.intervalHours * 60 * 60 * 1000;
+      if (!due) continue;
+      await this.runAutoPublishBoard(board).catch((error) => {
+        this.logger.warn(`板块「${board.guildName || board.guildId}/${board.channelName || board.channelId}」自动发帖失败：${(error as Error).message}`);
+      });
+    }
+  }
 
+  /** 运行一个板块的自动发帖：按来源拉图 → 入库 → AI 分类 → 上传网盘 → 发到该板块账号 → 全局去重。 */
+  async runAutoPublishBoard(board: { id: string; source: string; sourceConfig: unknown; guildId: string; guildName?: string | null; channelId: string; channelName?: string | null }): Promise<{ ok: boolean; message: string }> {
+    if (this.autoDownloadRunning) return { ok: false, message: "自动发帖任务正在运行" };
     this.autoDownloadRunning = true;
-    const bridgeBase = baseUrl.replace(/\/$/, "");
-    let bridgeToken = "";
     try {
-      const used = await this.prisma.wallpaperSource.findMany({ where: { source: "wallhaven" }, select: { sourceId: true } });
-      const exclude = used.map((row) => row.sourceId);
-      const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
-        body: JSON.stringify({ exclude }),
-        signal: AbortSignal.timeout(60_000),
+      const exclude = (await this.prisma.wallpaperSource.findMany({ select: { sourceId: true } })).map((row) => row.sourceId);
+      const item = await fetchAutoSource(board.source, {
+        exclude,
+        config: (board.sourceConfig as Record<string, unknown>) || {},
+        configService: this.config,
       });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error || `桥接获取壁纸失败（${response.status}）`);
-      }
-      const payload = (await response.json()) as {
-        data?: { id: string; token: string; width: number; height: number; fileName: string; fileType: string; downloadUrl: string };
-      };
-      const item = payload.data;
-      if (!item?.id || !item.downloadUrl) throw new Error("桥接未返回壁纸信息");
-      bridgeToken = item.token;
-
-      const imageResponse = await fetch(`${bridgeBase}${item.downloadUrl}`, {
-        headers: { "x-bridge-key": bridgeKey },
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (!imageResponse.ok) throw new Error(`下载原图失败（${imageResponse.status}）`);
-      const bytes = Buffer.from(await imageResponse.arrayBuffer());
-
-      const persisted = await this.persistWallpaperBytes(bytes, item.fileName, item.fileType);
+      const persisted = await this.persistWallpaperBytes(item.bytes, item.fileName, item.fileType);
       const cover = await this.createCover(persisted.path, persisted.mimeType);
+      const type = item.type === "live" ? WallpaperType.live : WallpaperType.static;
       const record = await this.prisma.wallpaper.create({
         data: {
-          title: `Wallhaven ${item.id}`,
+          title: `${item.fileName || item.sourceId}`,
           originalName: item.fileName,
           coverPath: cover.relativePath,
           coverUrl: publicAssetUrl(this.config, cover.relativePath),
           assetPath: persisted.relativePath,
           mimeType: persisted.mimeType,
-          type: WallpaperType.static,
+          type,
           orientation: orientationFromDimensions(item.width, item.height),
           status: WallpaperStatus.draft,
         },
       });
       await this.prisma.wallpaperSource.upsert({
-        where: { source_sourceId: { source: "wallhaven", sourceId: item.id } },
+        where: { source_sourceId: { source: board.source, sourceId: item.sourceId } },
         update: {},
-        create: { source: "wallhaven", sourceId: item.id, wallpaperId: record.id },
+        create: { source: board.source, sourceId: item.sourceId, wallpaperId: record.id },
       });
 
       const analysis = await this.analyzeNow(record.id);
-      if (!analysis.safe) return { ok: true, message: `AI 审核未通过（${analysis.sensitiveFlags.join("、") || "疑似违规"}），已跳过发帖` };
+      if (!analysis.safe) return { ok: true, message: `AI 审核未通过，已跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）` };
 
       const localAsset = join(process.cwd(), "storage", "public", record.assetPath || "");
-      const storageResults = await this.storage.syncWallpaper(record.id, localAsset, analysis.title || `Wallhaven ${item.id}`, WallpaperType.static, analysis.tags);
-      const storageWarnings = storageResults.filter((item) => !item.ok).map((item) => `${item.provider} 同步失败：${item.error}`);
+      const storageResults = await this.storage.syncWallpaper(record.id, localAsset, analysis.title || record.title, type, analysis.tags);
+      const storageWarnings = storageResults.filter((row) => !row.ok).map((row) => `${row.provider} 同步失败：${row.error}`);
 
-      const account = await this.pickAutoPublishAccount(settings);
-      if (!account) throw new Error("没有开启自动发帖的腾讯频道账号");
-      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: analysis.title || record.title, type: WallpaperType.static, status: WallpaperStatus.pending_review } });
+      const account = await this.pickAutoPublishAccount(board);
+      if (!account) throw new Error(`没有【${board.guildName || board.guildId}/${board.channelName || board.channelId}】开启自动发帖的频道账号`);
+      const isVideo = type === WallpaperType.live;
+      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: analysis.title || record.title, type, status: WallpaperStatus.pending_review } });
       await this.channel.publish({
         accountId: account.id,
-        content: analysis.title || `Wallhaven ${item.id}`,
-        imagePaths: existsSync(localAsset) ? [localAsset] : [],
-        videoPaths: [],
+        content: analysis.title || record.title,
+        imagePaths: !isVideo && existsSync(localAsset) ? [localAsset] : [],
+        videoPaths: isVideo && existsSync(localAsset) ? [localAsset] : [],
         topicNames: analysis.tags.slice(0, 6),
       });
       await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
-      return { ok: true, message: `已发布「${analysis.title || item.id}」到腾讯频道${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}` };
+      await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date() } });
+      return { ok: true, message: `已发布「${analysis.title || record.title}」到 ${board.guildName || board.guildId}/${board.channelName || board.channelId}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}` };
     } catch (error) {
-      return { ok: false, message: (error as Error).message || "自动下载失败" };
+      return { ok: false, message: (error as Error).message || "自动发帖失败" };
     } finally {
       this.autoDownloadRunning = false;
-      if (bridgeToken) {
-        await fetch(`${bridgeBase}/api/bridge/download/${bridgeToken}/complete`, { method: "POST", headers: { "x-bridge-key": bridgeKey } }).catch(() => undefined);
-      }
     }
+  }
+
+  async runAutoPublishBoardById(id: string) {
+    const board = await this.prisma.autoPublishBoard.findUnique({ where: { id } });
+    if (!board) throw new BadRequestException("自动发帖板块配置不存在");
+    return this.runAutoPublishBoard(board);
+  }
+
+  listAutoPublishBoards() {
+    return this.prisma.autoPublishBoard.findMany({ orderBy: { createdAt: "desc" } });
+  }
+
+  async saveAutoPublishBoard(input: {
+    guildId: string;
+    guildName?: string;
+    channelId: string;
+    channelName?: string;
+    source?: string;
+    sourceConfig?: Record<string, unknown>;
+    enabled?: boolean;
+    intervalHours?: number;
+  }) {
+    const source = input.source || "wallpost";
+    if (!autoSourceIds().includes(source)) throw new BadRequestException(`未知数据来源：${source}`);
+    return this.prisma.autoPublishBoard.create({
+      data: {
+        guildId: input.guildId,
+        guildName: input.guildName,
+        channelId: input.channelId,
+        channelName: input.channelName,
+        source,
+        sourceConfig: (input.sourceConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+        enabled: Boolean(input.enabled),
+        intervalHours: clampAutoInterval(input.intervalHours),
+      },
+    });
+  }
+
+  async updateAutoPublishBoard(id: string, data: { guildName?: string; channelName?: string; source?: string; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number }) {
+    const board = await this.prisma.autoPublishBoard.findUnique({ where: { id } });
+    if (!board) throw new BadRequestException("自动发帖板块配置不存在");
+    if (data.source && !autoSourceIds().includes(data.source)) throw new BadRequestException(`未知数据来源：${data.source}`);
+    return this.prisma.autoPublishBoard.update({
+      where: { id },
+      data: {
+        ...(typeof data.guildName === "string" ? { guildName: data.guildName } : {}),
+        ...(typeof data.channelName === "string" ? { channelName: data.channelName } : {}),
+        ...(typeof data.source === "string" ? { source: data.source } : {}),
+        ...(data.sourceConfig !== undefined ? { sourceConfig: data.sourceConfig as Prisma.InputJsonValue } : {}),
+        ...(typeof data.enabled === "boolean" ? { enabled: data.enabled } : {}),
+        ...(typeof data.intervalHours === "number" ? { intervalHours: clampAutoInterval(data.intervalHours) } : {}),
+      },
+    });
+  }
+
+  async deleteAutoPublishBoard(id: string) {
+    const board = await this.prisma.autoPublishBoard.findUnique({ where: { id } });
+    if (!board) throw new BadRequestException("自动发帖板块配置不存在");
+    await this.prisma.autoPublishBoard.delete({ where: { id } });
+    return { deleted: true };
   }
 
   private async persistWallpaperBytes(bytes: Buffer, originalName: string, mimeType: string) {
@@ -224,14 +251,9 @@ export class AdminService implements OnModuleInit {
     return { path, relativePath: `originals/${fileName}`, mimeType, originalName };
   }
 
-  private async pickAutoPublishAccount(settings: SystemSettings) {
-    const where: Prisma.ChannelAccountWhereInput = { autoPublish: true };
-    if (settings.autoDownloadTargetGuildId) where.guildId = settings.autoDownloadTargetGuildId;
-    if (settings.autoDownloadTargetChannelId) where.channelId = settings.autoDownloadTargetChannelId;
-    if (!settings.autoDownloadTargetGuildId) where.guildName = { contains: "Wallpaper壁纸库" };
-    if (!settings.autoDownloadTargetChannelId) where.channelName = { contains: "静态壁纸" };
+  private async pickAutoPublishAccount(board: { guildId: string; channelId: string }) {
     const accounts = await this.prisma.channelAccount.findMany({
-      where,
+      where: { autoPublish: true, guildId: board.guildId, channelId: board.channelId },
       orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
       take: 1,
     });
@@ -326,12 +348,6 @@ export class AdminService implements OnModuleInit {
       ...(input.rewardDownloadType === "daily10" || input.rewardDownloadType === "unlimited"
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
-      ...(typeof input.autoDownloadEnabled === "boolean" ? { autoDownloadEnabled: input.autoDownloadEnabled } : {}),
-      ...(typeof input.autoDownloadIntervalHours === "number" && Number.isFinite(input.autoDownloadIntervalHours)
-        ? { autoDownloadIntervalHours: Math.min(72, Math.max(1, Math.round(input.autoDownloadIntervalHours))) }
-        : {}),
-      ...(typeof input.autoDownloadTargetGuildId === "string" ? { autoDownloadTargetGuildId: input.autoDownloadTargetGuildId } : {}),
-      ...(typeof input.autoDownloadTargetChannelId === "string" ? { autoDownloadTargetChannelId: input.autoDownloadTargetChannelId } : {}),
     };
     await this.prisma.setting.upsert({
       where: { key: "system" },
@@ -1377,6 +1393,11 @@ function orientationFromDimensions(width: number, height: number): WallpaperOrie
   if (height > width) return WallpaperOrientation.portrait;
   if (width > height) return WallpaperOrientation.landscape;
   return WallpaperOrientation.square;
+}
+
+function clampAutoInterval(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 4;
+  return Math.min(72, Math.max(1, Math.round(value)));
 }
 
 

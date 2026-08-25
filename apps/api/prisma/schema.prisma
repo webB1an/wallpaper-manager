@@ -276,6 +276,23 @@ model WallpaperSource {
   @@index([source, createdAt])
 }
 
+model AutoPublishBoard {
+  id           String   @id @default(cuid())
+  guildId      String   @db.VarChar(128)
+  guildName    String?  @db.VarChar(160)
+  channelId    String   @db.VarChar(128)
+  channelName  String?  @db.VarChar(160)
+  source       String   @db.VarChar(64) @default("wallpost")
+  sourceConfig Json?
+  enabled      Boolean  @default(false)
+  intervalHours Int     @default(4)
+  lastRunAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([enabled])
+}
+
 model Setting {
   key       String   @id
   value     Json
