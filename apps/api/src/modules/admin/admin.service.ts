@@ -190,6 +190,7 @@ export class AdminService {
     checks.push(await this.checkQuarkStorage());
     checks.push(this.checkOldCoverSource());
     checks.push(await this.checkPanapi());
+    checks.push(await this.checkWallhaven());
     checks.push(this.checkDeepSeekConfig());
     checks.push(await this.checkTencentCli());
     checks.push(await this.checkChannelAccounts());
@@ -1084,6 +1085,22 @@ export class AdminService {
       return ok("panapi", "wdbzk 资源库", "panapi 可访问");
     } catch (error) {
       return fail("panapi", "wdbzk 资源库", `panapi 调用失败：${shortError(error)}`);
+    }
+  }
+
+  private async checkWallhaven(): Promise<DiagnosticItem> {
+    const base = this.config.get<string>("WALLHAVEN_API_BASE")?.trim() || "https://wallhaven.cc/api/v1";
+    try {
+      const response = await fetch(`${base}/search?q=cat&atleast=1920x1080&sorting=random&page=1`, {
+        signal: AbortSignal.timeout(12_000),
+        headers: { "User-Agent": "wallpaper-manager/1.0" },
+      });
+      if (!response.ok) return fail("wallhaven", "Wallhaven API", `HTTP ${response.status}，无法访问`);
+      const body = (await response.json()) as { meta?: { total?: number } };
+      const total = body.meta?.total ?? 0;
+      return ok("wallhaven", "Wallhaven API", `可访问，检索返回 ${total} 张`);
+    } catch (error) {
+      return fail("wallhaven", "Wallhaven API", `连通失败：${shortError(error)}`);
     }
   }
 
