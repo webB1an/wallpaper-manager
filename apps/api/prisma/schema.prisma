@@ -58,6 +58,7 @@ enum TaskType {
   channel_publish
   old_cover_import
   asset_fetch
+  auto_publish
 }
 
 model Wallpaper {

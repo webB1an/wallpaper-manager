@@ -123,13 +123,17 @@ export class AdminService implements OnModuleInit {
   async runAutoPublishBoard(board: { id: string; source: string; sourceConfig: unknown; guildId: string; guildName?: string | null; channelId: string; channelName?: string | null }): Promise<{ ok: boolean; message: string }> {
     if (this.autoDownloadRunning) return { ok: false, message: "自动发帖任务正在运行" };
     this.autoDownloadRunning = true;
+    const boardLabel = `${board.guildName || board.guildId}/${board.channelName || board.channelId}`;
+    const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在从 ${board.source} 拉取壁纸发到 ${boardLabel}`);
     try {
       const exclude = (await this.prisma.wallpaperSource.findMany({ select: { sourceId: true } })).map((row) => row.sourceId);
+      await this.tasks.update(task.id, { status: "running", progress: 8, message: "正在从数据源拉取壁纸" });
       const item = await fetchAutoSource(board.source, {
         exclude,
         config: (board.sourceConfig as Record<string, unknown>) || {},
         configService: this.config,
       });
+      await this.tasks.update(task.id, { progress: 30, message: "正在保存原图并生成封面" });
       const persisted = await this.persistWallpaperBytes(item.bytes, item.fileName, item.fileType);
       const cover = await this.createCover(persisted.path, persisted.mimeType);
       const type = item.type === "live" ? WallpaperType.live : WallpaperType.static;
@@ -152,17 +156,25 @@ export class AdminService implements OnModuleInit {
         create: { source: board.source, sourceId: item.sourceId, wallpaperId: record.id },
       });
 
+      await this.tasks.update(task.id, { progress: 45, message: "正在 AI 识别分类" });
       const analysis = await this.analyzeNow(record.id);
-      if (!analysis.safe) return { ok: true, message: `AI 审核未通过，已跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）` };
+      if (!analysis.safe) {
+        const message = `AI 审核未通过，已跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）`;
+        await this.tasks.update(task.id, { status: "skipped", progress: 100, message, result: { ok: true, skipped: true } });
+        await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
+        return { ok: true, message };
+      }
 
       const localAsset = join(process.cwd(), "storage", "public", record.assetPath || "");
+      await this.tasks.update(task.id, { progress: 62, message: "正在上传网盘" });
       const storageResults = await this.storage.syncWallpaper(record.id, localAsset, analysis.title || record.title, type, analysis.tags);
       const storageWarnings = storageResults.filter((row) => !row.ok).map((row) => `${row.provider} 同步失败：${row.error}`);
 
       const account = await this.pickAutoPublishAccount(board);
-      if (!account) throw new Error(`没有【${board.guildName || board.guildId}/${board.channelName || board.channelId}】开启自动发帖的频道账号`);
+      if (!account) throw new Error(`没有【${boardLabel}】开启自动发帖的频道账号`);
       const isVideo = type === WallpaperType.live;
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: analysis.title || record.title, type, status: WallpaperStatus.pending_review } });
+      await this.tasks.update(task.id, { progress: 82, message: "正在发布到腾讯频道" });
       await this.channel.publish({
         accountId: account.id,
         content: analysis.title || record.title,
@@ -172,11 +184,13 @@ export class AdminService implements OnModuleInit {
       });
       await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
-      const message = `已发布「${analysis.title || record.title}」到 ${board.guildName || board.guildId}/${board.channelName || board.channelId}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
+      const message = `已发布「${analysis.title || record.title}」到 ${boardLabel}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
+      await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true } });
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
       return { ok: true, message };
     } catch (error) {
       const message = (error as Error).message || "自动发帖失败";
+      await this.tasks.update(task.id, { status: "failed", error: message, message: "自动发帖失败" }).catch(() => undefined);
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
       return { ok: false, message };
     } finally {

@@ -1538,7 +1538,7 @@ function Tasks() {
             setType(nextType);
             void load(1, status, nextType);
           }}
-          options={["upload_asset", "ai_classify", "quark_sync", "baidu_sync", "wdbzk_sync", "channel_publish", "old_cover_import"].map((value) => ({ value, label: taskTypeText(value) }))}
+          options={["upload_asset", "ai_classify", "quark_sync", "baidu_sync", "wdbzk_sync", "channel_publish", "old_cover_import", "asset_fetch", "auto_publish"].map((value) => ({ value, label: taskTypeText(value) }))}
           style={{ width: 180 }}
         />
         <span>自动刷新</span>
@@ -2457,6 +2457,8 @@ function taskTypeText(value: string) {
     wdbzk_sync: "wdbzk 入库",
     channel_publish: "频道发帖",
     old_cover_import: "老封面迁移",
+    asset_fetch: "回源下载",
+    auto_publish: "板块自动发帖",
   };
   return map[value] || value;
 }
