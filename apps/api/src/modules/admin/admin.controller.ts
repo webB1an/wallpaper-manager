@@ -82,8 +82,22 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Patch("settings")
-  async updateSettings(@Body() body: { defaultAutoProcess?: boolean; defaultAutoPublish?: boolean; rewardDownloadType?: RewardDownloadType }) {
+  async updateSettings(@Body() body: {
+    defaultAutoProcess?: boolean;
+    defaultAutoPublish?: boolean;
+    rewardDownloadType?: RewardDownloadType;
+    autoDownloadEnabled?: boolean;
+    autoDownloadIntervalHours?: number;
+    autoDownloadTargetGuildId?: string;
+    autoDownloadTargetChannelId?: string;
+  }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("auto-download/run")
+  async runAutoDownload() {
+    return { code: 200, data: await this.admin.autoDownloadWallpaper() };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -210,6 +224,7 @@ export class AdminController {
     channelId: string;
     channelName?: string;
     isDefault?: boolean;
+    autoPublish?: boolean;
   }) {
     return { code: 200, data: await this.admin.saveChannelAccount(body) };
   }
@@ -218,6 +233,12 @@ export class AdminController {
   @Post("channels/:id/default")
   async defaultChannel(@Param("id") id: string) {
     return { code: 200, data: await this.admin.setDefaultChannel(id) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch("channels/:id/auto-publish")
+  async autoPublishChannel(@Param("id") id: string, @Body() body: { autoPublish: boolean }) {
+    return { code: 200, data: await this.admin.setChannelAccountAutoPublish(id, Boolean(body.autoPublish)) };
   }
 
   @UseGuards(AdminAuthGuard)

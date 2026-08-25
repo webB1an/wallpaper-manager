@@ -78,6 +78,7 @@ model Wallpaper {
   downloadTokens  DownloadToken[]
   favorites       UserFavorite[]
   downloads       UserDownload[]
+  wallpaperSources WallpaperSource[]
   aiAnalysis      AiAnalysis?
   matchKey        String?         @db.VarChar(512)
   matchConfidence Float?
@@ -257,8 +258,22 @@ model ChannelAccount {
   channelId   String
   channelName String?
   isDefault   Boolean  @default(false)
+  autoPublish Boolean  @default(true)
+  lastAutoPublishAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model WallpaperSource {
+  id          String   @id @default(cuid())
+  source      String   @db.VarChar(64)
+  sourceId    String   @db.VarChar(255)
+  wallpaperId String
+  wallpaper   Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([source, sourceId])
+  @@index([source, createdAt])
 }
 
 model Setting {

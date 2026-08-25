@@ -16,6 +16,7 @@ const PUBLIC_CHANNEL_ACCOUNT_SELECT = {
   channelId: true,
   channelName: true,
   isDefault: true,
+  autoPublish: true,
   createdAt: true,
 } as const;
 
@@ -69,6 +70,7 @@ export class ChannelService {
     channelId: string;
     channelName?: string;
     isDefault?: boolean;
+    autoPublish?: boolean;
   }) {
     const label = input.label?.trim();
     const token = input.token?.trim();
@@ -76,6 +78,7 @@ export class ChannelService {
     const guildName = input.guildName?.trim();
     const channelId = input.channelId?.trim();
     const channelName = input.channelName?.trim();
+    const autoPublish = input.autoPublish ?? true;
     if (!label) throw new BadRequestException("账号名称不能为空");
     if (!token) throw new BadRequestException("Token 不能为空");
     if (!guildId) throw new BadRequestException("频道 ID 不能为空");
@@ -97,6 +100,7 @@ export class ChannelService {
         channelId,
         channelName,
         isDefault: shouldBeDefault,
+        autoPublish,
       },
       select: PUBLIC_CHANNEL_ACCOUNT_SELECT,
     });
@@ -107,6 +111,12 @@ export class ChannelService {
     if (!account) throw new NotFoundException("腾讯频道账号不存在");
     await this.prisma.channelAccount.updateMany({ data: { isDefault: false } });
     return this.prisma.channelAccount.update({ where: { id }, data: { isDefault: true }, select: PUBLIC_CHANNEL_ACCOUNT_SELECT });
+  }
+
+  async setAutoPublish(id: string, autoPublish: boolean) {
+    const account = await this.prisma.channelAccount.findUnique({ where: { id } });
+    if (!account) throw new NotFoundException("腾讯频道账号不存在");
+    return this.prisma.channelAccount.update({ where: { id }, data: { autoPublish }, select: PUBLIC_CHANNEL_ACCOUNT_SELECT });
   }
 
   async updateLabel(id: string, label: string) {

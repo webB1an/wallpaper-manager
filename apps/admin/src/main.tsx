@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Alert, Button, ConfigProvider, Form, Input, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
+import { Alert, Button, ConfigProvider, Form, Input, InputNumber, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadFile, UploadProps } from "antd";
 import { Activity, CloudUpload, Copy, GalleryVerticalEnd, HardDrive, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
@@ -81,6 +81,7 @@ type ChannelAccount = {
   guildName?: string;
   channelName?: string;
   isDefault: boolean;
+  autoPublish: boolean;
 };
 
 type StorageAccount = {
@@ -111,6 +112,11 @@ type TencentChannelOption = {
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
+  rewardDownloadType: string;
+  autoDownloadEnabled: boolean;
+  autoDownloadIntervalHours: number;
+  autoDownloadTargetGuildId?: string;
+  autoDownloadTargetChannelId?: string;
 };
 
 type StorageSelectionForm = {
@@ -1306,10 +1312,42 @@ function Settings() {
             { value: "unlimited", label: "无限次" },
           ]} />
         </Form.Item>
-        <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
+        <Form.Item label="定时从 WallPost 自动下载壁纸（每 N 小时）" name="autoDownloadEnabled" valuePropName="checked">
+          <Switch />
+          <span className="form-hint">开启后每 N 小时会自动拉取一张 Wallhaven 壁纸并上传网盘、发布到腾讯频道静态壁纸板块（独立于手动发帖）</span>
+        </Form.Item>
+        <Form.Item label="自动下载周期（小时）" name="autoDownloadIntervalHours">
+          <InputNumber min={1} max={72} style={{ width: "100%" }} />
+        </Form.Item>
+        <Form.Item label="目标频道 ID（可选）" name="autoDownloadTargetGuildId">
+          <Input placeholder="留空则按「Wallpaper壁纸库」匹配" />
+        </Form.Item>
+        <Form.Item label="目标版块 ID（可选）" name="autoDownloadTargetChannelId">
+          <Input placeholder="留空则按「静态壁纸」匹配" />
+        </Form.Item>
+        <Space>
+          <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
+          <AutoDownloadRunButton />
+        </Space>
       </Form>
     </section>
   );
+}
+
+function AutoDownloadRunButton() {
+  const [running, setRunning] = useState(false);
+  const run = async () => {
+    setRunning(true);
+    try {
+      const data = await request<{ ok: boolean; message: string }>("/api/admin/auto-download/run", { method: "POST" });
+      message.success(data.message || "已触发");
+    } catch {
+      message.error("触发失败，请检查配置");
+    } finally {
+      setRunning(false);
+    }
+  };
+  return <Button onClick={run} loading={running} disabled={running}>立即执行一次</Button>;
 }
 
 function Diagnostics({ onNavigate, onOpenLibrary }: { onNavigate: (key: string) => void; onOpenLibrary: (preset?: LibraryPreset) => void }) {
@@ -1777,6 +1815,21 @@ function Channels() {
             { title: "版块", dataIndex: "channelName" },
             { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="gold">默认</Tag> : null },
             {
+              title: "自动发帖",
+              dataIndex: "autoPublish",
+              render: (value, row) => (
+                <Switch
+                  checked={Boolean(value)}
+                  size="small"
+                  onChange={async (checked) => {
+                    await request(`/api/admin/channels/${row.id}/auto-publish`, { method: "PATCH", body: JSON.stringify({ autoPublish: checked }) });
+                    message.success(checked ? "已开启参与自动发帖" : "已关闭参与自动发帖");
+                    await load();
+                  }}
+                />
+              ),
+            },
+            {
               title: "操作",
               render: (_, row) => <Space>
                 {row.isDefault ? null : <Button size="small" onClick={async () => {
@@ -1846,6 +1899,10 @@ function Channels() {
             <Form.Item label="版块 ID" name="channelId" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item label="版块名称" name="channelName"><Input /></Form.Item>
             <Form.Item label="设为默认" name="isDefault" valuePropName="checked"><Switch /></Form.Item>
+            <Form.Item label="参与自动发帖" name="autoPublish" valuePropName="checked" initialValue={true}>
+              <Switch />
+              <span className="form-hint">开启后，定时自动下载流程会从这个账号中轮换发帖</span>
+            </Form.Item>
             <Button htmlType="submit" type="primary">保存账号</Button>
           </Form>,
         },

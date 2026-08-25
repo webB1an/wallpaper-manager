@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, OnModuleInit, UnauthorizedException } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
@@ -28,6 +28,10 @@ type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   rewardDownloadType: RewardDownloadType;
+  autoDownloadEnabled: boolean;
+  autoDownloadIntervalHours: number;
+  autoDownloadTargetGuildId?: string;
+  autoDownloadTargetChannelId?: string;
 };
 
 type DiagnosticItem = {
@@ -50,6 +54,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
   rewardDownloadType: "daily10",
+  autoDownloadEnabled: false,
+  autoDownloadIntervalHours: 4,
 };
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -69,7 +75,11 @@ const LOGIN_WINDOW_MS = 10 * 60_000;
 const LOGIN_LOCK_MS = 10 * 60_000;
 
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {
+  private readonly logger = new Logger(AdminService.name);
+  private autoDownloadRunning = false;
+  private autoScheduleTimer: NodeJS.Timeout | null = null;
+
   constructor(
     private readonly config: ConfigService,
     private readonly jwt: JwtService,
@@ -85,6 +95,152 @@ export class AdminService {
     @InjectQueue(WALLPAPER_QUEUE) private readonly wallpaperQueue: Queue,
   ) {}
 
+  onModuleInit() {
+    void this.startAutoDownloadLoop();
+  }
+
+  private async startAutoDownloadLoop() {
+    const schedule = async () => {
+      try {
+        const settings = await this.getSettings();
+        if (settings.autoDownloadEnabled) {
+          await this.autoDownloadWallpaper().catch((error) => {
+            this.logger.warn(`自动下载壁纸失败：${(error as Error).message}`);
+          });
+        }
+      } finally {
+        const settings = await this.getSettings().catch(() => null);
+        const hours = settings?.autoDownloadIntervalHours || 4;
+        const ms = hours * 60 * 60 * 1000;
+        if (this.autoScheduleTimer) clearTimeout(this.autoScheduleTimer);
+        this.autoScheduleTimer = setTimeout(() => void schedule(), ms);
+        this.autoScheduleTimer.unref?.();
+      }
+    };
+    const settings = await this.getSettings().catch(() => null);
+    const hours = settings?.autoDownloadIntervalHours || 4;
+    const ms = hours * 60 * 60 * 1000;
+    this.autoScheduleTimer = setTimeout(() => void schedule(), ms);
+    this.autoScheduleTimer.unref?.();
+  }
+
+  /** 从 WallPost 下载一张未收录壁纸 → 入库 → AI 分类 → 上传网盘 → 发帖，并记录来源用于去重。 */
+  async autoDownloadWallpaper(): Promise<{ ok: boolean; message: string }> {
+    if (this.autoDownloadRunning) return { ok: false, message: "自动下载任务正在运行" };
+    const settings = await this.getSettings();
+    if (!settings.autoDownloadEnabled) return { ok: false, message: "自动下载未开启" };
+    const baseUrl = this.config.get<string>("WALLPOST_BASE_URL")?.trim();
+    const bridgeKey = this.config.get<string>("WALLPOST_BRIDGE_KEY")?.trim();
+    if (!baseUrl || !bridgeKey) throw new BadRequestException("未配置 WALLPOST_BASE_URL / WALLPOST_BRIDGE_KEY");
+
+    this.autoDownloadRunning = true;
+    const bridgeBase = baseUrl.replace(/\/$/, "");
+    let bridgeToken = "";
+    try {
+      const used = await this.prisma.wallpaperSource.findMany({ where: { source: "wallhaven" }, select: { sourceId: true } });
+      const exclude = used.map((row) => row.sourceId);
+      const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
+        body: JSON.stringify({ exclude }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || `桥接获取壁纸失败（${response.status}）`);
+      }
+      const payload = (await response.json()) as {
+        data?: { id: string; token: string; width: number; height: number; fileName: string; fileType: string; downloadUrl: string };
+      };
+      const item = payload.data;
+      if (!item?.id || !item.downloadUrl) throw new Error("桥接未返回壁纸信息");
+      bridgeToken = item.token;
+
+      const imageResponse = await fetch(`${bridgeBase}${item.downloadUrl}`, {
+        headers: { "x-bridge-key": bridgeKey },
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (!imageResponse.ok) throw new Error(`下载原图失败（${imageResponse.status}）`);
+      const bytes = Buffer.from(await imageResponse.arrayBuffer());
+
+      const persisted = await this.persistWallpaperBytes(bytes, item.fileName, item.fileType);
+      const cover = await this.createCover(persisted.path, persisted.mimeType);
+      const record = await this.prisma.wallpaper.create({
+        data: {
+          title: `Wallhaven ${item.id}`,
+          originalName: item.fileName,
+          coverPath: cover.relativePath,
+          coverUrl: publicAssetUrl(this.config, cover.relativePath),
+          assetPath: persisted.relativePath,
+          mimeType: persisted.mimeType,
+          type: WallpaperType.static,
+          orientation: orientationFromDimensions(item.width, item.height),
+          status: WallpaperStatus.draft,
+        },
+      });
+      await this.prisma.wallpaperSource.upsert({
+        where: { source_sourceId: { source: "wallhaven", sourceId: item.id } },
+        update: {},
+        create: { source: "wallhaven", sourceId: item.id, wallpaperId: record.id },
+      });
+
+      const analysis = await this.analyzeNow(record.id);
+      if (!analysis.safe) return { ok: true, message: `AI 审核未通过（${analysis.sensitiveFlags.join("、") || "疑似违规"}），已跳过发帖` };
+
+      const localAsset = join(process.cwd(), "storage", "public", record.assetPath || "");
+      const storageResults = await this.storage.syncWallpaper(record.id, localAsset, analysis.title || `Wallhaven ${item.id}`, WallpaperType.static, analysis.tags);
+      const storageWarnings = storageResults.filter((item) => !item.ok).map((item) => `${item.provider} 同步失败：${item.error}`);
+
+      const account = await this.pickAutoPublishAccount(settings);
+      if (!account) throw new Error("没有开启自动发帖的腾讯频道账号");
+      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: analysis.title || record.title, type: WallpaperType.static, status: WallpaperStatus.pending_review } });
+      await this.channel.publish({
+        accountId: account.id,
+        content: analysis.title || `Wallhaven ${item.id}`,
+        imagePaths: existsSync(localAsset) ? [localAsset] : [],
+        videoPaths: [],
+        topicNames: analysis.tags.slice(0, 6),
+      });
+      await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
+      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
+      return { ok: true, message: `已发布「${analysis.title || item.id}」到腾讯频道${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}` };
+    } finally {
+      this.autoDownloadRunning = false;
+      if (bridgeToken) {
+        await fetch(`${bridgeBase}/api/bridge/download/${bridgeToken}/complete`, { method: "POST", headers: { "x-bridge-key": bridgeKey } }).catch(() => undefined);
+      }
+    }
+  }
+
+  private async persistWallpaperBytes(bytes: Buffer, originalName: string, mimeType: string) {
+    const dir = join(process.cwd(), "storage", "public", "originals");
+    await mkdir(dir, { recursive: true });
+    const extension = safeExtension(originalName);
+    const fileName = `${Date.now()}-${nanoid(10)}${extension}`;
+    const path = join(dir, fileName);
+    await writeFile(path, bytes);
+    return { path, relativePath: `originals/${fileName}`, mimeType, originalName };
+  }
+
+  private async pickAutoPublishAccount(settings: SystemSettings) {
+    const where: Prisma.ChannelAccountWhereInput = { autoPublish: true };
+    if (settings.autoDownloadTargetGuildId) where.guildId = settings.autoDownloadTargetGuildId;
+    if (settings.autoDownloadTargetChannelId) where.channelId = settings.autoDownloadTargetChannelId;
+    if (!settings.autoDownloadTargetGuildId) where.guildName = { contains: "Wallpaper壁纸库" };
+    if (!settings.autoDownloadTargetChannelId) where.channelName = { contains: "静态壁纸" };
+    const accounts = await this.prisma.channelAccount.findMany({
+      where,
+      orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
+      take: 1,
+    });
+    return accounts[0] || null;
+  }
+
+  async setChannelAccountAutoPublish(id: string, autoPublish: boolean) {
+    const account = await this.prisma.channelAccount.findUnique({ where: { id } });
+    if (!account) throw new BadRequestException("频道账号不存在");
+    return this.prisma.channelAccount.update({ where: { id }, data: { autoPublish } });
+  }
   login(username: string, password: string, clientIp = "unknown") {
     const key = `${clientIp}:${username}`;
     this.assertLoginAllowed(key);
@@ -168,6 +324,12 @@ export class AdminService {
       ...(input.rewardDownloadType === "daily10" || input.rewardDownloadType === "unlimited"
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
+      ...(typeof input.autoDownloadEnabled === "boolean" ? { autoDownloadEnabled: input.autoDownloadEnabled } : {}),
+      ...(typeof input.autoDownloadIntervalHours === "number" && Number.isFinite(input.autoDownloadIntervalHours)
+        ? { autoDownloadIntervalHours: Math.min(72, Math.max(1, Math.round(input.autoDownloadIntervalHours))) }
+        : {}),
+      ...(typeof input.autoDownloadTargetGuildId === "string" ? { autoDownloadTargetGuildId: input.autoDownloadTargetGuildId } : {}),
+      ...(typeof input.autoDownloadTargetChannelId === "string" ? { autoDownloadTargetChannelId: input.autoDownloadTargetChannelId } : {}),
     };
     await this.prisma.setting.upsert({
       where: { key: "system" },
@@ -1206,6 +1368,13 @@ function detectType(mimeType: string, name: string): WallpaperType {
   if (mimeType.startsWith("video/")) return WallpaperType.live;
   if (mimeType.startsWith("image/")) return WallpaperType.static;
   return /\b(mp4|mov|webm|live|动态)\b/i.test(name) ? WallpaperType.live : WallpaperType.static;
+}
+
+function orientationFromDimensions(width: number, height: number): WallpaperOrientation {
+  if (!width || !height) return WallpaperOrientation.unknown;
+  if (height > width) return WallpaperOrientation.portrait;
+  if (width > height) return WallpaperOrientation.landscape;
+  return WallpaperOrientation.square;
 }
 
 
