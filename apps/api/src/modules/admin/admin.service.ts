@@ -330,6 +330,26 @@ export class AdminService implements OnModuleInit {
     if (!account) throw new BadRequestException("频道账号不存在");
     return this.prisma.channelAccount.update({ where: { id }, data: { autoPublish } });
   }
+
+  /** 清理已上架且已在网盘有链接的本地原图（originals/），只保留缩略图。 */
+  async cleanupOriginals(): Promise<{ checked: number; removed: number }> {
+    const wallpapers = await this.prisma.wallpaper.findMany({
+      where: { status: WallpaperStatus.published, assetPath: { startsWith: "originals/" } },
+      select: { id: true, assetPath: true, storageLinks: { where: { isActive: true }, select: { provider: true } } },
+    });
+    let removed = 0;
+    for (const wallpaper of wallpapers) {
+      if (!wallpaper.assetPath) continue;
+      const hasNetdisk = wallpaper.storageLinks.some((link) => link.provider === StorageProvider.quark || link.provider === StorageProvider.baidu);
+      if (!hasNetdisk) continue;
+      const absolute = join(process.cwd(), "storage", "public", wallpaper.assetPath);
+      if (existsSync(absolute)) await unlink(absolute).catch(() => undefined);
+      await this.prisma.wallpaper.update({ where: { id: wallpaper.id }, data: { assetPath: null } });
+      removed += 1;
+    }
+    return { checked: wallpapers.length, removed };
+  }
+
   login(username: string, password: string, clientIp = "unknown") {
     const key = `${clientIp}:${username}`;
     this.assertLoginAllowed(key);
@@ -877,6 +897,11 @@ export class AdminService implements OnModuleInit {
       }
 
       await this.prisma.wallpaper.update({ where: { id }, data: { status: WallpaperStatus.published } });
+      // 成功后只留缩略图：删除本地原图（网盘已存原件），后续下载走网盘回源。
+      if (wallpaper.assetPath) {
+        await this.removeUploadedFile(join(process.cwd(), "storage", "public", wallpaper.assetPath));
+        await this.prisma.wallpaper.update({ where: { id }, data: { assetPath: null } });
+      }
       taskResult.warnings = warnings;
       await this.tasks.update(taskId, {
         status: "success",

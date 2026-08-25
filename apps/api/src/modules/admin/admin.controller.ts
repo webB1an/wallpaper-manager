@@ -234,6 +234,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Post("wallpapers/cleanup-originals")
+  async cleanupOriginals() {
+    return { code: 200, data: await this.admin.cleanupOriginals() };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Get("channels")
   async channels() {
     return { code: 200, data: await this.admin.listChannels() };

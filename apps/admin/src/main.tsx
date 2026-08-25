@@ -711,6 +711,16 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             message.error({ content: error instanceof Error ? error.message : "回填失败", key: "backfillOrientation" });
           }
         }}>回填方向</Button>
+        <Button onClick={async () => {
+          message.loading({ content: "正在清理本地原图...", key: "cleanupOriginals" });
+          try {
+            const result = await request<{ checked: number; removed: number }>("/api/admin/wallpapers/cleanup-originals", { method: "POST" });
+            message.success({ content: `清理完成：检查 ${result.checked}，删除原图 ${result.removed}`, key: "cleanupOriginals" });
+            await load();
+          } catch (error) {
+            message.error({ content: error instanceof Error ? error.message : "清理失败", key: "cleanupOriginals" });
+          }
+        }}>清理原图</Button>
         <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
         {storageFilter === "unpublished_active_short" ? (
