@@ -204,6 +204,8 @@ export class AdminService implements OnModuleInit {
       await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
       return { ok: true, message: `已发布「${analysis.title || item.id}」到腾讯频道${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}` };
+    } catch (error) {
+      return { ok: false, message: (error as Error).message || "自动下载失败" };
     } finally {
       this.autoDownloadRunning = false;
       if (bridgeToken) {
