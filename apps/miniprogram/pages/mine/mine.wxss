@@ -1,3 +1,14 @@
+.quota-card {
+  margin-top: 22rpx;
+  padding: 26rpx 28rpx;
+  border-radius: 14rpx;
+  background: linear-gradient(135deg, #e57355, #c05621);
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 760;
+  line-height: 1.5;
+}
+
 .panel {
   margin-top: 26rpx;
   overflow: hidden;

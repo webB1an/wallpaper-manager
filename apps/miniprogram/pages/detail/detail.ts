@@ -1,6 +1,7 @@
 import { API_BASE, post, request, WallpaperDetail } from "../../utils/api";
 import { AD_UNITS } from "../../utils/ads";
 import { logDownload, logDownloadError } from "../../utils/logger";
+import { isFavorite, saveDownloadHistory, toggleFavorite } from "../../utils/local-history";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -26,7 +27,8 @@ Page({
     downloading: false,
     downloadMessage: "正在保存壁纸…",
     showRewardGuide: false,
-    rewardModalText: ""
+    rewardModalText: "",
+    fav: false
   },
 
   onAdError() {
@@ -70,7 +72,8 @@ Page({
         primaryPasscode: item.shortLinks[0]?.passcode || "",
         sizeText: formatBytes(item.fileSize),
         typeText: formatType(item.type),
-        orientationText: formatOrientation(item.orientation)
+        orientationText: formatOrientation(item.orientation),
+        fav: isFavorite(item.id)
       });
       wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
     } catch (error) {
@@ -102,6 +105,13 @@ Page({
     } else {
       wx.switchTab({ url: "/pages/index/index" });
     }
+  },
+
+  toggleFav() {
+    if (!this.data.item) return;
+    const fav = toggleFavorite(this.data.item);
+    this.setData({ fav });
+    wx.showToast({ title: fav ? "已加入收藏" : "已取消收藏", icon: "none" });
   },
 
   copyLink(event: WechatMiniprogram.TouchEvent) {
@@ -399,6 +409,7 @@ Page({
         success: () => {
           logDownload("savedToAlbum", filePath);
           this.showNotice("已保存到相册");
+          if (this.data.item) saveDownloadHistory(this.data.item);
           resolve();
         },
         fail: (error: { errMsg?: string }) => {
@@ -513,7 +524,7 @@ function sleep(ms: number) {
 
 function downloadErrorText(error: unknown) {
   const message = error instanceof Error ? error.message : "下载失败";
-  return message.includes("暂无源文件") ? `${message}，可复制短链到网盘下载` : message;
+  return message.includes("暂无源文件") ? "该壁纸暂不支持直接下载，请使用下方复制链接" : message;
 }
 
 function recordDownloadClick(id?: string) {

@@ -152,16 +152,44 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 96rpx;
-  height: 96rpx;
+  gap: 10rpx;
+  height: 72rpx;
+  padding: 0 30rpx;
   border-radius: 999rpx;
   background: linear-gradient(135deg, #e57355, #c05621);
   box-shadow: 0 10rpx 24rpx rgba(192, 86, 33, 0.38);
 }
 
+.download-text {
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
 .download-icon {
-  width: 48rpx;
-  height: 48rpx;
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.fav-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: #f4e7d9;
+}
+
+.fav-heart {
+  font-size: 42rpx;
+  line-height: 1;
+  color: #c9b8a8;
+}
+
+.fav-heart.on {
+  color: #e57355;
 }
 
 .custom-toast {

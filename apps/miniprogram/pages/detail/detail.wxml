@@ -8,8 +8,12 @@
   <view class="detail-panel">
     <view class="detail-title-row">
       <text class="detail-title">{{item.title}}</text>
+      <view class="fav-button" bindtap="toggleFav">
+        <text class="fav-heart {{fav ? 'on' : ''}}">{{fav ? '♥' : '♡'}}</text>
+      </view>
       <view class="download-button" bindtap="onDownload">
         <image class="download-icon" src="/assets/icons/download.png" />
+        <text class="download-text">下载</text>
       </view>
     </view>
     <view class="detail-meta">

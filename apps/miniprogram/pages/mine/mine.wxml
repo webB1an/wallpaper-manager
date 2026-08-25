@@ -1,19 +1,56 @@
 <view class="page">
   <view class="hero">
     <text class="hero-title">服务中心</text>
-    <text class="hero-subtitle">最近领取过的壁纸短链</text>
-    <view class="mine-meter">
-      <text>{{records.length}}</text>
-      <text>条复制记录</text>
-    </view>
+    <text class="hero-subtitle">下载与收藏，随时找回</text>
+  </view>
+
+  <view wx:if="{{quotaText}}" class="quota-card">{{quotaText}}</view>
+
+  <view class="section-title">
+    <text>收藏</text>
+    <text wx:if="{{favorites.length}}" class="muted" bindtap="clearFavorites">清空</text>
+  </view>
+  <view wx:if="{{favorites.length}}" class="history-list">
+    <block wx:for="{{favorites}}" wx:key="id">
+      <view class="history-card" data-id="{{item.id}}" bindtap="openDetail">
+        <image src="{{item.coverUrl}}" mode="aspectFill" />
+        <view class="history-main">
+          <text class="history-title">{{item.title}}</text>
+          <text class="history-time">{{item.atText}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+  <view wx:else class="empty-state">
+    <text>还没有收藏</text>
+    <text>遇到喜欢的壁纸，点详情页的 ♡ 收藏起来。</text>
+  </view>
+
+  <view class="section-title">
+    <text>下载记录</text>
+    <text wx:if="{{downloads.length}}" class="muted" bindtap="clearDownloads">清空</text>
+  </view>
+  <view wx:if="{{downloads.length}}" class="history-list">
+    <block wx:for="{{downloads}}" wx:key="id">
+      <view class="history-card" data-id="{{item.id}}" bindtap="openDetail">
+        <image src="{{item.coverUrl}}" mode="aspectFill" />
+        <view class="history-main">
+          <text class="history-title">{{item.title}}</text>
+          <text class="history-time">{{item.atText}}</text>
+        </view>
+      </view>
+    </block>
+  </view>
+  <view wx:else class="empty-state">
+    <text>还没有下载记录</text>
+    <text>下载成功保存到相册的壁纸会出现在这里。</text>
   </view>
 
   <view class="section-title">
     <text>最近复制</text>
     <text wx:if="{{records.length}}" class="muted" bindtap="clearHistory">清空</text>
   </view>
-
-  <view class="history-list">
+  <view wx:if="{{records.length}}" class="history-list">
     <block wx:for="{{records}}" wx:key="url">
       <view class="history-card" data-id="{{item.id}}" bindtap="openDetail">
         <image src="{{item.coverUrl}}" mode="aspectFill" />
@@ -32,11 +69,9 @@
       </view>
     </block>
   </view>
-
-  <view wx:if="{{records.length === 0}}" class="empty-state">
+  <view wx:else class="empty-state">
     <text>还没有复制记录</text>
-    <text>在壁纸详情页复制原图短链后，会自动保存在这里。</text>
-    <button bindtap="goExplore">去发现壁纸</button>
+    <text>复制壁纸链接后会自动保存在这里。</text>
   </view>
 
   <view class="panel">

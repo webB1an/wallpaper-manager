@@ -1,3 +1,7 @@
+import { getRewardStatus } from "../../utils/reward";
+import { readDownloadHistory, readFavorites } from "../../utils/local-history";
+import type { LocalWallpaper } from "../../utils/local-history";
+
 const HISTORY_KEY = "wallpaper_download_history";
 
 type DownloadRecord = {
@@ -13,11 +17,44 @@ type DownloadRecord = {
 
 Page({
   data: {
-    records: [] as DownloadRecord[]
+    records: [] as DownloadRecord[],
+    downloads: [] as LocalWallpaper[],
+    favorites: [] as LocalWallpaper[],
+    quotaText: ""
   },
 
   onShow() {
-    this.setData({ records: readHistory().map((record) => ({ ...record, copiedAtText: formatTime(record.copiedAt) })) });
+    this.setData({
+      records: readHistory().map((record) => ({ ...record, copiedAtText: formatTime(record.copiedAt) })),
+      downloads: readDownloadHistory().map((record) => ({ ...record, atText: formatTime(record.at) })),
+      favorites: readFavorites().map((record) => ({ ...record, atText: formatTime(record.at) }))
+    });
+    void this.loadQuota();
+  },
+
+  async loadQuota() {
+    try {
+      const reward = await getRewardStatus();
+      let text: string;
+      if (reward.rewarded && reward.type === "unlimited") text = "已解锁今日不限次数下载";
+      else if (reward.rewarded && reward.remaining > 0) text = `今日剩余 ${reward.remaining} 次下载`;
+      else text = "今日暂无免费次数，观看视频即可解锁";
+      this.setData({ quotaText: text });
+    } catch {
+      this.setData({ quotaText: "今日额度获取失败，请稍后重试" });
+    }
+  },
+
+  clearDownloads() {
+    wx.removeStorageSync("wallpaper_downloaded_history");
+    this.setData({ downloads: [] });
+    wx.showToast({ title: "已清空", icon: "success" });
+  },
+
+  clearFavorites() {
+    wx.removeStorageSync("wallpaper_favorite_list");
+    this.setData({ favorites: [] });
+    wx.showToast({ title: "已清空", icon: "success" });
   },
 
   copyLink(event: WechatMiniprogram.TouchEvent) {

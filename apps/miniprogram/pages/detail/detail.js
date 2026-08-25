@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const ads_1 = require("../../utils/ads");
 const logger_1 = require("../../utils/logger");
+const local_history_1 = require("../../utils/local-history");
 const HISTORY_KEY = "wallpaper_download_history";
 let requestToken = 0;
 Page({
@@ -25,7 +26,8 @@ Page({
         downloading: false,
         downloadMessage: "正在保存壁纸…",
         showRewardGuide: false,
-        rewardModalText: ""
+        rewardModalText: "",
+        fav: false
     },
     onAdError() {
         // 广告加载失败时静默隐藏。
@@ -67,7 +69,8 @@ Page({
                 primaryPasscode: item.shortLinks[0]?.passcode || "",
                 sizeText: formatBytes(item.fileSize),
                 typeText: formatType(item.type),
-                orientationText: formatOrientation(item.orientation)
+                orientationText: formatOrientation(item.orientation),
+                fav: (0, local_history_1.isFavorite)(item.id)
             });
             wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
         }
@@ -101,6 +104,13 @@ Page({
         else {
             wx.switchTab({ url: "/pages/index/index" });
         }
+    },
+    toggleFav() {
+        if (!this.data.item)
+            return;
+        const fav = (0, local_history_1.toggleFavorite)(this.data.item);
+        this.setData({ fav });
+        wx.showToast({ title: fav ? "已加入收藏" : "已取消收藏", icon: "none" });
     },
     copyLink(event) {
         const url = String(event.currentTarget.dataset.url || "");
@@ -389,6 +399,8 @@ Page({
                 success: () => {
                     (0, logger_1.logDownload)("savedToAlbum", filePath);
                     this.showNotice("已保存到相册");
+                    if (this.data.item)
+                        (0, local_history_1.saveDownloadHistory)(this.data.item);
                     resolve();
                 },
                 fail: (error) => {
@@ -496,7 +508,7 @@ function sleep(ms) {
 }
 function downloadErrorText(error) {
     const message = error instanceof Error ? error.message : "下载失败";
-    return message.includes("暂无源文件") ? `${message}，可复制短链到网盘下载` : message;
+    return message.includes("暂无源文件") ? "该壁纸暂不支持直接下载，请使用下方复制链接" : message;
 }
 function recordDownloadClick(id) {
     if (!id)
