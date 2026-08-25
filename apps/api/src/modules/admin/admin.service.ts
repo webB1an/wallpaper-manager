@@ -129,6 +129,9 @@ export class AdminService implements OnModuleInit {
     let persisted: { path: string; relativePath: string; mimeType: string; originalName: string } | undefined;
     let cover: { path: string; relativePath: string } | undefined;
     let record: { id: string; title: string; assetPath: string | null } | undefined;
+    let analysis: { title?: string; safe: boolean; sensitiveFlags: string[]; tags: string[] } | undefined;
+    let uploaded = false;
+    let displayTitle = "";
     try {
       const settings = await this.getSettings();
       if ((settings.autoSourceEnabled || {})[board.source] === false) {
@@ -148,9 +151,10 @@ export class AdminService implements OnModuleInit {
       persisted = await this.persistWallpaperBytes(item.bytes, item.fileName, item.fileType);
       cover = await this.createCover(persisted.path, persisted.mimeType);
       const type = item.type === "live" ? WallpaperType.live : WallpaperType.static;
+      displayTitle = (item.fileName || item.sourceId).replace(/\.[^.]+$/, "") || item.sourceId;
       record = await this.prisma.wallpaper.create({
         data: {
-          title: `${item.fileName || item.sourceId}`,
+          title: displayTitle,
           originalName: item.fileName,
           coverPath: cover.relativePath,
           coverUrl: publicAssetUrl(this.config, cover.relativePath),
@@ -168,17 +172,18 @@ export class AdminService implements OnModuleInit {
       });
 
       await this.tasks.update(task.id, { progress: 45, message: "正在 AI 识别分类" });
-      const analysis = await this.analyzeNow(record.id);
+      analysis = await this.analyzeNow(record.id);
+      displayTitle = analysis.title || displayTitle;
       if (!analysis.safe) {
-        // 清理：删除本地原图与封面，释放磁盘；保留库记录并清空路径以维持去重（WallpaperSource）。
+        // AI 未通过：删除本地原图与封面（不可用），保留库记录并清空路径以维持去重；标题用中文，不标 [已清理]。
         await Promise.all([
           this.removeUploadedFile(persisted.path),
           this.removeUploadedFile(cover.path),
         ]);
-        const message = `AI 审核未通过，已清理并跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）`;
+        const message = `AI 审核未通过，已跳过（${analysis.sensitiveFlags.join("、") || "疑似违规"}）`;
         await this.prisma.wallpaper.update({
           where: { id: record.id },
-          data: { assetPath: null, coverPath: null, coverUrl: null, title: `[已清理] ${record.title}` },
+          data: { assetPath: null, coverPath: null, coverUrl: null, title: displayTitle },
         }).catch(() => undefined);
         await this.tasks.update(task.id, { status: "skipped", progress: 100, message, result: { ok: true, skipped: true, cleaned: true } });
         await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
@@ -188,16 +193,17 @@ export class AdminService implements OnModuleInit {
       const localAsset = join(process.cwd(), "storage", "public", record.assetPath || "");
       await this.tasks.update(task.id, { progress: 62, message: "正在上传网盘" });
       const storageResults = await this.storage.syncWallpaper(record.id, localAsset, analysis.title || record.title, type, analysis.tags);
+      uploaded = storageResults.some((row) => row.ok);
       const storageWarnings = storageResults.filter((row) => !row.ok).map((row) => `${row.provider} 同步失败：${row.error}`);
 
       const account = await this.pickAutoPublishAccount(board);
       if (!account) throw new Error(`没有【${boardLabel}】开启自动发帖的频道账号`);
       const isVideo = type === WallpaperType.live;
-      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: analysis.title || record.title, type, status: WallpaperStatus.pending_review } });
+      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: displayTitle, type, status: WallpaperStatus.pending_review } });
       await this.tasks.update(task.id, { progress: 82, message: "正在发布到腾讯频道" });
       await this.channel.publish({
         accountId: account.id,
-        content: analysis.title || record.title,
+        content: displayTitle,
         imagePaths: !isVideo && existsSync(localAsset) ? [localAsset] : [],
         videoPaths: isVideo && existsSync(localAsset) ? [localAsset] : [],
         topicNames: analysis.tags.slice(0, 6),
@@ -207,20 +213,27 @@ export class AdminService implements OnModuleInit {
       // 成功后只保留缩略图：删除本地原图（网盘已有原件），后续下载走网盘回源。
       await this.removeUploadedFile(persisted.path);
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { assetPath: null } });
-      const message = `已发布「${analysis.title || record.title}」到 ${boardLabel}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
+      const message = `已发布「${displayTitle}」到 ${boardLabel}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
       await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true } });
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
       return { ok: true, message };
     } catch (error) {
       const message = (error as Error).message || "自动发帖失败";
-      // 失败：缩略图与原图都删除，并清空记录路径，保留库记录与去重（WallpaperSource）。
-      if (persisted) await this.removeUploadedFile(persisted.path);
-      if (cover) await this.removeUploadedFile(cover.path);
-      if (record) {
-        await this.prisma.wallpaper.update({
-          where: { id: record.id },
-          data: { assetPath: null, coverPath: null, coverUrl: null, title: `[已清理] ${record.title}` },
-        }).catch(() => undefined);
+      const cleanTitle = displayTitle || "自动下载壁纸";
+      if (uploaded && cover && record) {
+        // 已上传网盘但发帖失败：保留缩略图（壁纸可用/可下载），只删本地原图；标题用中文，不标 [已清理]。
+        if (persisted) await this.removeUploadedFile(persisted.path);
+        await this.prisma.wallpaper.update({ where: { id: record.id }, data: { assetPath: null, title: cleanTitle } }).catch(() => undefined);
+      } else {
+        // 未完成上传：缩略图与原图都删除，清空路径；保留库记录与去重（WallpaperSource）。
+        if (persisted) await this.removeUploadedFile(persisted.path);
+        if (cover) await this.removeUploadedFile(cover.path);
+        if (record) {
+          await this.prisma.wallpaper.update({
+            where: { id: record.id },
+            data: { assetPath: null, coverPath: null, coverUrl: null, title: cleanTitle },
+          }).catch(() => undefined);
+        }
       }
       await this.tasks.update(task.id, { status: "failed", error: message, message: "自动发帖失败" }).catch(() => undefined);
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
