@@ -35,7 +35,12 @@ const providers: Record<string, AutoSourceProviderEntry> = {
   wallpost: {
     label: "WallPost（Wallhaven）",
     description: "从 WallPost 下载桥接拉取一张未收录的 Wallhaven 静态壁纸",
-    fetch: fetchFromWallpost,
+    fetch: (ctx) => fetchFromWallpost(ctx, "static"),
+  },
+  wallpost_live: {
+    label: "WallPost（动态壁纸）",
+    description: "从 WallPost 下载桥接拉取一张未收录的动态壁纸（WallpaperWaifu 视频）",
+    fetch: fetchFromWallpostLive,
   },
 };
 
@@ -62,7 +67,7 @@ export async function fetchAutoSource(sourceId: string, ctx: AutoSourceContext):
 }
 
 /** 从 WallPost 桥接服务拉取一张 Wallhaven 壁纸（下载即交付，随后删除墙外临时文件）。 */
-async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem> {
+async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"): Promise<AutoSourceItem> {
   const baseUrl = ctx.configService.get<string>("WALLPOST_BASE_URL")?.trim();
   const bridgeKey = ctx.configService.get<string>("WALLPOST_BRIDGE_KEY")?.trim();
   if (!baseUrl || !bridgeKey) throw new Error("未配置 WALLPOST_BASE_URL / WALLPOST_BRIDGE_KEY");
@@ -71,7 +76,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem
   const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
-    body: JSON.stringify({ exclude: ctx.exclude }),
+    body: JSON.stringify({ exclude: ctx.exclude, type }),
     signal: AbortSignal.timeout(90_000),
   });
   if (!response.ok) {
@@ -86,7 +91,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem
 
   const imageResponse = await fetch(`${bridgeBase}${item.downloadUrl}`, {
     headers: { "x-bridge-key": bridgeKey },
-    signal: AbortSignal.timeout(180_000),
+    signal: AbortSignal.timeout(300_000),
   });
   if (!imageResponse.ok) throw new Error(`下载原图失败（${imageResponse.status}）`);
   const bytes = Buffer.from(await imageResponse.arrayBuffer());
@@ -103,7 +108,11 @@ async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem
     height: item.height,
     fileName: item.fileName,
     fileType: item.fileType,
-    type: "static",
+    type,
     bytes,
   };
+}
+
+async function fetchFromWallpostLive(ctx: AutoSourceContext): Promise<AutoSourceItem> {
+  return fetchFromWallpost(ctx, "live");
 }
