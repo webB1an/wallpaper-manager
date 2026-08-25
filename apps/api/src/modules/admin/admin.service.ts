@@ -172,10 +172,13 @@ export class AdminService implements OnModuleInit {
       });
       await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
-      await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date() } });
-      return { ok: true, message: `已发布「${analysis.title || record.title}」到 ${board.guildName || board.guildId}/${board.channelName || board.channelId}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}` };
+      const message = `已发布「${analysis.title || record.title}」到 ${board.guildName || board.guildId}/${board.channelName || board.channelId}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
+      await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
+      return { ok: true, message };
     } catch (error) {
-      return { ok: false, message: (error as Error).message || "自动发帖失败" };
+      const message = (error as Error).message || "自动发帖失败";
+      await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
+      return { ok: false, message };
     } finally {
       this.autoDownloadRunning = false;
     }
@@ -184,7 +187,9 @@ export class AdminService implements OnModuleInit {
   async runAutoPublishBoardById(id: string) {
     const board = await this.prisma.autoPublishBoard.findUnique({ where: { id } });
     if (!board) throw new BadRequestException("自动发帖板块配置不存在");
-    return this.runAutoPublishBoard(board);
+    void this.runAutoPublishBoard(board)
+      .catch((error) => this.logger.warn(`手动触发板块失败：${(error as Error).message}`));
+    return { ok: true, message: "已触发，正在后台运行（稍后刷新查看结果）" };
   }
 
   listAutoPublishBoards() {

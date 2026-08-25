@@ -1670,6 +1670,7 @@ type AutoPublishBoardRow = {
   enabled: boolean;
   intervalHours: number;
   lastRunAt?: string | null;
+  lastMessage?: string | null;
 };
 
 function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
@@ -1719,6 +1720,7 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
           }} />
         ) },
         { title: "上次运行", dataIndex: "lastRunAt", render: (value) => value ? new Date(value).toLocaleString("zh-CN") : "—" },
+        { title: "最近结果", dataIndex: "lastMessage", render: (value) => value ? <span className="form-hint">{value}</span> : "—" },
         { title: "操作", render: (_, row) => (
           <Popconfirm title="立即执行这个板块？" okText="执行" cancelText="取消" onConfirm={() => runBoard(row.id)}>
             <Button size="small" type="primary" loading={runningId === row.id}>立即执行</Button>

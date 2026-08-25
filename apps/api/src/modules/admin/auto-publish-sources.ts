@@ -68,6 +68,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext): Promise<AutoSourceItem
   await fetch(`${bridgeBase}/api/bridge/download/${item.token}/complete`, {
     method: "POST",
     headers: { "x-bridge-key": bridgeKey },
+    signal: AbortSignal.timeout(15_000),
   }).catch(() => undefined);
 
   return {
