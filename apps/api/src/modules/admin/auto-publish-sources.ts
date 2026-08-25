@@ -19,20 +19,46 @@ export interface AutoSourceContext {
 
 export type AutoSourceProvider = (ctx: AutoSourceContext) => Promise<AutoSourceItem>;
 
-const providers: Record<string, AutoSourceProvider> = {
-  wallpost: fetchFromWallpost,
+export interface AutoSourceMeta {
+  id: string;
+  label: string;
+  description: string;
+}
+
+interface AutoSourceProviderEntry {
+  label: string;
+  description: string;
+  fetch: AutoSourceProvider;
+}
+
+const providers: Record<string, AutoSourceProviderEntry> = {
+  wallpost: {
+    label: "WallPost（Wallhaven）",
+    description: "从 WallPost 下载桥接拉取一张未收录的 Wallhaven 静态壁纸",
+    fetch: fetchFromWallpost,
+  },
 };
 
-/** 已注册的数据来源 id，供管理端下拉选择。 */
+/** 已注册的数据来源 id。 */
 export function autoSourceIds(): string[] {
   return Object.keys(providers);
 }
 
+/** 数据来源元信息（id / 名称 / 说明）与是否可用，供管理端展示与做开关。 */
+export function autoSourceMeta(enabledMap: Record<string, boolean> = {}): Array<AutoSourceMeta & { enabled: boolean }> {
+  return Object.entries(providers).map(([id, entry]) => ({
+    id,
+    label: entry.label,
+    description: entry.description,
+    enabled: enabledMap[id] !== false,
+  }));
+}
+
 /** 按来源 id 拉取一张未收录的壁纸；不认识的来源抛出明确错误。 */
 export async function fetchAutoSource(sourceId: string, ctx: AutoSourceContext): Promise<AutoSourceItem> {
-  const provider = providers[sourceId];
-  if (!provider) throw new Error(`未知的数据来源：${sourceId}`);
-  return provider(ctx);
+  const entry = providers[sourceId];
+  if (!entry) throw new Error(`未知的数据来源：${sourceId}`);
+  return entry.fetch(ctx);
 }
 
 /** 从 WallPost 桥接服务拉取一张 Wallhaven 壁纸（下载即交付，随后删除墙外临时文件）。 */

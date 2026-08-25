@@ -3,7 +3,6 @@ import { FilesInterceptor } from "@nestjs/platform-express";
 import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { AdminService } from "./admin.service";
 import { AdminAuthGuard } from "./auth.guard";
-import { autoSourceIds } from "./auto-publish-sources";
 
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -100,7 +99,13 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Get("auto-publish-sources")
   async autoPublishSources() {
-    return { code: 200, data: autoSourceIds() };
+    return { code: 200, data: await this.admin.listAutoPublishSources() };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch("auto-publish-sources/:source")
+  async setAutoPublishSourceEnabled(@Param("source") source: string, @Body() body: { enabled: boolean }) {
+    return { code: 200, data: await this.admin.setAutoPublishSourceEnabled(source, Boolean(body.enabled)) };
   }
 
   @UseGuards(AdminAuthGuard)

@@ -503,6 +503,35 @@ small {
   font-size: 12px;
 }
 
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin: 0 0 18px;
+}
+
+.source-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid #f0e4d6;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.source-row strong {
+  display: block;
+  color: #2b211b;
+  font-size: 14px;
+}
+
+.source-row .form-hint {
+  display: block;
+  margin-top: 2px;
+}
+
 .muted-text {
   color: #7b887f;
 }

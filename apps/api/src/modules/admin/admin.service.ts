@@ -22,13 +22,14 @@ import { StorageAccountService } from "../storage/storage-account.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
-import { autoSourceIds, fetchAutoSource } from "./auto-publish-sources";
+import { autoSourceIds, autoSourceMeta, fetchAutoSource } from "./auto-publish-sources";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   rewardDownloadType: RewardDownloadType;
+  autoSourceEnabled?: Record<string, boolean>;
 };
 
 type DiagnosticItem = {
@@ -126,6 +127,13 @@ export class AdminService implements OnModuleInit {
     const boardLabel = `${board.guildName || board.guildId}/${board.channelName || board.channelId}`;
     const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在从 ${board.source} 拉取壁纸发到 ${boardLabel}`);
     try {
+      const settings = await this.getSettings();
+      if ((settings.autoSourceEnabled || {})[board.source] === false) {
+        const message = `数据源 ${board.source} 已停用，跳过发帖`;
+        await this.tasks.update(task.id, { status: "skipped", progress: 100, message });
+        await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
+        return { ok: true, message };
+      }
       const exclude = (await this.prisma.wallpaperSource.findMany({ select: { sourceId: true } })).map((row) => row.sourceId);
       await this.tasks.update(task.id, { status: "running", progress: 8, message: "正在从数据源拉取壁纸" });
       const item = await fetchAutoSource(board.source, {
@@ -208,6 +216,20 @@ export class AdminService implements OnModuleInit {
 
   listAutoPublishBoards() {
     return this.prisma.autoPublishBoard.findMany({ orderBy: { createdAt: "desc" } });
+  }
+
+  async listAutoPublishSources() {
+    const settings = await this.getSettings();
+    return autoSourceMeta(settings.autoSourceEnabled || {});
+  }
+
+  async setAutoPublishSourceEnabled(source: string, enabled: boolean) {
+    if (!autoSourceIds().includes(source)) throw new BadRequestException(`未知数据来源：${source}`);
+    const settings = await this.getSettings();
+    const map = { ...(settings.autoSourceEnabled || {}) };
+    map[source] = enabled;
+    await this.updateSettings({ autoSourceEnabled: map });
+    return { ok: true, enabled };
   }
 
   async saveAutoPublishBoard(input: {
@@ -367,6 +389,7 @@ export class AdminService implements OnModuleInit {
       ...(input.rewardDownloadType === "daily10" || input.rewardDownloadType === "unlimited"
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
+      ...(input.autoSourceEnabled ? { autoSourceEnabled: input.autoSourceEnabled } : {}),
     };
     await this.prisma.setting.upsert({
       where: { key: "system" },

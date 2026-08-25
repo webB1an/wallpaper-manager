@@ -1675,14 +1675,14 @@ type AutoPublishBoardRow = {
 
 function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
   const [boards, setBoards] = useState<AutoPublishBoardRow[]>([]);
-  const [sources, setSources] = useState<string[]>(["wallpost"]);
+  const [sources, setSources] = useState<Array<{ id: string; label: string; description: string; enabled: boolean }>>([]);
   const [open, setOpen] = useState(false);
   const [runningId, setRunningId] = useState<string>();
   const [form] = Form.useForm();
   const load = () => request<AutoPublishBoardRow[]>("/api/admin/auto-publish-boards").then(setBoards);
   useEffect(() => {
     void load();
-    void request<string[]>("/api/admin/auto-publish-sources").then(setSources);
+    void request<Array<{ id: string; label: string; description: string; enabled: boolean }>>("/api/admin/auto-publish-sources").then(setSources);
   }, []);
   const guildOptions = Array.from(new Map(
     accounts.map((account): [string, string] => [account.guildId, account.guildName || account.guildId]),
@@ -1709,6 +1709,28 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
         <Button type="primary" onClick={() => setOpen(true)}>新增自动发帖板块</Button>
         <Button onClick={load}>刷新</Button>
       </Space>
+      <Alert
+        className="page-alert"
+        type="info"
+        showIcon
+        message="数据源可用性"
+        description="每个数据源可独立开关；关闭后，使用该来源的板块会自动跳过发帖。"
+      />
+      <div className="source-list">
+        {sources.map((source) => (
+          <div key={source.id} className="source-row">
+            <div>
+              <strong>{source.label}</strong>
+              <span className="form-hint">{source.description}</span>
+            </div>
+            <Switch checked={source.enabled} size="small" onChange={async (checked) => {
+              await request(`/api/admin/auto-publish-sources/${source.id}`, { method: "PATCH", body: JSON.stringify({ enabled: checked }) });
+              setSources((prev) => prev.map((item) => item.id === source.id ? { ...item, enabled: checked } : item));
+              message.success(checked ? "数据源已启用" : "数据源已停用");
+            }} />
+          </div>
+        ))}
+      </div>
       <Table rowKey="id" dataSource={boards} pagination={false} columns={[
         { title: "频道 / 版块", render: (_, row) => `${row.guildName || row.guildId} / ${row.channelName || row.channelId}` },
         { title: "来源", dataIndex: "source" },
@@ -1754,7 +1776,7 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
               }} />
           </Form.Item>
           <Form.Item label="数据来源" name="source" initialValue="wallpost" rules={[{ required: true }]}>
-            <Select options={sources.map((source) => ({ value: source, label: source }))} />
+            <Select options={sources.map((source) => ({ value: source.id, label: `${source.label}${source.enabled ? "" : "（已停用）"}` }))} />
           </Form.Item>
           <Form.Item label="周期（小时）" name="intervalHours" initialValue={4} rules={[{ required: true }]}>
             <InputNumber min={1} max={72} style={{ width: "100%" }} />
