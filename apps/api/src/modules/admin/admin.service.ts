@@ -126,6 +126,9 @@ export class AdminService implements OnModuleInit {
     this.autoDownloadRunning = true;
     const boardLabel = `${board.guildName || board.guildId}/${board.channelName || board.channelId}`;
     const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在从 ${board.source} 拉取壁纸发到 ${boardLabel}`);
+    let persisted: { path: string; relativePath: string; mimeType: string; originalName: string } | undefined;
+    let cover: { path: string; relativePath: string } | undefined;
+    let record: { id: string; title: string; assetPath: string | null } | undefined;
     try {
       const settings = await this.getSettings();
       if ((settings.autoSourceEnabled || {})[board.source] === false) {
@@ -142,10 +145,10 @@ export class AdminService implements OnModuleInit {
         configService: this.config,
       });
       await this.tasks.update(task.id, { progress: 30, message: "正在保存原图并生成封面" });
-      const persisted = await this.persistWallpaperBytes(item.bytes, item.fileName, item.fileType);
-      const cover = await this.createCover(persisted.path, persisted.mimeType);
+      persisted = await this.persistWallpaperBytes(item.bytes, item.fileName, item.fileType);
+      cover = await this.createCover(persisted.path, persisted.mimeType);
       const type = item.type === "live" ? WallpaperType.live : WallpaperType.static;
-      const record = await this.prisma.wallpaper.create({
+      record = await this.prisma.wallpaper.create({
         data: {
           title: `${item.fileName || item.sourceId}`,
           originalName: item.fileName,
@@ -201,12 +204,24 @@ export class AdminService implements OnModuleInit {
       });
       await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
+      // 成功后只保留缩略图：删除本地原图（网盘已有原件），后续下载走网盘回源。
+      await this.removeUploadedFile(persisted.path);
+      await this.prisma.wallpaper.update({ where: { id: record.id }, data: { assetPath: null } });
       const message = `已发布「${analysis.title || record.title}」到 ${boardLabel}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
       await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true } });
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
       return { ok: true, message };
     } catch (error) {
       const message = (error as Error).message || "自动发帖失败";
+      // 失败：缩略图与原图都删除，并清空记录路径，保留库记录与去重（WallpaperSource）。
+      if (persisted) await this.removeUploadedFile(persisted.path);
+      if (cover) await this.removeUploadedFile(cover.path);
+      if (record) {
+        await this.prisma.wallpaper.update({
+          where: { id: record.id },
+          data: { assetPath: null, coverPath: null, coverUrl: null, title: `[已清理] ${record.title}` },
+        }).catch(() => undefined);
+      }
       await this.tasks.update(task.id, { status: "failed", error: message, message: "自动发帖失败" }).catch(() => undefined);
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
       return { ok: false, message };
