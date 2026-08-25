@@ -1304,17 +1304,21 @@ function Settings() {
         </Form.Item>
         <Form.Item label="默认上传后自动发腾讯频道" name="defaultAutoPublish" valuePropName="checked">
           <Switch disabled={!defaultChannelReady} />
-          {!defaultChannelReady ? <span className="form-hint">未配置默认腾讯频道账号</span> : null}
         </Form.Item>
+        {!defaultChannelReady ? <span className="form-hint">未配置默认腾讯频道账号</span> : null}
         <Form.Item label="激励视频下载模式" name="rewardDownloadType">
           <Select options={[
             { value: "daily10", label: "当天 10 次" },
             { value: "unlimited", label: "无限次" },
           ]} />
         </Form.Item>
-        <Form.Item label="定时从 WallPost 自动下载壁纸（每 N 小时）" name="autoDownloadEnabled" valuePropName="checked">
+        <Form.Item
+          label="定时从 WallPost 自动下载壁纸（每 N 小时）"
+          name="autoDownloadEnabled"
+          valuePropName="checked"
+          extra="开启后每 N 小时会自动拉取一张 Wallhaven 壁纸并上传网盘、发布到腾讯频道静态壁纸板块（独立于手动发帖）"
+        >
           <Switch />
-          <span className="form-hint">开启后每 N 小时会自动拉取一张 Wallhaven 壁纸并上传网盘、发布到腾讯频道静态壁纸板块（独立于手动发帖）</span>
         </Form.Item>
         <Form.Item label="自动下载周期（小时）" name="autoDownloadIntervalHours">
           <InputNumber min={1} max={72} style={{ width: "100%" }} />
@@ -1899,9 +1903,14 @@ function Channels() {
             <Form.Item label="版块 ID" name="channelId" rules={[{ required: true }]}><Input /></Form.Item>
             <Form.Item label="版块名称" name="channelName"><Input /></Form.Item>
             <Form.Item label="设为默认" name="isDefault" valuePropName="checked"><Switch /></Form.Item>
-            <Form.Item label="参与自动发帖" name="autoPublish" valuePropName="checked" initialValue={true}>
+            <Form.Item
+              label="参与自动发帖"
+              name="autoPublish"
+              valuePropName="checked"
+              initialValue={true}
+              extra="开启后，定时自动下载流程会从这个账号中轮换发帖"
+            >
               <Switch />
-              <span className="form-hint">开启后，定时自动下载流程会从这个账号中轮换发帖</span>
             </Form.Item>
             <Button htmlType="submit" type="primary">保存账号</Button>
           </Form>,
