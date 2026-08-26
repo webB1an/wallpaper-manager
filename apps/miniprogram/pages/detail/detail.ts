@@ -78,6 +78,7 @@ Page({
       });
       wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
       void this.loadFavStatus(item.id);
+      void this.loadAdminStatus();
     } catch (error) {
       if (token !== requestToken) return;
       const message = error instanceof Error ? error.message : "详情加载失败";
