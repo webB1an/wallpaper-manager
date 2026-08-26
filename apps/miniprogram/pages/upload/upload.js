@@ -48,6 +48,7 @@ Page({
                 if (file)
                     this.setData({ filePath: file.tempFilePath });
             },
+            fail: () => wx.showToast({ title: "打开选择器失败，请重试", icon: "none" }),
         });
     },
     onAutoPublishChange(event) {

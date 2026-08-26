@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="up-card" bindtap="chooseMedia">
+  <view class="up-card" bindtap="chooseMedia" hover-class="up-card-hover">
     <image wx:if="{{filePath}}" src="{{filePath}}" mode="aspectFill" class="up-preview" />
     <view wx:else class="up-placeholder">
       <text class="up-plus">+</text>
