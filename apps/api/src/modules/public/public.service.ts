@@ -275,19 +275,28 @@ export class PublicService {
     return { ok: true };
   }
 
-  /** 指定 openid 是否具备小程序管理员权限（来自 MINIPROGRAM_ADMIN_OPENIDS 白名单）。 */
-  isMiniAdmin(openid: string): boolean {
-    const raw = this.config.get<string>("MINIPROGRAM_ADMIN_OPENIDS") || "";
-    return Boolean(openid && raw.split(",").map((item) => item.trim()).filter(Boolean).includes(openid));
+  /** 指定 openid 是否具备小程序管理员权限（白名单在管理端「系统设置 → 小程序管理员 openid」维护）。 */
+  async isMiniAdmin(openid: string): Promise<boolean> {
+    if (!openid) return false;
+    let list: string[] = [];
+    try {
+      const setting = await this.prisma.setting.findUnique({ where: { key: "system" }, select: { value: true } });
+      const value = (setting?.value as { miniAdminOpenids?: unknown } | null)?.miniAdminOpenids;
+      if (Array.isArray(value)) list = value.map((item) => String(item).trim()).filter(Boolean);
+      else if (typeof value === "string") list = value.split(",").map((item) => item.trim()).filter(Boolean);
+    } catch {
+      // 读设置失败则不识别为管理员。
+    }
+    return list.includes(openid);
   }
 
   async getUserStatus(openid: string) {
-    return { isAdmin: this.isMiniAdmin(openid) };
+    return { isAdmin: await this.isMiniAdmin(openid) };
   }
 
   /** 管理员在小程序内下架壁纸：状态置为 archived（不再对外展示）。 */
   async offlineWallpaper(openid: string, id: string) {
-    if (!this.isMiniAdmin(openid)) throw new BadRequestException("无权限操作");
+    if (!(await this.isMiniAdmin(openid))) throw new BadRequestException("无权限操作");
     const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id }, select: { id: true } });
     if (!wallpaper) throw new NotFoundException("壁纸不存在");
     await this.prisma.wallpaper.update({ where: { id }, data: { status: WallpaperStatus.archived } });

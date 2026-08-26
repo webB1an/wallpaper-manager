@@ -113,12 +113,11 @@ TENCENT_CHANNEL_CLI=
 TENCENT_CHANNEL_RUN_ROOT=/www/wwwroot/wallpaper-manager/.runs/tencent-channel
 WALLPOST_BASE_URL=
 WALLPOST_BRIDGE_KEY=
-MINIPROGRAM_ADMIN_OPENIDS=
 ```
 
 - `WALLPOST_BASE_URL`：WallPost 桥接服务的地址（例如 `http://<wallpost-host>:4000`），用于「定时自动下载壁纸」从 WallPost 拉取未收录的 Wallhaven 壁纸。
 - `WALLPOST_BRIDGE_KEY`：与 WallPost 端 `BRIDGE_API_KEY` 一致，用作服务端对服务端的 `x-bridge-key`。
-- `MINIPROGRAM_ADMIN_OPENIDS`：小程序管理员的 openid 白名单（逗号分隔，例如 `olw4i0T76z7ksNimW0W9NGfxeBTQ`）。这些用户在小程序「我的」页会出现「上传壁纸」入口，并在详情页可「下架」壁纸；上传时默认不自动发帖到频道。
+- 小程序管理员 openid 白名单在**管理端「系统设置」中维护**（「小程序管理员 openid（白名单）」行式编辑，添加/删除每行一个 openid），**无需配置服务器环境变量**。这些用户在小程序「我的」页会出现「上传壁纸」入口，详情页可「下架」壁纸；上传时默认不自动发帖到频道。
 - 自动发帖按「板块」配置：在管理端「腾讯频道 → 自动发帖板块」新增配置（选择频道/版块、数据来源、周期、开关），数据来源目前支持 `wallpost`（Wallhaven，经 WallPost 桥接），后续可扩展动态壁纸或其它来源。调度器会按每个板块各自的周期、从该板块来源拉图并发布到该板块（用该板块开启了「参与自动发帖」的账号轮换），同一张图（来源+来源id）全局只发一次。
 
 ## 6. 首次服务器启动

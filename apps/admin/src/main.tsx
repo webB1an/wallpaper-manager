@@ -1320,6 +1320,25 @@ function Settings() {
             { value: "unlimited", label: "无限次" },
           ]} />
         </Form.Item>
+        <div className="form-field">
+          <div className="form-label">小程序管理员 openid（白名单）</div>
+          <Form.List name="miniAdminOpenids">
+            {(fields, { add, remove }) => (
+              <div className="openid-list">
+                {fields.map((field) => (
+                  <div key={field.key} className="openid-row">
+                    <Form.Item {...field} noStyle>
+                      <Input placeholder="用户 openid" />
+                    </Form.Item>
+                    <Button size="small" danger type="text" onClick={() => remove(field.name)}>删除</Button>
+                  </div>
+                ))}
+                <Button size="small" type="dashed" onClick={() => add("")}>+ 添加</Button>
+              </div>
+            )}
+          </Form.List>
+          <div className="form-hint">这些用户在小程序「我的」页会出现上传壁纸入口、详情页可下架壁纸，无需配置服务器环境变量。</div>
+        </div>
         <Button htmlType="submit" type="primary" loading={loading}>保存设置</Button>
       </Form>
     </section>

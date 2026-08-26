@@ -30,6 +30,7 @@ type SystemSettings = {
   defaultAutoPublish: boolean;
   rewardDownloadType: RewardDownloadType;
   autoSourceEnabled?: Record<string, boolean>;
+  miniAdminOpenids?: string[];
 };
 
 type DiagnosticItem = {
@@ -447,6 +448,9 @@ export class AdminService implements OnModuleInit {
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
       ...(input.autoSourceEnabled ? { autoSourceEnabled: input.autoSourceEnabled } : {}),
+      ...(Array.isArray(input.miniAdminOpenids)
+        ? { miniAdminOpenids: [...new Set(input.miniAdminOpenids.map((item) => String(item).trim()).filter(Boolean))] }
+        : {}),
     };
     await this.prisma.setting.upsert({
       where: { key: "system" },

@@ -107,7 +107,7 @@ export class PublicController {
   @UseInterceptors(FilesInterceptor("file"))
   @Post("wallpapers/upload")
   async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string }) {
-    if (!this.service.isMiniAdmin(openid || "")) throw new ForbiddenException("无上传权限");
+    if (!(await this.service.isMiniAdmin(openid || ""))) throw new ForbiddenException("无上传权限");
     const autoPublish = body.autoPublish === "true";
     return { code: 200, data: await this.admin.createUpload(files || [], { autoProcess: true, autoPublish }) };
   }
