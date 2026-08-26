@@ -275,6 +275,25 @@ export class PublicService {
     return { ok: true };
   }
 
+  /** 指定 openid 是否具备小程序管理员权限（来自 MINIPROGRAM_ADMIN_OPENIDS 白名单）。 */
+  isMiniAdmin(openid: string): boolean {
+    const raw = this.config.get<string>("MINIPROGRAM_ADMIN_OPENIDS") || "";
+    return Boolean(openid && raw.split(",").map((item) => item.trim()).filter(Boolean).includes(openid));
+  }
+
+  async getUserStatus(openid: string) {
+    return { isAdmin: this.isMiniAdmin(openid) };
+  }
+
+  /** 管理员在小程序内下架壁纸：状态置为 archived（不再对外展示）。 */
+  async offlineWallpaper(openid: string, id: string) {
+    if (!this.isMiniAdmin(openid)) throw new BadRequestException("无权限操作");
+    const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id }, select: { id: true } });
+    if (!wallpaper) throw new NotFoundException("壁纸不存在");
+    await this.prisma.wallpaper.update({ where: { id }, data: { status: WallpaperStatus.archived } });
+    return { ok: true };
+  }
+
   private async todayReward(openid: string) {
     return this.prisma.wallpaperReward.findUnique({
       where: { userId_date: { userId: openid, date: this.startOfDay() } },

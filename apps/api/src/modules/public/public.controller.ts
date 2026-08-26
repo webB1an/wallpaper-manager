@@ -1,10 +1,15 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Redirect, Res } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query, Redirect, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
+import { AdminService } from "../admin/admin.service";
 import { PublicService } from "./public.service";
 
 @Controller()
 export class PublicController {
-  constructor(private readonly service: PublicService) {}
+  constructor(
+    private readonly service: PublicService,
+    private readonly admin: AdminService,
+  ) {}
 
   @Get("wallpapers")
   async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }) {
@@ -87,6 +92,24 @@ export class PublicController {
   @Post("user/downloads/:id")
   async recordDownload(@Headers("x-openid") openid: string, @Param("id") id: string) {
     return { code: 200, data: await this.service.recordDownload(openid || "", id) };
+  }
+
+  @Get("user/status")
+  async userStatus(@Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.getUserStatus(openid || "") };
+  }
+
+  @Post("wallpapers/:id/offline")
+  async offlineWallpaper(@Headers("x-openid") openid: string, @Param("id") id: string) {
+    return { code: 200, data: await this.service.offlineWallpaper(openid || "", id) };
+  }
+
+  @UseInterceptors(FilesInterceptor("file"))
+  @Post("wallpapers/upload")
+  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string }) {
+    if (!this.service.isMiniAdmin(openid || "")) throw new ForbiddenException("无上传权限");
+    const autoPublish = body.autoPublish === "true";
+    return { code: 200, data: await this.admin.createUpload(files || [], { autoProcess: true, autoPublish }) };
   }
 
   @Get("/r/:code")

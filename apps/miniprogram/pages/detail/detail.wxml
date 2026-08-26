@@ -27,6 +27,9 @@
         <text class="tag" bindtap="openTag" data-tag="{{item}}">{{item}}</text>
       </block>
     </view>
+    <view wx:if="{{isAdmin}}" class="admin-bar">
+      <button class="admin-offline-btn" bindtap="offlineWallpaper">下架</button>
+    </view>
     <view class="primary-download">
       <view>
         <text>壁纸资源</text>

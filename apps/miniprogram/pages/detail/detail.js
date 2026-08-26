@@ -27,7 +27,8 @@ Page({
         downloadMessage: "正在保存壁纸…",
         showRewardGuide: false,
         rewardModalText: "",
-        fav: false
+        fav: false,
+        isAdmin: false
     },
     onAdError() {
         // 广告加载失败时静默隐藏。
@@ -130,6 +131,39 @@ Page({
         }
         catch {
             // 未同步时保留本地收藏状态。
+        }
+    },
+    async loadAdminStatus() {
+        try {
+            await ensureOpenid();
+            const status = await (0, api_1.request)("/user/status");
+            if (status?.isAdmin)
+                this.setData({ isAdmin: true });
+        }
+        catch {
+            // 非管理员或未登录时不展示管理入口。
+        }
+    },
+    async offlineWallpaper() {
+        if (!this.data.item || !this.data.isAdmin)
+            return;
+        try {
+            const result = await wx.showModal({
+                title: "下架壁纸",
+                content: `确认把「${this.data.item.title}」下架吗？将不再对外展示。`,
+                confirmText: "下架",
+                confirmColor: "#c05621",
+                cancelText: "取消",
+            });
+            if (!result.confirm)
+                return;
+            await ensureOpenid();
+            await (0, api_1.post)(`/wallpapers/${this.data.item.id}/offline`);
+            this.showNotice("已下架");
+            setTimeout(() => this.goBack(), 900);
+        }
+        catch (error) {
+            this.showNotice(downloadErrorText(error));
         }
     },
     copyLink(event) {

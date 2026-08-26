@@ -4,6 +4,7 @@
     "pages/category/category",
     "pages/list/list",
     "pages/detail/detail",
+    "pages/upload/upload",
     "pages/mine/mine"
   ],
   "window": {

@@ -10,7 +10,8 @@ Page({
         downloads: [],
         favorites: [],
         quotaText: "",
-        userOpenid: ""
+        userOpenid: "",
+        isAdmin: false
     },
     onShow() {
         this.setData({
@@ -21,6 +22,21 @@ Page({
         void this.loadQuota();
         void this.syncFromServer();
         void this.loadOpenid();
+        void this.loadAdminStatus();
+    },
+    async loadAdminStatus() {
+        try {
+            await (0, reward_1.ensureOpenid)();
+            const status = await (0, api_1.request)("/user/status");
+            if (status?.isAdmin)
+                this.setData({ isAdmin: true });
+        }
+        catch {
+            // 非管理员不展示。
+        }
+    },
+    goUpload() {
+        wx.navigateTo({ url: "/pages/upload/upload" });
     },
     async loadOpenid() {
         try {

@@ -25,7 +25,8 @@ Page({
     downloads: [] as LocalWallpaper[],
     favorites: [] as LocalWallpaper[],
     quotaText: "",
-    userOpenid: ""
+    userOpenid: "",
+    isAdmin: false
   },
 
   onShow() {
@@ -37,6 +38,21 @@ Page({
     void this.loadQuota();
     void this.syncFromServer();
     void this.loadOpenid();
+    void this.loadAdminStatus();
+  },
+
+  async loadAdminStatus() {
+    try {
+      await ensureOpenid();
+      const status = await request<{ isAdmin: boolean }>("/user/status");
+      if (status?.isAdmin) this.setData({ isAdmin: true });
+    } catch {
+      // 非管理员不展示。
+    }
+  },
+
+  goUpload() {
+    wx.navigateTo({ url: "/pages/upload/upload" });
   },
 
   async loadOpenid() {

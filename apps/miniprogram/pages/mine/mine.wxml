@@ -10,6 +10,8 @@
 
   <view wx:if="{{quotaText}}" class="quota-card">{{quotaText}}</view>
 
+  <button wx:if="{{isAdmin}}" class="admin-upload-entry" bindtap="goUpload">上传壁纸</button>
+
   <view class="section-title">
     <text>收藏</text>
     <text wx:if="{{favorites.length}}" class="muted" bindtap="clearFavorites">清空</text>

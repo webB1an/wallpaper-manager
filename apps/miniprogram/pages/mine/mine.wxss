@@ -9,6 +9,22 @@
   line-height: 1.5;
 }
 
+.admin-upload-entry {
+  width: 100%;
+  margin: 22rpx 0 0;
+  height: 84rpx;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: linear-gradient(135deg, #e57355, #c05621);
+  font-size: 30rpx;
+  font-weight: 780;
+  line-height: 84rpx;
+}
+
+.admin-upload-entry::after {
+  border: 0;
+}
+
 .panel {
   margin-top: 26rpx;
   overflow: hidden;

@@ -23,5 +23,6 @@ import { WallpaperProcessor } from "./wallpaper.processor";
   ],
   controllers: [AdminController],
   providers: [AdminService, WallpaperProcessor],
+  exports: [AdminService],
 })
 export class AdminModule {}

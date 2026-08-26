@@ -1,0 +1,15 @@
+<view class="page">
+  <view class="up-card" bindtap="chooseMedia">
+    <image wx:if="{{filePath}}" src="{{filePath}}" mode="aspectFill" class="up-preview" />
+    <view wx:else class="up-placeholder">
+      <text class="up-plus">+</text>
+      <text>选择壁纸（图片 / 视频）</text>
+    </view>
+  </view>
+  <view class="up-option">
+    <text>上传后自动发帖到频道</text>
+    <switch checked="{{autoPublish}}" bindchange="onAutoPublishChange" color="#c05621" />
+  </view>
+  <text class="up-hint">默认关闭：只上传保存，不发帖；开启后会自动 AI 识别、上传网盘并发布到腾讯频道。</text>
+  <button class="up-submit" bindtap="upload" disabled="{{!filePath || uploading}}" loading="{{uploading}}">上传</button>
+</view>
