@@ -10,7 +10,10 @@
 
   <view wx:if="{{quotaText}}" class="quota-card">{{quotaText}}</view>
 
-  <button wx:if="{{isAdmin}}" class="admin-upload-entry" bindtap="goUpload">上传壁纸</button>
+  <button wx:if="{{isAdmin}}" class="admin-upload-entry" bindtap="goUpload">
+    <text class="entry-icon">＋</text>
+    <text>上传壁纸</text>
+  </button>
 
   <view class="section-title">
     <text>收藏</text>

@@ -58,6 +58,7 @@
   border-radius: 999rpx;
   color: #fff;
   background: linear-gradient(135deg, #e57355, #c05621);
+  box-shadow: 0 10rpx 24rpx rgba(192, 86, 33, 0.28);
   font-size: 30rpx;
   font-weight: 780;
   line-height: 84rpx;
@@ -65,4 +66,14 @@
 
 .up-submit::after {
   border: 0;
+}
+
+.up-submit[disabled] {
+  background: #e6d3c2;
+  color: rgba(255, 255, 255, 0.8);
+  box-shadow: none;
+}
+
+.up-submit:not([disabled]):active {
+  transform: scale(0.98);
 }

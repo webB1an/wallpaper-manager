@@ -10,19 +10,30 @@
 }
 
 .admin-upload-entry {
-  width: 100%;
-  margin: 22rpx 0 0;
-  height: 84rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  width: fit-content;
+  margin: 24rpx auto 0;
+  height: 72rpx;
+  padding: 0 44rpx;
   border-radius: 999rpx;
   color: #ffffff;
   background: linear-gradient(135deg, #e57355, #c05621);
-  font-size: 30rpx;
+  box-shadow: 0 10rpx 24rpx rgba(192, 86, 33, 0.28);
+  font-size: 28rpx;
   font-weight: 780;
-  line-height: 84rpx;
 }
 
 .admin-upload-entry::after {
   border: 0;
+}
+
+.entry-icon {
+  font-size: 34rpx;
+  line-height: 1;
+  color: #ffe4c9;
 }
 
 .panel {
