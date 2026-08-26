@@ -44,18 +44,7 @@ Page({
         const file = res.tempFiles[0];
         if (file) this.setData({ filePath: file.tempFilePath });
       },
-      fail: (error) => {
-        const message = (error && (error as { errMsg?: string }).errMsg) || "";
-        if (/scope is not declared|privacy/i.test(message)) {
-          wx.showToast({
-            title: "需在微信公众平台「用户隐私保护指引」声明「选中的照片或视频信息」权限后使用",
-            icon: "none",
-            duration: 3500,
-          });
-        } else {
-          wx.showToast({ title: "无法打开相册，请检查相册/摄像头权限", icon: "none" });
-        }
-      },
+      fail: () => wx.showToast({ title: "无法打开相册，请重试", icon: "none" }),
     });
   },
 
