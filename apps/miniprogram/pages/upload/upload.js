@@ -6,9 +6,11 @@ Page({
     data: {
         filePath: "",
         autoPublish: false,
-        uploading: false
+        uploading: false,
+        isAdmin: true
     },
     async onLoad() {
+        let isAdmin = true;
         try {
             await (0, reward_1.ensureOpenid)();
             const status = await new Promise((resolve, reject) => {
@@ -27,14 +29,14 @@ Page({
                     fail: () => reject(new Error("网络请求失败")),
                 });
             });
-            if (!status.isAdmin) {
-                wx.showToast({ title: "无上传权限", icon: "none" });
-                setTimeout(() => wx.navigateBack(), 900);
-            }
+            isAdmin = Boolean(status.isAdmin);
         }
         catch {
-            wx.showToast({ title: "登录失败", icon: "none" });
+            // 校验失败不拦截，后端会再次校验。
         }
+        this.setData({ isAdmin });
+        if (!isAdmin)
+            wx.showToast({ title: "无上传权限", icon: "none" });
     },
     chooseMedia() {
         wx.chooseMedia({
@@ -54,6 +56,10 @@ Page({
     async upload() {
         if (this.data.uploading)
             return;
+        if (!this.data.isAdmin) {
+            wx.showToast({ title: "无上传权限", icon: "none" });
+            return;
+        }
         if (!this.data.filePath) {
             wx.showToast({ title: "请先选择壁纸", icon: "none" });
             return;

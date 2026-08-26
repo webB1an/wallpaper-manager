@@ -52,7 +52,10 @@ Page({
   },
 
   goUpload() {
-    wx.navigateTo({ url: "/pages/upload/upload" });
+    wx.navigateTo({
+      url: "/pages/upload/upload",
+      fail: () => wx.showToast({ title: "无法打开上传页，请重新编译", icon: "none" }),
+    });
   },
 
   async loadOpenid() {

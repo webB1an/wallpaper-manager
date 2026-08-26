@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: center;
   gap: 10rpx;
-  width: fit-content;
+  width: 70%;
   margin: 24rpx auto 0;
   height: 72rpx;
   padding: 0 44rpx;
