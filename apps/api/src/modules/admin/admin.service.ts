@@ -952,13 +952,15 @@ export class AdminService implements OnModuleInit {
       coverPath: absoluteCover,
       assetPath: absoluteAsset,
     }]);
-    return this.channel.publish({
+    const result = await this.channel.publish({
       accountId: account.id,
       content,
       imagePaths: isVideo ? [] : absoluteAsset ? [absoluteAsset] : absoluteCover ? [absoluteCover] : [],
       videoPaths: isVideo && absoluteAsset ? [absoluteAsset] : [],
       topicNames: wallpaper.tags.map(({ tag }) => tag.name).slice(0, 6),
     });
+    await this.markAccountPublishUsed(account.id);
+    return result;
   }
 
   async publishWallpapersToChannel(ids: string[] | undefined, accountId?: string) {
@@ -999,13 +1001,15 @@ export class AdminService implements OnModuleInit {
     const videoPaths = liveItems.length && liveItems[0].assetPath
       ? [join(process.cwd(), "storage", "public", liveItems[0].assetPath)]
       : [];
-    return this.channel.publish({
+    const result = await this.channel.publish({
       accountId: account.id,
       content,
       imagePaths,
       videoPaths,
       topicNames: tags,
     });
+    await this.markAccountPublishUsed(account.id);
+    return result;
   }
 
   listChannels() {
@@ -1229,7 +1233,21 @@ export class AdminService implements OnModuleInit {
   private async getChannelAccountForPublish(accountId?: string) {
     const id = accountId?.trim();
     if (id) return this.prisma.channelAccount.findUnique({ where: { id } });
-    return this.channel.getDefaultAccount();
+    const fallback = await this.channel.getDefaultAccount();
+    if (!fallback) return null;
+    // 未显式指定账号时（如小程序上传自动发帖），在默认频道所属板块内，于开启自动发帖的账号里轮换最近未使用者。
+    const rotating = await this.prisma.channelAccount.findMany({
+      where: { autoPublish: true, guildId: fallback.guildId, channelId: fallback.channelId },
+      orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
+      take: 1,
+    });
+    return rotating[0] || fallback;
+  }
+
+  private async markAccountPublishUsed(accountId: string) {
+    await this.prisma.channelAccount
+      .update({ where: { id: accountId }, data: { lastAutoPublishAt: new Date() } })
+      .catch(() => undefined);
   }
 
   private async checkDatabase(): Promise<DiagnosticItem> {
