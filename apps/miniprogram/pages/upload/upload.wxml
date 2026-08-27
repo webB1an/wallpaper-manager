@@ -1,9 +1,15 @@
 <view class="page">
-  <view class="up-card" bindtap="chooseMedia" hover-class="up-card-hover">
-    <image wx:if="{{filePath}}" src="{{filePath}}" mode="aspectFill" class="up-preview" />
-    <view wx:else class="up-placeholder">
+  <view class="up-grid">
+    <block wx:for="{{files}}" wx:key="path">
+      <view class="up-item">
+        <image src="{{item.preview}}" mode="aspectFill" class="up-thumb" />
+        <view class="up-remove" catchtap="removeFile" data-index="{{index}}">×</view>
+        <view wx:if="{{item.type === 'video'}}" class="up-video-badge">视频</view>
+      </view>
+    </block>
+    <view wx:if="{{files.length < 20}}" class="up-item up-add" bindtap="chooseMedia" hover-class="up-item-hover">
       <text class="up-plus">+</text>
-      <text>选择壁纸（图片 / 视频）</text>
+      <text class="up-add-text">添加</text>
     </view>
   </view>
   <view class="up-option">
@@ -11,5 +17,7 @@
     <switch checked="{{autoPublish}}" bindchange="onAutoPublishChange" color="#c05621" />
   </view>
   <text class="up-hint">默认关闭：只上传保存，不发帖；开启后会自动 AI 识别、上传网盘并发布到腾讯频道。</text>
-  <button class="up-submit" bindtap="upload" disabled="{{!filePath || uploading}}" loading="{{uploading}}">上传</button>
+  <button class="up-submit" bindtap="upload" disabled="{{!files.length || uploading}}" loading="{{uploading}}">
+    上传{{files.length ? '（' + files.length + ' 张）' : ''}}
+  </button>
 </view>

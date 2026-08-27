@@ -4,7 +4,7 @@ const api_1 = require("../../utils/api");
 const reward_1 = require("../../utils/reward");
 Page({
     data: {
-        filePath: "",
+        files: [],
         autoPublish: false,
         uploading: false,
         isAdmin: true
@@ -40,19 +40,57 @@ Page({
     },
     chooseMedia() {
         wx.chooseMedia({
-            count: 1,
+            count: 9,
             mediaType: ["image", "video"],
             sourceType: ["album", "camera"],
             success: (res) => {
-                const file = res.tempFiles[0];
-                if (file)
-                    this.setData({ filePath: file.tempFilePath });
+                const added = res.tempFiles.map((file) => ({
+                    path: file.tempFilePath,
+                    preview: file.fileType === "video" ? file.thumbTempFilePath || file.tempFilePath : file.tempFilePath,
+                    type: file.fileType === "video" ? "video" : "image",
+                }));
+                this.setData({ files: [...this.data.files, ...added].slice(0, 20) });
             },
             fail: () => wx.showToast({ title: "无法打开相册，请重试", icon: "none" }),
         });
     },
+    removeFile(event) {
+        const index = Number(event.currentTarget.dataset.index);
+        this.setData({ files: this.data.files.filter((_, i) => i !== index) });
+    },
     onAutoPublishChange(event) {
         this.setData({ autoPublish: event.detail.value });
+    },
+    async uploadOne(filePath, openid) {
+        await (0, reward_1.ensureOpenid)();
+        return new Promise((resolve, reject) => {
+            wx.uploadFile({
+                url: `${api_1.API_BASE}/wallpapers/upload`,
+                filePath,
+                name: "file",
+                header: { "X-Openid": openid },
+                formData: { autoPublish: this.data.autoPublish ? "true" : "false" },
+                success: (res) => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            const body = JSON.parse(res.data);
+                            if (body.code === 200) {
+                                resolve();
+                                return;
+                            }
+                            reject(new Error(body.message || "上传失败"));
+                        }
+                        catch {
+                            reject(new Error("上传失败"));
+                        }
+                    }
+                    else {
+                        reject(new Error(`上传失败：HTTP ${res.statusCode}`));
+                    }
+                },
+                fail: (error) => reject(new Error(error.errMsg || "上传失败")),
+            });
+        });
     },
     async upload() {
         if (this.data.uploading)
@@ -61,50 +99,33 @@ Page({
             wx.showToast({ title: "无上传权限", icon: "none" });
             return;
         }
-        if (!this.data.filePath) {
+        if (this.data.files.length === 0) {
             wx.showToast({ title: "请先选择壁纸", icon: "none" });
             return;
         }
         this.setData({ uploading: true });
-        try {
-            await (0, reward_1.ensureOpenid)();
-            const openid = wx.getStorageSync("openid") || "";
-            await new Promise((resolve, reject) => {
-                wx.uploadFile({
-                    url: `${api_1.API_BASE}/wallpapers/upload`,
-                    filePath: this.data.filePath,
-                    name: "file",
-                    header: { "X-Openid": openid },
-                    formData: { autoPublish: this.data.autoPublish ? "true" : "false" },
-                    success: (res) => {
-                        if (res.statusCode >= 200 && res.statusCode < 300) {
-                            try {
-                                const body = JSON.parse(res.data);
-                                if (body.code === 200) {
-                                    wx.showToast({ title: "上传成功，已进入处理排队", icon: "success" });
-                                    resolve();
-                                    return;
-                                }
-                                reject(new Error(body.message || "上传失败"));
-                            }
-                            catch {
-                                reject(new Error("上传失败"));
-                            }
-                        }
-                        else {
-                            reject(new Error(`上传失败：HTTP ${res.statusCode}`));
-                        }
-                    },
-                    fail: (error) => reject(new Error(error.errMsg || "上传失败")),
-                });
-            });
-            setTimeout(() => wx.switchTab({ url: "/pages/index/index" }), 1200);
+        const openid = wx.getStorageSync("openid") || "";
+        const files = [...this.data.files];
+        const failed = [];
+        for (const file of files) {
+            try {
+                await this.uploadOne(file.path, openid);
+                this.setData({ files: this.data.files.filter((item) => item.path !== file.path) });
+            }
+            catch (error) {
+                failed.push({ path: file.path, error: error instanceof Error ? error.message : "上传失败" });
+            }
         }
-        catch (error) {
-            wx.showToast({ title: error instanceof Error ? error.message : "上传失败", icon: "none" });
+        this.setData({ uploading: false });
+        const succeeded = files.length - failed.length;
+        if (succeeded > 0 && failed.length === 0) {
+            wx.showToast({ title: `成功上传 ${succeeded} 张`, icon: "success" });
         }
-        finally {
-            this.setData({ uploading: false });
+        else if (succeeded > 0 && failed.length > 0) {
+            wx.showToast({ title: `成功 ${succeeded} 张，失败 ${failed.length} 张`, icon: "none" });
+        }
+        else {
+            wx.showToast({ title: failed[0] ? failed[0].error : "上传失败", icon: "none" });
         }
     }
 });
