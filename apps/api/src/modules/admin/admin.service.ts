@@ -377,11 +377,17 @@ export class AdminService implements OnModuleInit {
     return { token: this.jwt.sign({ sub: username, role: "admin" }) };
   }
 
-  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string }) {
+  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[] }) {
     if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
     const autoPublish = options?.autoPublish ?? settings.defaultAutoPublish;
+    const manualTags = unique((options?.tags || []).map((name) => name.trim()).filter(Boolean));
+    const manualTagModels = await Promise.all(manualTags.map((name) => this.prisma.tag.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    })));
     if (autoPublish) {
       await this.assertChannelReady("未配置可用腾讯频道账号，不能开启上传后自动发帖", options?.channelAccountId);
     }
@@ -415,6 +421,12 @@ export class AdminService implements OnModuleInit {
             type: detectType(saved.mimeType, saved.originalName),
             orientation,
             autoPublish,
+            manualTags: manualTags.length ? manualTags : undefined,
+            ...(manualTags.length ? {
+              tags: {
+                create: manualTagModels.map((tag, index) => ({ tagId: tag.id, sortOrder: index })),
+              },
+            } : {}),
           },
         });
       } catch (error) {
@@ -642,7 +654,10 @@ export class AdminService implements OnModuleInit {
     const coverPath = join(process.cwd(), "storage", "public", wallpaper.coverPath);
     const analysis = await this.ai.analyzeImage(coverPath, wallpaper.originalName);
     const detectedType = detectType(wallpaper.mimeType || "", wallpaper.originalName);
-    const tags = await Promise.all(analysis.tags.map((name) => this.prisma.tag.upsert({
+    // 手动标签在前，AI 标签追加在后，去重并保持顺序。
+    const manualTags = Array.isArray(wallpaper.manualTags) ? (wallpaper.manualTags as unknown as string[]) : [];
+    const mergedTags = unique([...manualTags, ...analysis.tags]);
+    const tags = await Promise.all(mergedTags.map((name) => this.prisma.tag.upsert({
       where: { name },
       update: {},
       create: { name },
@@ -675,7 +690,7 @@ export class AdminService implements OnModuleInit {
         status: analysis.safe ? WallpaperStatus.pending_review : WallpaperStatus.rejected,
         tags: {
           deleteMany: {},
-          create: tags.map((tag) => ({ tagId: tag.id })),
+          create: tags.map((tag, index) => ({ tagId: tag.id, sortOrder: index })),
         },
       },
     });
@@ -696,7 +711,7 @@ export class AdminService implements OnModuleInit {
     const [list, total] = await Promise.all([
       this.prisma.wallpaper.findMany({
         where,
-        include: { tags: { include: { tag: true } }, storageLinks: true, shortLinks: true, aiAnalysis: true },
+        include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] }, storageLinks: true, shortLinks: true, aiAnalysis: true },
         orderBy: [{ sortOrder: "desc" }, { createdAt: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -737,7 +752,7 @@ export class AdminService implements OnModuleInit {
         type: data.type,
         status: data.status,
         sortOrder: data.sortOrder,
-        ...(tags ? { tags: { deleteMany: {}, create: tags.map((tag) => ({ tagId: tag.id })) } } : {}),
+        ...(tags ? { tags: { deleteMany: {}, create: tags.map((tag, index) => ({ tagId: tag.id, sortOrder: index })) } } : {}),
       },
     });
   }
@@ -827,7 +842,7 @@ export class AdminService implements OnModuleInit {
       for (const id of wallpaperIds) {
         await this.prisma.wallpaper.update({
           where: { id },
-          data: { tags: { deleteMany: {}, create: tags.map((tag) => ({ tagId: tag.id })) } },
+          data: { tags: { deleteMany: {}, create: tags.map((tag, index) => ({ tagId: tag.id, sortOrder: index })) } },
         });
       }
     }
@@ -874,7 +889,7 @@ export class AdminService implements OnModuleInit {
 
       const wallpaper = await this.prisma.wallpaper.findUnique({
         where: { id },
-        include: { storageLinks: true, tags: { include: { tag: true } } },
+        include: { storageLinks: true, tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
       });
       if (!wallpaper) throw new Error("壁纸不存在");
 
@@ -938,7 +953,7 @@ export class AdminService implements OnModuleInit {
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpaper = await this.prisma.wallpaper.findUnique({
       where: { id },
-      include: { tags: { include: { tag: true } } },
+      include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
     });
     if (!wallpaper) throw new BadRequestException("壁纸不存在");
     await this.assertWallpapersCanPublish([id]);
@@ -969,7 +984,7 @@ export class AdminService implements OnModuleInit {
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpapers = await this.prisma.wallpaper.findMany({
       where: { id: { in: uniqueIds } },
-      include: { tags: { include: { tag: true } } },
+      include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
       orderBy: [{ sortOrder: "desc" }, { createdAt: "desc" }],
     });
     if (!wallpapers.length) throw new BadRequestException("没有可发布的壁纸");

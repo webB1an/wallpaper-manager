@@ -44,7 +44,7 @@ export class AdminController {
       callback(new BadRequestException(`不支持的文件格式：${file.originalname}`), false);
     },
   }))
-  async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string; quarkAccountId?: string; baiduAccountId?: string; channelAccountId?: string }) {
+  async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string; quarkAccountId?: string; baiduAccountId?: string; channelAccountId?: string; tags?: string }) {
     const autoProcess = body.autoProcess === undefined ? undefined : body.autoProcess === "true";
     const autoPublish = body.autoPublish === undefined ? undefined : body.autoPublish === "true";
     const data = await this.admin.createUpload(files || [], {
@@ -52,6 +52,7 @@ export class AdminController {
       autoPublish,
       storageSelection: cleanStorageSelection(body),
       channelAccountId: body.channelAccountId?.trim() || undefined,
+      tags: parseManualTags(body.tags),
     });
     return { code: 200, data };
   }
@@ -373,4 +374,18 @@ function cleanStorageSelection(body: { quarkAccountId?: string; baiduAccountId?:
   const quarkAccountId = body.quarkAccountId?.trim() || undefined;
   const baiduAccountId = body.baiduAccountId?.trim() || undefined;
   return quarkAccountId || baiduAccountId ? { quarkAccountId, baiduAccountId } : undefined;
+}
+
+/** 手动标签支持逗号分隔字符串（"二次元,动漫"）或 JSON 数组字符串（["二次元","动漫"]）。 */
+function parseManualTags(value?: string): string[] {
+  if (!value) return [];
+  let names: string[] = [];
+  const trimmed = value.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) names = parsed.map((item) => String(item));
+  } catch {
+    names = trimmed.split(",");
+  }
+  return names.map((name) => name.trim()).filter(Boolean);
 }

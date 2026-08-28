@@ -37,7 +37,7 @@ export class PublicService {
       const [allItems, counts] = await Promise.all([
         this.prisma.wallpaper.findMany({
           where,
-          include: { tags: { include: { tag: true } } },
+          include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
         }),
         this.prisma.wallpaperClick.groupBy({
           by: ["wallpaperId"],
@@ -61,7 +61,7 @@ export class PublicService {
     const [items, total] = await Promise.all([
       this.prisma.wallpaper.findMany({
         where,
-        include: { tags: { include: { tag: true } } },
+        include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -80,7 +80,7 @@ export class PublicService {
     const item = await this.prisma.wallpaper.findFirst({
       where: { id, status: WallpaperStatus.published },
       include: {
-        tags: { include: { tag: true } },
+        tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] },
         shortLinks: { include: { storageLink: true } },
       },
     });
@@ -422,7 +422,7 @@ export class PublicService {
           { type: type as never },
         ],
       },
-      include: { tags: { include: { tag: true } } },
+      include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
       orderBy: [{ downloadCount: "desc" }, { sortOrder: "desc" }, { createdAt: "desc" }],
       take: 6,
     });

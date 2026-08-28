@@ -1084,6 +1084,7 @@ function Uploader() {
   const [quarkAccountId, setQuarkAccountId] = useState<string>();
   const [baiduAccountId, setBaiduAccountId] = useState<string>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [manualTags, setManualTags] = useState<string[]>([]);
   useEffect(() => {
     Promise.all([
       request<SystemSettings>("/api/admin/settings"),
@@ -1110,6 +1111,7 @@ function Uploader() {
   const selectedStorageData = {
     autoProcess: String(autoProcess),
     autoPublish: String(autoPublish),
+    tags: manualTags.join(","),
     ...(autoPublish && channelAccountId ? { channelAccountId } : {}),
     ...(quarkAccountId ? { quarkAccountId } : {}),
     ...(baiduAccountId ? { baiduAccountId } : {}),
@@ -1184,6 +1186,19 @@ function Uploader() {
             setAutoProcess(checked);
             if (!checked) setAutoPublish(false);
           }}
+        />
+      </div>
+      <div className="upload-options upload-tags-options">
+        <span>手动标签（可选，AI 标签将追加在其后）</span>
+        <Select
+          mode="tags"
+          placeholder="输入标签后回车，多个以逗号分隔"
+          value={manualTags}
+          onChange={setManualTags}
+          tokenSeparators={[",", "，"]}
+          maxTagCount={8}
+          style={{ width: 320 }}
+          allowClear
         />
       </div>
       <div className="upload-options">
