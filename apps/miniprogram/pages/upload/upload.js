@@ -43,6 +43,8 @@ Page({
             count: 9,
             mediaType: ["image", "video"],
             sourceType: ["album", "camera"],
+            // 强制选原图，避免微信默认压缩图片导致上传/下载的壁纸被降分辨率（sizeType 仅对 image 生效）。
+            sizeType: ["original"],
             success: (res) => {
                 const added = res.tempFiles.map((file) => ({
                     path: file.tempFilePath,
