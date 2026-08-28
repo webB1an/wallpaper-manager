@@ -31,6 +31,8 @@ type SystemSettings = {
   rewardDownloadType: RewardDownloadType;
   autoSourceEnabled?: Record<string, boolean>;
   miniAdminOpenids?: string[];
+  processIdleEnabled?: boolean;
+  processIdleWindows?: Array<{ start: string; end: string }>;
 };
 
 type DiagnosticItem = {
@@ -53,6 +55,12 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
   rewardDownloadType: "daily10",
+  processIdleEnabled: true,
+  processIdleWindows: [
+    { start: "00:00", end: "09:00" },
+    { start: "12:00", end: "14:00" },
+    { start: "18:00", end: "00:00" },
+  ],
 };
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -460,6 +468,8 @@ export class AdminService implements OnModuleInit {
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
       ...(input.autoSourceEnabled ? { autoSourceEnabled: input.autoSourceEnabled } : {}),
+      ...(typeof input.processIdleEnabled === "boolean" ? { processIdleEnabled: input.processIdleEnabled } : {}),
+      ...(Array.isArray(input.processIdleWindows) ? { processIdleWindows: sanitizeIdleWindows(input.processIdleWindows) } : {}),
       ...(Array.isArray(input.miniAdminOpenids)
         ? { miniAdminOpenids: [...new Set(input.miniAdminOpenids.map((item) => String(item).trim()).filter(Boolean))] }
         : {}),
@@ -852,13 +862,38 @@ export class AdminService implements OnModuleInit {
   async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection, channelAccountId?: string) {
     await this.assertStorageReady(storageSelection);
     const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) };
-    const task = await this.tasks.create("upload_asset", payload, "开始处理壁纸");
+    const delay = await this.idleWindowDelayMs();
+    const task = await this.tasks.create(
+      "upload_asset",
+      payload,
+      delay > 0 ? "已进入队列，等待空闲时段自动处理" : "开始处理壁纸",
+    );
     await this.wallpaperQueue.add(
       "process-wallpaper",
       { wallpaperId: id, taskId: task.id, storageSelection, channelAccountId },
-      { attempts: 1, removeOnComplete: 200, removeOnFail: 500 },
+      { attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
     );
     return { queued: true, taskId: task.id };
+  }
+
+  /** 当前处于空闲窗口返回 0；否则返回距离下一个空闲窗口开始的毫秒数。 */
+  async idleWindowDelayMs(): Promise<number> {
+    const settings = await this.getSettings();
+    if (!settings.processIdleEnabled) return 0;
+    const windows = normalizeIdleWindows(settings.processIdleWindows || []);
+    if (!windows.length) return 0;
+    const now = new Date();
+    const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+    if (windows.some((window) => isWithinWindow(window, minuteOfDay))) return 0;
+    const starts = windows.map((window) => window.startMin);
+    const todayCandidates = starts
+      .filter((start) => start > minuteOfDay)
+      .sort((a, b) => a - b);
+    const nextStart = todayCandidates.length ? todayCandidates[0] : Math.min(...starts);
+    const next = new Date(now);
+    next.setHours(Math.floor(nextStart / 60), nextStart % 60, 0, 0);
+    if (!todayCandidates.length) next.setDate(next.getDate() + 1);
+    return Math.max(0, next.getTime() - now.getTime());
   }
 
   async enqueueProcessWallpapers(ids: string[] | undefined, storageSelection?: StorageSelection) {
@@ -1573,6 +1608,48 @@ function assertHttpUrl(value: string | undefined, label: string) {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+type IdleWindow = { startMin: number; endMin: number };
+
+function toMinutes(value: string): number | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec((value || "").trim());
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+/** 校验并保留合法的 "HH:mm" 字符串窗口（存进设置里的是原始字符串）。 */
+function sanitizeIdleWindows(values: Array<{ start: string; end: string }>): Array<{ start: string; end: string }> {
+  const result: Array<{ start: string; end: string }> = [];
+  for (const item of values || []) {
+    const start = (item?.start || "").trim();
+    const end = (item?.end || "").trim();
+    if (toMinutes(start) === null || toMinutes(end) === null) continue;
+    result.push({ start, end });
+  }
+  return result;
+}
+
+/** 把 "HH:mm" 的窗口归一化为分钟；结束时间 "00:00" 视为次日零点（1440）。 */
+function normalizeIdleWindows(values: Array<{ start: string; end: string }>): IdleWindow[] {
+  const result: IdleWindow[] = [];
+  for (const item of values || []) {
+    const startMin = toMinutes(item.start);
+    let endMin = toMinutes(item.end);
+    if (startMin === null || endMin === null) continue;
+    if (endMin === 0 && startMin > 0) endMin = 1440;
+    if (startMin === endMin) continue;
+    result.push({ startMin, endMin });
+  }
+  return result;
+}
+
+function isWithinWindow(window: IdleWindow, minuteOfDay: number): boolean {
+  if (window.startMin <= window.endMin) return minuteOfDay >= window.startMin && minuteOfDay < window.endMin;
+  return minuteOfDay >= window.startMin || minuteOfDay < window.endMin;
 }
 
 function requiredWallpaperIds(ids: string[] | undefined): string[] {

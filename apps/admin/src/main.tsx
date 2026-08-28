@@ -115,6 +115,8 @@ type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   rewardDownloadType: string;
+  processIdleEnabled?: boolean;
+  processIdleWindows?: Array<{ start: string; end: string }>;
 };
 
 type StorageSelectionForm = {
@@ -1335,6 +1337,32 @@ function Settings() {
             { value: "unlimited", label: "无限次" },
           ]} />
         </Form.Item>
+        <Form.Item label="仅在空闲时段自动处理上传" name="processIdleEnabled" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+        <div className="form-field">
+          <div className="form-label">空闲时段（仅这些时段自动处理上传的壁纸）</div>
+          <Form.List name="processIdleWindows">
+            {(fields, { add, remove }) => (
+              <div className="openid-list">
+                {fields.map((field) => (
+                  <div key={field.key} className="openid-row">
+                    <Form.Item name={[field.name, "start"]} noStyle rules={[{ pattern: /^([01]\d|2[0-3]):[0-5]\d$/, message: "HH:mm" }]}>
+                      <Input placeholder="开始 00:00" style={{ width: 110 }} />
+                    </Form.Item>
+                    <span className="form-hint">至</span>
+                    <Form.Item name={[field.name, "end"]} noStyle rules={[{ pattern: /^([01]\d|2[0-3]):[0-5]\d$/, message: "HH:mm" }]}>
+                      <Input placeholder="结束 09:00" style={{ width: 110 }} />
+                    </Form.Item>
+                    <Button size="small" danger type="text" onClick={() => remove(field.name)}>删除</Button>
+                  </div>
+                ))}
+                <Button size="small" type="dashed" onClick={() => add({ start: "00:00", end: "09:00" })}>+ 添加时段</Button>
+              </div>
+            )}
+          </Form.List>
+          <div className="form-hint">非空闲时段上传的壁纸会排队，等到下一个空闲时段自动处理；格式 HH:mm，结束填 00:00 表示次日零点。</div>
+        </div>
         <div className="form-field">
           <div className="form-label">小程序管理员 openid（白名单）</div>
           <Form.List name="miniAdminOpenids">
