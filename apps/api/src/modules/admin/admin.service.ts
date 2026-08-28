@@ -1182,7 +1182,21 @@ export class AdminService implements OnModuleInit {
     const fileName = `${Date.now()}-${nanoid(10)}.jpg`;
     const output = join(dir, fileName);
     if (mimeType.startsWith("image/") && existsSync(filePath)) {
-      await sharp(filePath).resize({ width: 900, withoutEnlargement: true }).jpeg({ quality: 82 }).toFile(output);
+      // 超高/超宽图按像素上限等比缩小，避免封面尺寸失控（如 900x9869）。
+      const meta = await sharp(filePath).metadata();
+      const sourceWidth = meta.width || 900;
+      const sourceHeight = meta.height || 506;
+      const MAX_COVER_PIXELS = 1_600_000;
+      const pixels = sourceWidth * sourceHeight;
+      const scale = pixels > MAX_COVER_PIXELS ? Math.sqrt(MAX_COVER_PIXELS / pixels) : 1;
+      if (scale < 1) {
+        await sharp(filePath)
+          .resize({ width: Math.max(1, Math.round(sourceWidth * scale)), height: Math.max(1, Math.round(sourceHeight * scale)) })
+          .jpeg({ quality: 82 })
+          .toFile(output);
+      } else {
+        await sharp(filePath).resize({ width: 900, withoutEnlargement: true }).jpeg({ quality: 82 }).toFile(output);
+      }
     } else if (mimeType.startsWith("video/") && existsSync(filePath) && await this.createVideoCover(filePath, output)) {
       // ffmpeg extracted the first frame into output.
     } else {

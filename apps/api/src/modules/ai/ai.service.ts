@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { WallpaperType } from "@prisma/client";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
+import sharp from "sharp";
 
 const analysisSchema = z.object({
   title: z.string().trim().min(1).max(40),
@@ -25,8 +26,18 @@ export class AiService {
       return fallbackAnalysis(originalName);
     }
 
-    const bytes = await readFile(imagePath);
-    const base64 = bytes.toString("base64");
+    // 限制送审图分辨率：超高/超宽图（如 900x9869）会超出视觉模型输入上限导致失败。
+    let imageBytes: Buffer;
+    try {
+      imageBytes = await sharp(imagePath)
+        .rotate()
+        .resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 88 })
+        .toBuffer();
+    } catch {
+      imageBytes = await readFile(imagePath);
+    }
+    const base64 = imageBytes.toString("base64");
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
