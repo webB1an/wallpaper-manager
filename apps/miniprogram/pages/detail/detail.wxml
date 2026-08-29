@@ -11,7 +11,8 @@
       <view class="fav-button" bindtap="toggleFav">
         <text class="fav-heart {{fav ? 'on' : ''}}">{{fav ? '♥' : '♡'}}</text>
       </view>
-      <view class="download-button" bindtap="onDownload">
+      <!-- 直接下载按钮暂时隐藏 -->
+      <view class="download-button" bindtap="onDownload" wx:if="{{false}}">
         <image class="download-icon" src="/assets/icons/download.png" />
         <text class="download-text">下载</text>
       </view>
