@@ -1,14 +1,16 @@
 <view class="page">
   <view class="hero">
     <text class="hero-title">服务中心</text>
-    <text class="hero-subtitle">下载与收藏，随时找回</text>
+    <!-- 副标题暂时隐藏 -->
+    <text class="hero-subtitle" wx:if="{{false}}">下载与收藏，随时找回</text>
     <view class="mine-meter">
       <text>{{favorites.length + downloads.length + records.length}}</text>
       <text>条记录</text>
     </view>
   </view>
 
-  <view wx:if="{{quotaText}}" class="quota-card">{{quotaText}}</view>
+  <!-- 下载额度卡片暂时隐藏 -->
+  <view wx:if="{{false}}" class="quota-card">{{quotaText}}</view>
 
   <button wx:if="{{isAdmin}}" class="admin-upload-entry" bindtap="goUpload">
     <text class="entry-icon">＋</text>
@@ -35,25 +37,28 @@
     <text>遇到喜欢的壁纸，点详情页的 ♡ 收藏起来。</text>
   </view>
 
-  <view class="section-title">
-    <text>下载记录</text>
-    <text wx:if="{{downloads.length}}" class="muted" bindtap="clearDownloads">清空</text>
-  </view>
-  <view wx:if="{{downloads.length}}" class="history-list">
-    <block wx:for="{{downloads}}" wx:key="id">
-      <view class="history-card" data-id="{{item.id}}" bindtap="openDetail">
-        <image src="{{item.coverUrl}}" mode="aspectFill" />
-        <view class="history-main">
-          <text class="history-title">{{item.title}}</text>
-          <text class="history-time">{{item.atText}}</text>
+  <!-- 下载记录板块暂时隐藏 -->
+  <block wx:if="{{false}}">
+    <view class="section-title">
+      <text>下载记录</text>
+      <text wx:if="{{downloads.length}}" class="muted" bindtap="clearDownloads">清空</text>
+    </view>
+    <view wx:if="{{downloads.length}}" class="history-list">
+      <block wx:for="{{downloads}}" wx:key="id">
+        <view class="history-card" data-id="{{item.id}}" bindtap="openDetail">
+          <image src="{{item.coverUrl}}" mode="aspectFill" />
+          <view class="history-main">
+            <text class="history-title">{{item.title}}</text>
+            <text class="history-time">{{item.atText}}</text>
+          </view>
         </view>
-      </view>
-    </block>
-  </view>
-  <view wx:else class="empty-state">
-    <text>还没有下载记录</text>
-    <text>下载成功保存到相册的壁纸会出现在这里。</text>
-  </view>
+      </block>
+    </view>
+    <view wx:else class="empty-state">
+      <text>还没有下载记录</text>
+      <text>下载成功保存到相册的壁纸会出现在这里。</text>
+    </view>
+  </block>
 
   <view class="section-title">
     <text>最近复制</text>

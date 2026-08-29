@@ -35,7 +35,6 @@ Page({
       downloads: readDownloadHistory().map((record) => ({ ...record, atText: formatTime(record.at) })),
       favorites: readFavorites().map((record) => ({ ...record, atText: formatTime(record.at) }))
     });
-    void this.loadQuota();
     void this.syncFromServer();
     void this.loadOpenid();
     void this.loadAdminStatus();

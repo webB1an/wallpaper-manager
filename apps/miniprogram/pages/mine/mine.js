@@ -19,7 +19,6 @@ Page({
             downloads: (0, local_history_1.readDownloadHistory)().map((record) => ({ ...record, atText: formatTime(record.at) })),
             favorites: (0, local_history_1.readFavorites)().map((record) => ({ ...record, atText: formatTime(record.at) }))
         });
-        void this.loadQuota();
         void this.syncFromServer();
         void this.loadOpenid();
         void this.loadAdminStatus();
