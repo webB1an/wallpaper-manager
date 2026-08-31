@@ -742,6 +742,23 @@ export class AdminService implements OnModuleInit {
     };
   }
 
+  async listSearchLogs(query: { page?: number; pageSize?: number; keyword?: string }) {
+    const page = positiveInt(query.page, 1, "页码");
+    const pageSize = positiveInt(query.pageSize, 20, "每页数量", 100);
+    const keyword = (query.keyword || "").trim();
+    const where = keyword ? { keyword: { contains: keyword } } : {};
+    const [list, total] = await Promise.all([
+      this.prisma.searchLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.searchLog.count({ where }),
+    ]);
+    return { list, total, page, pageSize };
+  }
+
   async updateWallpaper(id: string, data: {
     title?: string;
     type?: WallpaperType;

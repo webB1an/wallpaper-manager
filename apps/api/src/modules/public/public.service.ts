@@ -17,7 +17,7 @@ export class PublicService {
     private readonly assetFetch: AssetFetchService,
   ) {}
 
-  async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }) {
+  async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }, openid?: string) {
     const page = positiveInt(query.page, 1, "页码");
     const pageSize = positiveInt(query.pageSize, 20, "每页数量", 50);
     const type = optionalWallpaperType(query.type);
@@ -53,6 +53,7 @@ export class PublicService {
         });
       const total = sorted.length;
       const items = sorted.slice((page - 1) * pageSize, page * pageSize).map(wallpaperCard);
+      void this.recordSearch(keyword, total, openid);
       return { list: items, total, page, pageSize };
     }
     const orderBy = query.sort === "hot"
@@ -68,12 +69,27 @@ export class PublicService {
       }),
       this.prisma.wallpaper.count({ where }),
     ]);
+    void this.recordSearch(keyword, total, openid);
     return {
       list: items.map(wallpaperCard),
       total,
       page,
       pageSize,
     };
+  }
+
+  private async recordSearch(keyword: string, total: number, openid?: string) {
+    if (!keyword) return;
+    await this.prisma.searchLog
+      .create({
+        data: {
+          keyword,
+          hasResult: total > 0,
+          resultCount: total,
+          openid: openid?.trim() || null,
+        },
+      })
+      .catch(() => undefined);
   }
 
   async detail(id: string) {

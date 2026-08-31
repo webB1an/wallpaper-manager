@@ -12,8 +12,8 @@ export class PublicController {
   ) {}
 
   @Get("wallpapers")
-  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }) {
-    return { code: 200, data: await this.service.list(query) };
+  async list(@Query() query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }, @Headers("x-openid") openid: string) {
+    return { code: 200, data: await this.service.list(query, openid) };
   }
 
   @Get("wallpapers/tags")

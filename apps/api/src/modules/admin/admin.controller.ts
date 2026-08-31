@@ -180,6 +180,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get("search-logs")
+  async searchLogs(@Query() query: { page?: number; pageSize?: number; keyword?: string }) {
+    return { code: 200, data: await this.admin.listSearchLogs(query) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Patch("wallpapers/:id")
   async update(@Param("id") id: string, @Body() body: {
     title?: string;

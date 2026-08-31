@@ -279,6 +279,18 @@ model WallpaperSource {
   @@index([source, createdAt])
 }
 
+model SearchLog {
+  id          String   @id @default(cuid())
+  keyword     String
+  hasResult   Boolean  @default(false)
+  resultCount Int      @default(0)
+  openid      String?
+  createdAt   DateTime @default(now())
+
+  @@index([keyword, createdAt])
+  @@index([createdAt])
+}
+
 model AutoPublishBoard {
   id           String   @id @default(cuid())
   guildId      String   @db.VarChar(128)
