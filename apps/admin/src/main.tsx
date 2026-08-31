@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Alert, Button, ConfigProvider, Form, Input, InputNumber, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
+import { Alert, Button, ConfigProvider, Form, Image, Input, InputNumber, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadFile, UploadProps } from "antd";
 import { Activity, CloudUpload, Copy, GalleryVerticalEnd, HardDrive, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
@@ -767,7 +767,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         {
           title: "封面",
           width: 112,
-          render: (_, row) => row.coverUrl ? <img className="cover-thumb" src={row.coverUrl} /> : <div className="cover-empty" />,
+          render: (_, row) => row.coverUrl ? <Image className="cover-thumb" src={row.coverUrl} preview={{ mask: "点击预览" }} /> : <div className="cover-empty" />,
         },
         { title: "标题", dataIndex: "title", render: (text, row) => <div><strong>{text}</strong><small>{row.originalName}</small></div> },
         { title: "类型", dataIndex: "type", render: (type) => <Tag>{typeText(type)}</Tag> },
