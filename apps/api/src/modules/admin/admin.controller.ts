@@ -53,6 +53,7 @@ export class AdminController {
       storageSelection: cleanStorageSelection(body),
       channelAccountId: body.channelAccountId?.trim() || undefined,
       tags: parseManualTags(body.tags),
+      batchPublish: true,
     });
     return { code: 200, data };
   }

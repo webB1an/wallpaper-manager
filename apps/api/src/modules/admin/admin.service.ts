@@ -385,7 +385,7 @@ export class AdminService implements OnModuleInit {
     return { token: this.jwt.sign({ sub: username, role: "admin" }) };
   }
 
-  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[] }) {
+  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[]; batchPublish?: boolean }) {
     if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
@@ -444,10 +444,21 @@ export class AdminService implements OnModuleInit {
         ]);
         throw error;
       }
-      const queued = autoProcess ? await this.enqueueProcessWallpaper(wallpaper.id, options?.storageSelection, autoPublish ? options?.channelAccountId : undefined) : undefined;
-      created.push({ ...wallpaper, queued });
+      created.push(wallpaper);
     }
-    return created;
+    if (!autoProcess) return created;
+
+    const ids = created.map((item) => item.id);
+    const allStatic = created.every((item) => item.type !== WallpaperType.live);
+    if (autoPublish && options?.batchPublish && ids.length > 1 && allStatic) {
+      const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, options?.channelAccountId);
+      return created.map((item) => ({ ...item, queued: batch }));
+    }
+    const queued: Array<{ queued: boolean; taskId: string }> = [];
+    for (const id of ids) {
+      queued.push(await this.enqueueProcessWallpaper(id, options?.storageSelection, autoPublish ? options?.channelAccountId : undefined));
+    }
+    return created.map((item, index) => ({ ...item, queued: queued[index] }));
   }
 
   async getSettings(): Promise<SystemSettings> {
@@ -927,7 +938,9 @@ export class AdminService implements OnModuleInit {
     return this.runProcessWallpaper(id, task.id);
   }
 
-  async runProcessWallpaper(id: string, taskId: string, storageSelection?: StorageSelection, channelAccountId?: string) {
+  async runProcessWallpaper(id: string, taskId: string, storageSelection?: StorageSelection, channelAccountId?: string, options?: { skipPublish?: boolean; finalizeTask?: boolean }) {
+    const skipPublish = options?.skipPublish === true;
+    const finalizeTask = options?.finalizeTask !== false;
     const warnings: string[] = [];
     const taskResult: Record<string, unknown> = {};
     try {
@@ -969,7 +982,7 @@ export class AdminService implements OnModuleInit {
 
       await this.assertWallpapersCanPublish([id]);
 
-      if (wallpaper.autoPublish) {
+      if (wallpaper.autoPublish && !skipPublish) {
         await this.tasks.update(taskId, { progress: 84, message: "正在发布到腾讯频道" });
         try {
           taskResult.channel = await this.publishWallpaperToChannel(id, channelAccountId);
@@ -987,15 +1000,85 @@ export class AdminService implements OnModuleInit {
         await this.prisma.wallpaper.update({ where: { id }, data: { assetPath: null } });
       }
       taskResult.warnings = warnings;
-      await this.tasks.update(taskId, {
-        status: "success",
-        progress: 100,
-        message: warnings.length ? `处理完成并已上架，存在 ${warnings.length} 条提醒` : "处理完成并已上架",
-        result: taskResult,
-      });
+      if (finalizeTask) {
+        await this.tasks.update(taskId, {
+          status: "success",
+          progress: 100,
+          message: warnings.length ? `处理完成并已上架，存在 ${warnings.length} 条提醒` : "处理完成并已上架",
+          result: taskResult,
+        });
+      }
       return { ok: true, warnings };
     } catch (error) {
       await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: "处理失败" });
+      throw error;
+    }
+  }
+
+  async enqueueProcessWallpaperBatch(ids: string[], storageSelection?: StorageSelection, channelAccountId?: string) {
+    if (!ids.length) throw new BadRequestException("请选择要处理的壁纸");
+    await this.assertStorageReady(storageSelection);
+    const delay = await this.idleWindowDelayMs();
+    const task = await this.tasks.create(
+      "upload_asset",
+      { wallpaperIds: ids, batch: true },
+      delay > 0 ? "已进入队列，等待空闲时段批量处理" : `批量处理 ${ids.length} 张壁纸`,
+    );
+    await this.wallpaperQueue.add(
+      "process-wallpaper-batch",
+      { wallpaperIds: ids, taskId: task.id, storageSelection, channelAccountId },
+      { attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
+    );
+    return { queued: true, taskId: task.id, count: ids.length };
+  }
+
+  /** 批量处理（AI+网盘同步，不逐张发帖），完成后把静态图合并成一个帖子（每帖最多 18 张），动态壁纸各自一帖。 */
+  async runProcessWallpaperBatch(ids: string[], taskId: string, storageSelection?: StorageSelection, channelAccountId?: string) {
+    const warnings: string[] = [];
+    const taskResult: Record<string, unknown> = {};
+    try {
+      const processedIds: string[] = [];
+      for (let i = 0; i < ids.length; i++) {
+        await this.tasks.update(taskId, { status: "running", progress: Math.round((i / ids.length) * 80), message: `正在处理第 ${i + 1}/${ids.length} 张` });
+        try {
+          const result = await this.runProcessWallpaper(ids[i], taskId, storageSelection, channelAccountId, { skipPublish: true, finalizeTask: false });
+          if (result.ok && result.skipped !== true) processedIds.push(ids[i]);
+          else warnings.push(`第 ${i + 1} 张：AI 审核未通过，已跳过`);
+        } catch (error) {
+          warnings.push(`第 ${i + 1} 张处理失败：${shortError(error)}`);
+        }
+      }
+
+      const published: unknown[] = [];
+      if (processedIds.length) {
+        const wallpapers = await this.prisma.wallpaper.findMany({ where: { id: { in: processedIds } }, select: { id: true, type: true } });
+        const statics = wallpapers.filter((item) => item.type !== WallpaperType.live).map((item) => item.id);
+        const lives = wallpapers.filter((item) => item.type === WallpaperType.live).map((item) => item.id);
+        const groups: string[][] = [];
+        for (let i = 0; i < statics.length; i += 18) groups.push(statics.slice(i, i + 18));
+        for (const liveId of lives) groups.push([liveId]);
+        await this.tasks.update(taskId, { progress: 88, message: "正在合并发帖到腾讯频道" });
+        for (const group of groups) {
+          published.push(await this.publishWallpapersToChannel(group, channelAccountId));
+        }
+      } else {
+        warnings.push("没有可发布的壁纸");
+      }
+
+      taskResult.channel = published;
+      taskResult.processed = processedIds;
+      taskResult.warnings = warnings;
+      await this.tasks.update(taskId, {
+        status: "success",
+        progress: 100,
+        message: warnings.length
+          ? `批量处理完成：发布 ${processedIds.length} 张（${published.length} 帖），存在 ${warnings.length} 条提醒`
+          : `批量处理完成：${processedIds.length} 张已合并发帖`,
+        result: taskResult,
+      });
+      return { ok: true, count: processedIds.length, posts: published.length, warnings };
+    } catch (error) {
+      await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: "批量处理失败" });
       throw error;
     }
   }

@@ -22,6 +22,17 @@ export class StorageCoordinatorService {
     const quarkAccount = await this.accounts.getAccountForProvider(StorageProvider.quark, selection?.quarkAccountId);
     const baiduAccount = await this.accounts.getAccountForProvider(StorageProvider.baidu, selection?.baiduAccountId);
 
+    if (!baiduAccount) {
+      results.push({ provider: StorageProvider.baidu, ok: false, error: missingManagedAccountError(StorageProvider.baidu) });
+    } else {
+      try {
+        const share = await this.baidu.uploadAndShare(filePath, baiduAccount, remoteDir.baiduRelativeDir);
+        results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount.id });
+      } catch (error) {
+        results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
+      }
+    }
+
     if (!quarkAccount) {
       results.push({ provider: StorageProvider.quark, ok: false, error: missingManagedAccountError(StorageProvider.quark) });
     } else {
@@ -31,17 +42,6 @@ export class StorageCoordinatorService {
         results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath, storageAccountId: quarkAccount.id });
       } catch (error) {
         results.push({ provider: StorageProvider.quark, ok: false, error: (error as Error).message });
-      }
-    }
-
-    if (!baiduAccount) {
-      results.push({ provider: StorageProvider.baidu, ok: false, error: missingManagedAccountError(StorageProvider.baidu) });
-    } else {
-      try {
-        const share = await this.baidu.uploadAndShare(filePath, baiduAccount, remoteDir.baiduRelativeDir);
-        results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount.id });
-      } catch (error) {
-        results.push({ provider: StorageProvider.baidu, ok: false, error: (error as Error).message });
       }
     }
 

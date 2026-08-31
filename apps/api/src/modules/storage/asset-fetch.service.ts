@@ -90,7 +90,7 @@ export class AssetFetchService implements OnModuleInit {
       return { ready: false, fetching: false, message: recentFailure.error || "网盘回源失败，请稍后再试" };
     }
 
-    const links = [...wallpaper.storageLinks].sort((a, b) => (a.provider === StorageProvider.quark ? -1 : 1) - (b.provider === StorageProvider.quark ? -1 : 1));
+    const links = [...wallpaper.storageLinks].sort((a, b) => (a.provider === StorageProvider.baidu ? -1 : 1) - (b.provider === StorageProvider.baidu ? -1 : 1));
     if (!links.length) {
       return { ready: false, fetching: false, message: "该壁纸暂无源文件" };
     }
@@ -121,7 +121,7 @@ export class AssetFetchService implements OnModuleInit {
     const tmpDir = join(process.cwd(), "storage", "private", "fetch-tmp", taskId);
     const errors: string[] = [];
     let localPath = "";
-    const links = [...wallpaper.storageLinks].sort((a, b) => (a.provider === StorageProvider.quark ? -1 : 1) - (b.provider === StorageProvider.quark ? -1 : 1));
+    const links = [...wallpaper.storageLinks].sort((a, b) => (a.provider === StorageProvider.baidu ? -1 : 1) - (b.provider === StorageProvider.baidu ? -1 : 1));
 
     for (const link of links) {
       try {

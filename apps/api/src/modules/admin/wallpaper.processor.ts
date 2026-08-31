@@ -9,9 +9,12 @@ export class WallpaperProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ taskId: string; wallpaperId: string; storageSelection?: { quarkAccountId?: string; baiduAccountId?: string }; channelAccountId?: string }>) {
+  async process(job: Job<{ taskId: string; wallpaperId?: string; wallpaperIds?: string[]; storageSelection?: { quarkAccountId?: string; baiduAccountId?: string }; channelAccountId?: string }>) {
     if (job.name === "process-wallpaper") {
-      return this.admin.runProcessWallpaper(job.data.wallpaperId, job.data.taskId, job.data.storageSelection, job.data.channelAccountId);
+      return this.admin.runProcessWallpaper(job.data.wallpaperId || "", job.data.taskId, job.data.storageSelection, job.data.channelAccountId);
+    }
+    if (job.name === "process-wallpaper-batch") {
+      return this.admin.runProcessWallpaperBatch(job.data.wallpaperIds || [], job.data.taskId, job.data.storageSelection, job.data.channelAccountId);
     }
     return undefined;
   }

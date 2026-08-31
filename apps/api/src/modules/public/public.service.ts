@@ -476,7 +476,7 @@ function compareShortLinks(left: PublicShortLink, right: PublicShortLink) {
     return left.storageLink.isPrimary ? -1 : 1;
   }
   if (left.provider !== right.provider) {
-    return left.provider === StorageProvider.quark ? -1 : 1;
+    return left.provider === StorageProvider.baidu ? -1 : 1;
   }
   return 0;
 }
