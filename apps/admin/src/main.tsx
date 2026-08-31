@@ -805,7 +805,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
                 type: row.type,
                 status: row.status,
                 sortOrder: row.sortOrder,
-                tags: row.tags?.map((item) => item.tag.name).join(","),
+                tags: row.tags?.map((item) => item.tag.name) ?? [],
               });
             }}>编辑</Button>
             <Button size="small" onClick={() => analyze(row.id, load)}>AI识别</Button>
@@ -837,7 +837,9 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           <Form.Item label="类型" name="type"><Select options={["static", "live"].map((value) => ({ value, label: typeText(value) }))} /></Form.Item>
           <Form.Item label="状态" name="status"><Select options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))} /></Form.Item>
           <Form.Item label="排序" name="sortOrder"><Input type="number" /></Form.Item>
-          <Form.Item label="标签" name="tags"><Input placeholder="多个标签用逗号分隔" /></Form.Item>
+          <Form.Item label="标签" name="tags">
+            <Select mode="tags" tokenSeparators={[",", "，"]} placeholder="输入标签后回车，多个以逗号分隔" />
+          </Form.Item>
         </Form>
         {editing && <StorageLinkEditor wallpaper={editing} reload={load} />}
       </Modal>
@@ -870,7 +872,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             <Select allowClear options={["draft", "processing", "pending_review", "published", "rejected", "archived"].map((value) => ({ value, label: statusText(value) }))} />
           </Form.Item>
           <Form.Item label="标签" name="tags">
-            <Input placeholder="留空不修改；多个标签用逗号分隔，填写后会替换所选资源标签" />
+            <Select mode="tags" tokenSeparators={[",", "，"]} placeholder="留空不修改；输入标签后回车，填写后会替换所选资源标签" />
           </Form.Item>
         </Form>
       </Modal>
@@ -2567,11 +2569,9 @@ async function deactivateUnpublishedLinks(ids: React.Key[], reload: () => void) 
   });
 }
 
-function splitTags(value?: string) {
-  return String(value || "")
-    .split(/[,\n，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function splitTags(value?: string | string[]) {
+  const parts = Array.isArray(value) ? value : String(value || "").split(/[,\n，]/);
+  return parts.map((item) => String(item).trim()).filter(Boolean);
 }
 
 function providerText(value: string) {
