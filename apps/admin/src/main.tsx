@@ -1090,6 +1090,7 @@ function Uploader() {
   const [quarkAccountId, setQuarkAccountId] = useState<string>();
   const [baiduAccountId, setBaiduAccountId] = useState<string>();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [batchUploading, setBatchUploading] = useState(false);
   const [manualTags, setManualTags] = useState<string[]>([]);
   useEffect(() => {
     Promise.all([
@@ -1133,30 +1134,22 @@ function Uploader() {
     fileList,
     listType: "picture",
     beforeUpload: () => false,
-    onChange({ file, fileList: next }) {
+    onChange({ fileList: next }) {
       setFileList(next);
-      if (file.status === "done") {
-        const response = file.response as { code?: number; message?: string; error?: string } | undefined;
-        if (response?.code && response.code !== 200) {
-          message.error(`${file.name} 上传失败：${uploadErrorMessage(response)}`);
-          return;
-        }
-        message.success(autoProcess ? `${file.name} 已上传并加入处理队列` : `${file.name} 已上传为草稿`);
-      }
-      if (file.status === "error") {
-        message.error(`${file.name} 上传失败：${uploadErrorMessage(file.response || file.error)}`);
-      }
       if (next.length && next.every((item) => item.status === "done" || item.status === "error")) {
-        window.setTimeout(() => setFileList([]), 1200);
+        window.setTimeout(() => setFileList([]), 1500);
       }
     },
   };
-  const uploadFile = async (file: UploadFile) => {
-    const source = file.originFileObj;
-    if (!source) return;
-    setFileList((prev) => prev.map((item) => item.uid === file.uid ? { ...item, status: "uploading", percent: 0 } : item));
+  const uploadFiles = async (files: UploadFile[]) => {
+    if (!files.length) return;
+    const ids = files.map((file) => file.uid);
+    setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "uploading", percent: 0 } : item));
+    setBatchUploading(true);
     const form = new FormData();
-    form.append("files", source);
+    for (const file of files) {
+      if (file.originFileObj) form.append("files", file.originFileObj);
+    }
     for (const [key, value] of Object.entries(selectedStorageData)) {
       form.append(key, value);
     }
@@ -1170,16 +1163,19 @@ function Uploader() {
       if (!response.ok || body.code !== 200) {
         throw new Error(uploadErrorMessage(body));
       }
-      message.success(autoProcess ? `${file.name} 已上传并加入处理队列` : `${file.name} 已上传为草稿`);
-      setFileList((prev) => prev.map((item) => item.uid === file.uid ? { ...item, status: "done", response: body } : item));
+      const count = Array.isArray(body.data) ? body.data.length : files.length;
+      message.success(autoProcess ? `已上传 ${count} 张并加入处理队列` : `已上传 ${count} 张为草稿`);
+      setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "done", response: body } : item));
     } catch (error) {
-      message.error(`${file.name} 上传失败：${error instanceof Error ? error.message : "请求失败"}`);
-      setFileList((prev) => prev.map((item) => item.uid === file.uid ? { ...item, status: "error", error } : item));
+      message.error(`上传失败：${error instanceof Error ? error.message : "请求失败"}`);
+      setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "error", error } : item));
+    } finally {
+      setBatchUploading(false);
     }
   };
   const startUpload = () => {
     const pending = fileList.filter((file) => file.originFileObj && file.status !== "done" && file.status !== "error" && file.status !== "uploading");
-    pending.forEach(uploadFile);
+    void uploadFiles(pending);
   };
   return (
     <section>
@@ -1280,7 +1276,8 @@ function Uploader() {
         <Button
           type="primary"
           icon={<UploadCloud size={16} />}
-          disabled={!fileList.length || fileList.some((file) => file.status === "uploading")}
+          disabled={!fileList.length || batchUploading || fileList.some((file) => file.status === "uploading")}
+          loading={batchUploading}
           onClick={startUpload}
         >
           开始上传{fileList.length ? `（${fileList.length}）` : ""}
