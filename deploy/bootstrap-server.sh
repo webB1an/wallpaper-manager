@@ -45,6 +45,41 @@ fi
 npm run prisma:generate
 npm run prisma:deploy
 
+# 同步项目 Nginx 配置到线上：确保上传大小限制（client_max_body_size）与仓库一致（1024m）。
+NGINX_CONF=""
+for candidate in \
+  /www/server/panel/vhost/nginx/wall-api.wdbzk.com.conf \
+  /www/server/nginx/conf/vhost/wall-api.wdbzk.com.conf \
+  /etc/nginx/conf.d/wall-api.wdbzk.com.conf; do
+  if [ -f "$candidate" ]; then NGINX_CONF="$candidate"; break; fi
+done
+if [ -n "$NGINX_CONF" ]; then
+  BACKUP="${NGINX_CONF}.bak.$(date +%Y%m%d%H%M%S)"
+  if cp "$NGINX_CONF" "$BACKUP" 2>/dev/null; then
+    if grep -q "client_max_body_size" "$NGINX_CONF" 2>/dev/null; then
+      sed -i 's/client_max_body_size[[:space:]][^;]*;/client_max_body_size 1024m;/g' "$NGINX_CONF" 2>/dev/null || cp "$BACKUP" "$NGINX_CONF" 2>/dev/null || true
+    else
+      sed -i '0,/^[[:space:]]*server[[:space:]]*{/s//server {\n    client_max_body_size 1024m;/' "$NGINX_CONF" 2>/dev/null || cp "$BACKUP" "$NGINX_CONF" 2>/dev/null || true
+    fi
+    NGINX_BIN=""
+    for bin in /www/server/nginx/sbin/nginx /usr/sbin/nginx /usr/local/nginx/sbin/nginx; do
+      if [ -x "$bin" ]; then NGINX_BIN="$bin"; break; fi
+    done
+    if [ -z "$NGINX_BIN" ] && command -v nginx >/dev/null 2>&1; then NGINX_BIN="$(command -v nginx)"; fi
+    if [ -n "$NGINX_BIN" ] && "$NGINX_BIN" -t >/dev/null 2>&1; then
+      "$NGINX_BIN" -s reload >/dev/null 2>&1 || true
+      echo "Nginx 上传限制已同步为 1024m（$NGINX_CONF）"
+    else
+      cp "$BACKUP" "$NGINX_CONF" 2>/dev/null || true
+      echo "Nginx 配置校验失败，已恢复备份，跳过重载" >&2
+    fi
+  else
+    echo "无权限备份线上 Nginx 配置，跳过上传大小同步" >&2
+  fi
+else
+  echo "未找到线上 Nginx 配置文件，跳过上传大小同步（请手动在宝塔调整 client_max_body_size）" >&2
+fi
+
 if command -v pm2 >/dev/null 2>&1; then
   pm2 startOrReload ecosystem.config.cjs --update-env
   pm2 save
