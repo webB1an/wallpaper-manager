@@ -385,11 +385,12 @@ export class AdminService implements OnModuleInit {
     return { token: this.jwt.sign({ sub: username, role: "admin" }) };
   }
 
-  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[]; batchPublish?: boolean }) {
+  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[]; batchPublish?: boolean; batchKey?: string; batchTotal?: number }) {
     if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
     const autoPublish = options?.autoPublish ?? settings.defaultAutoPublish;
+    const batchKey = options?.batchKey?.trim() || undefined;
     const manualTags = unique((options?.tags || []).map((name) => name.trim()).filter(Boolean));
     const manualTagModels = await Promise.all(manualTags.map((name) => this.prisma.tag.upsert({
       where: { name },
@@ -429,6 +430,7 @@ export class AdminService implements OnModuleInit {
             type: detectType(saved.mimeType, saved.originalName),
             orientation,
             autoPublish,
+            ...(batchKey ? { batchKey } : {}),
             manualTags: manualTags.length ? manualTags : undefined,
             ...(manualTags.length ? {
               tags: {
@@ -449,6 +451,23 @@ export class AdminService implements OnModuleInit {
     if (!autoProcess) return created;
 
     const ids = created.map((item) => item.id);
+    if (batchKey && autoPublish) {
+      // 小程序端一次上传：逐张请求，最后一张（或收尾接口）触发合并发帖。
+      const total = Number(options?.batchTotal || 0);
+      const count = await this.prisma.wallpaper.count({ where: { batchKey } });
+      if (total > 0 && count >= total) {
+        const batch = await this.enqueueMiniBatchPublish(batchKey);
+        return created.map((item) => ({ ...item, queued: batch }));
+      }
+      return created;
+    }
+    if (batchKey && !autoPublish) {
+      const queued: Array<{ queued: boolean; taskId: string }> = [];
+      for (const id of ids) {
+        queued.push(await this.enqueueProcessWallpaper(id, options?.storageSelection, undefined));
+      }
+      return created.map((item, index) => ({ ...item, queued: queued[index] }));
+    }
     const allStatic = created.every((item) => item.type !== WallpaperType.live);
     if (autoPublish && options?.batchPublish && ids.length > 1 && allStatic) {
       const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, options?.channelAccountId);
@@ -1030,6 +1049,20 @@ export class AdminService implements OnModuleInit {
       { attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
     );
     return { queued: true, taskId: task.id, count: ids.length };
+  }
+
+  /** 小程序批次合并发帖：同一 batchKey 且开启发帖、尚未排队发布的壁纸，一次性入队批量处理+合并发帖。幂等。 */
+  async enqueueMiniBatchPublish(batchKey: string) {
+    if (!batchKey) throw new BadRequestException("缺少批次标识");
+    const updated = await this.prisma.wallpaper.updateMany({
+      where: { batchKey, autoPublish: true, batchPublishQueued: false },
+      data: { batchPublishQueued: true },
+    });
+    if (updated.count === 0) return { queued: false, count: 0 };
+    const batch = await this.prisma.wallpaper.findMany({ where: { batchKey }, select: { id: true } });
+    const ids = batch.map((item) => item.id);
+    const queued = await this.enqueueProcessWallpaperBatch(ids);
+    return { queued: true, count: ids.length, taskId: queued.taskId };
   }
 
   /** 批量处理（AI+网盘同步，不逐张发帖），完成后把静态图合并成一个帖子（每帖最多 18 张），动态壁纸各自一帖。 */

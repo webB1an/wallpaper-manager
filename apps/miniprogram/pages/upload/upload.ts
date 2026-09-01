@@ -1,4 +1,4 @@
-import { API_BASE } from "../../utils/api";
+import { API_BASE, post } from "../../utils/api";
 import { ensureOpenid } from "../../utils/reward";
 
 Page({
@@ -63,7 +63,7 @@ Page({
     this.setData({ autoPublish: event.detail.value });
   },
 
-  async uploadOne(filePath: string, openid: string) {
+  async uploadOne(filePath: string, openid: string, batchKey: string, batchTotal: number) {
     await ensureOpenid();
     return new Promise<void>((resolve, reject) => {
       wx.uploadFile({
@@ -71,7 +71,11 @@ Page({
         filePath,
         name: "file",
         header: { "X-Openid": openid },
-        formData: { autoPublish: this.data.autoPublish ? "true" : "false" },
+        formData: {
+          autoPublish: this.data.autoPublish ? "true" : "false",
+          batchKey,
+          batchTotal: String(batchTotal),
+        },
         success: (res) => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             try {
@@ -106,21 +110,29 @@ Page({
     this.setData({ uploading: true });
     const openid = wx.getStorageSync("openid") || "";
     const files = [...this.data.files];
+    // 每次点击上传作为独立批次，多次点击不会合并成一条帖子。
+    const batchKey = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const failed: Array<{ path: string; error: string }> = [];
     for (const file of files) {
       try {
-        await this.uploadOne(file.path, openid);
+        await this.uploadOne(file.path, openid, batchKey, files.length);
         this.setData({ files: this.data.files.filter((item) => item.path !== file.path) });
       } catch (error) {
         failed.push({ path: file.path, error: error instanceof Error ? error.message : "上传失败" });
       }
     }
+    // 收尾通知：成功/部分失败都触发合并发帖（后端幂等）。
+    try {
+      await post("/wallpapers/upload/batch/complete", { batchKey });
+    } catch {
+      // 忽略收尾失败，最后一个文件上传成功时后端已自动触发。
+    }
     this.setData({ uploading: false });
     const succeeded = files.length - failed.length;
     if (succeeded > 0 && failed.length === 0) {
-      wx.showToast({ title: `成功上传 ${succeeded} 张`, icon: "success" });
+      wx.showToast({ title: this.data.autoPublish ? `成功上传 ${succeeded} 张，将合并发帖` : `成功上传 ${succeeded} 张`, icon: "success" });
     } else if (succeeded > 0 && failed.length > 0) {
-      wx.showToast({ title: `成功 ${succeeded} 张，失败 ${failed.length} 张`, icon: "none" });
+      wx.showToast({ title: this.data.autoPublish ? `成功 ${succeeded} 张，将合并发帖；失败 ${failed.length} 张` : `成功 ${succeeded} 张，失败 ${failed.length} 张`, icon: "none" });
     } else {
       wx.showToast({ title: failed[0] ? failed[0].error : "上传失败", icon: "none" });
     }

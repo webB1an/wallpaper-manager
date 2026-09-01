@@ -106,10 +106,23 @@ export class PublicController {
 
   @UseInterceptors(FilesInterceptor("file"))
   @Post("wallpapers/upload")
-  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string }) {
+  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string; batchKey?: string; batchTotal?: string }) {
     if (!(await this.service.isMiniAdmin(openid || ""))) throw new ForbiddenException("无上传权限");
     const autoPublish = body.autoPublish === "true";
-    return { code: 200, data: await this.admin.createUpload(files || [], { autoProcess: true, autoPublish }) };
+    return {
+      code: 200,
+      data: await this.admin.createUpload(files || [], {
+        autoProcess: true,
+        autoPublish,
+        batchKey: body.batchKey?.trim() || undefined,
+        batchTotal: Number(body.batchTotal || 0) > 0 ? Number(body.batchTotal) : undefined,
+      }),
+    };
+  }
+
+  @Post("wallpapers/upload/batch/complete")
+  async completeMiniBatch(@Body() body: { batchKey?: string }) {
+    return { code: 200, data: await this.admin.enqueueMiniBatchPublish((body.batchKey || "").trim()) };
   }
 
   @Get("/r/:code")
