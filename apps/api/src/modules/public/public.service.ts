@@ -378,6 +378,34 @@ export class PublicService {
     return tags.map((tag) => tag.name);
   }
 
+  /** 全部标签（已上架壁纸），按壁纸数量降序，支持关键词与分页。 */
+  async allTags(query: { page?: number; pageSize?: number; keyword?: string }) {
+    const page = positiveInt(query.page, 1, "页码");
+    const pageSize = positiveInt(query.pageSize, 40, "每页数量", 100);
+    const keyword = cleanSearchText(query.keyword);
+    const grouped = await this.prisma.wallpaperTag.groupBy({
+      by: ["tagId"],
+      where: { wallpaper: { status: WallpaperStatus.published } },
+      _count: { _all: true },
+      orderBy: { _count: { tagId: "desc" } },
+    });
+    const tags = grouped.length
+      ? await this.prisma.tag.findMany({ where: { id: { in: grouped.map((group) => group.tagId) } } })
+      : [];
+    const nameById = new Map(tags.map((tag) => [tag.id, tag.name]));
+    let items = grouped
+      .map((group) => ({ name: nameById.get(group.tagId) || "", count: group._count._all }))
+      .filter((item) => item.name);
+    if (keyword) items = items.filter((item) => item.name.includes(keyword));
+    const total = items.length;
+    return {
+      list: items.slice((page - 1) * pageSize, page * pageSize),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
   async facets() {
     const [typeGroups, orientationGroups, tagGroups] = await Promise.all([
       this.prisma.wallpaper.groupBy({
@@ -390,13 +418,7 @@ export class PublicService {
         where: { status: WallpaperStatus.published },
         _count: { _all: true },
       }),
-      this.prisma.wallpaperTag.groupBy({
-        by: ["tagId"],
-        where: { wallpaper: { status: WallpaperStatus.published } },
-        _count: { _all: true },
-        orderBy: { _count: { tagId: "desc" } },
-        take: 80,
-      }),
+      this.topTags(),
     ]);
     const tags = tagGroups.length
       ? await this.prisma.tag.findMany({ where: { id: { in: tagGroups.map((group) => group.tagId) } } })
@@ -411,9 +433,31 @@ export class PublicService {
         .map((group) => ({ orientation: group.orientation, count: group._count._all }))
         .sort((left, right) => right.count - left.count),
       tags: tagGroups
-        .map((group) => ({ name: tagNameById.get(group.tagId) || "", count: group._count._all, coverUrl: coverByTagId.get(group.tagId) || FALLBACK_COVER_URL }))
+        .map((group) => ({ name: tagNameById.get(group.tagId) || "", count: group.count, coverUrl: coverByTagId.get(group.tagId) || FALLBACK_COVER_URL }))
         .filter((tag) => tag.name),
     };
+  }
+
+  /** 热门标签：按「下载×5 + 浏览」加权热度排序，取前 16 个；壁纸数量做次排序。 */
+  private async topTags() {
+    const wallpapers = await this.prisma.wallpaper.findMany({
+      where: { status: WallpaperStatus.published },
+      select: { downloadCount: true, viewCount: true, tags: { select: { tagId: true } } },
+    });
+    const stats = new Map<string, { count: number; heat: number }>();
+    for (const wallpaper of wallpapers) {
+      const heat = wallpaper.downloadCount * 5 + wallpaper.viewCount;
+      for (const { tagId } of wallpaper.tags) {
+        const entry = stats.get(tagId) || { count: 0, heat: 0 };
+        entry.count += 1;
+        entry.heat += heat;
+        stats.set(tagId, entry);
+      }
+    }
+    return [...stats.entries()]
+      .map(([tagId, value]) => ({ tagId, count: value.count, heat: value.heat }))
+      .sort((left, right) => right.heat - left.heat || right.count - left.count)
+      .slice(0, 16);
   }
 
   async redirect(code: string) {

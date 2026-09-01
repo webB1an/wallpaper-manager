@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="search-row">
+    <input class="search-input" placeholder="搜索标签" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="reload" />
+    <view class="search-button" bindtap="reload">搜索</view>
+  </view>
+  <view wx:if="{{tags.length}}" class="tag-cloud">
+    <block wx:for="{{tags}}" wx:key="name">
+      <view class="tag-chip" bindtap="openTag" data-tag="{{item.name}}">
+        <text>#{{item.name}}</text>
+        <text class="tag-chip-count">{{item.count}}</text>
+      </view>
+    </block>
+  </view>
+  <view wx:elif="{{!loading && !error}}" class="empty state-card">
+    <text>暂无标签</text>
+  </view>
+  <view wx:if="{{error}}" class="empty state-card">
+    <text>{{error}}</text>
+    <button class="retry-button" bindtap="reload">重试</button>
+  </view>
+  <view wx:if="{{loading}}" class="load-hint">加载中…</view>
+  <view wx:if="{{page * pageSize < total}}" class="load-more" bindtap="loadMore">加载更多</view>
+</view>

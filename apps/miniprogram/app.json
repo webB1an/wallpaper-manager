@@ -3,6 +3,7 @@
     "pages/index/index",
     "pages/category/category",
     "pages/list/list",
+    "pages/tags/tags",
     "pages/detail/detail",
     "pages/upload/upload",
     "pages/mine/mine"

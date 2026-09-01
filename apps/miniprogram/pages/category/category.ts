@@ -75,6 +75,10 @@ Page({
     openList(`tag=${encodeURIComponent(tag)}&title=${encodeURIComponent(`#${tag}`)}`);
   },
 
+  openAllTags() {
+    wx.navigateTo({ url: "/pages/tags/tags" });
+  },
+
   openType(event: WechatMiniprogram.TouchEvent) {
     const type = String(event.currentTarget.dataset.type || "");
     const title = this.data.types.find((item) => item.key === type)?.title || "壁纸列表";

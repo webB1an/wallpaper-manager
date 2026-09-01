@@ -34,8 +34,8 @@
   </view>
 
   <view class="section-title">
-    <text>标签</text>
-    <text class="muted">{{tags.length}} 个</text>
+    <text>热门标签</text>
+    <text class="muted">按热度排序</text>
   </view>
   <view class="masonry-grid">
     <view class="masonry-column">
@@ -60,6 +60,10 @@
         </view>
       </block>
     </view>
+  </view>
+  <view class="all-tags-entry" bindtap="openAllTags">
+    <text>查看全部标签</text>
+    <text class="all-tags-arrow">›</text>
   </view>
   <view wx:if="{{loading && tags.length === 0}}" class="category-skeleton-grid">
     <view class="category-skeleton-card"></view>

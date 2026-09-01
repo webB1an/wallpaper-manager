@@ -21,6 +21,11 @@ export class PublicController {
     return { code: 200, data: await this.service.tags() };
   }
 
+  @Get("wallpapers/tags/list")
+  async allTags(@Query() query: { page?: number; pageSize?: number; keyword?: string }) {
+    return { code: 200, data: await this.service.allTags(query) };
+  }
+
   @Get("wallpapers/facets")
   async facets() {
     return { code: 200, data: await this.service.facets() };

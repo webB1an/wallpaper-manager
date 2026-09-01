@@ -83,6 +83,25 @@
   min-width: 0;
 }
 
+.all-tags-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20rpx;
+  padding: 24rpx 26rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  color: #c05621;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.all-tags-arrow {
+  color: #a89484;
+  font-size: 34rpx;
+  line-height: 1;
+}
+
 .poster-card {
   overflow: hidden;
   width: 100%;
