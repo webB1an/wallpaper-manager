@@ -61,7 +61,7 @@ for domain in wall-api.wdbzk.com wall-admin.wdbzk.com; do
       if grep -q "client_max_body_size" "$NGINX_CONF" 2>/dev/null; then
         sed -i 's/client_max_body_size[[:space:]][^;]*;/client_max_body_size 1024m;/g' "$NGINX_CONF" 2>/dev/null || cp "$BACKUP" "$NGINX_CONF" 2>/dev/null || true
       else
-        sed -i '0,/^[[:space:]]*server[[:space:]]*{/s//server {\n    client_max_body_size 1024m;/' "$NGINX_CONF" 2>/dev/null || cp "$BACKUP" "$NGINX_CONF" 2>/dev/null || true
+        awk '{ print } /^[[:space:]]*server[[:space:]]*\{/ { print "    client_max_body_size 1024m;" }' "$NGINX_CONF" > "${NGINX_CONF}.tmp" 2>/dev/null && mv "${NGINX_CONF}.tmp" "$NGINX_CONF" 2>/dev/null || cp "$BACKUP" "$NGINX_CONF" 2>/dev/null || true
       fi
       NGINX_BIN=""
       for bin in /www/server/nginx/sbin/nginx /usr/sbin/nginx /usr/local/nginx/sbin/nginx; do
