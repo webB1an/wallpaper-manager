@@ -46,16 +46,17 @@ npm run prisma:generate
 npm run prisma:deploy
 
 # 同步项目 Nginx 配置到线上：确保上传大小限制（client_max_body_size）与仓库一致（1024m）。
-# 管理端上传走 wall-admin，小程序上传走 wall-api，两个域名都要同步。
-for domain in wall-api.wdbzk.com wall-admin.wdbzk.com; do
-  NGINX_CONF=""
-  for candidate in \
-    "/www/server/panel/vhost/nginx/${domain}.conf" \
-    "/www/server/nginx/conf/vhost/${domain}.conf" \
-    "/etc/nginx/conf.d/${domain}.conf"; do
-    if [ -f "$candidate" ]; then NGINX_CONF="$candidate"; break; fi
-  done
-  if [ -n "$NGINX_CONF" ]; then
+# 覆盖常见路径：宝塔站点配置文件（可能按站点名命名）与主 nginx.conf 的 http 全局限制。
+for NGINX_CONF in \
+  /www/server/panel/vhost/nginx/node_wallpaper_manager.conf \
+  /www/server/panel/vhost/nginx/wall-api.wdbzk.com.conf \
+  /www/server/panel/vhost/nginx/wall-admin.wdbzk.com.conf \
+  /www/server/nginx/conf/vhost/wall-api.wdbzk.com.conf \
+  /www/server/nginx/conf/vhost/wall-admin.wdbzk.com.conf \
+  /etc/nginx/conf.d/wall-api.wdbzk.com.conf \
+  /etc/nginx/conf.d/wall-admin.wdbzk.com.conf \
+  /www/server/nginx/conf/nginx.conf; do
+  if [ -f "$NGINX_CONF" ]; then
     BACKUP="${NGINX_CONF}.bak.$(date +%Y%m%d%H%M%S)"
     if cp "$NGINX_CONF" "$BACKUP" 2>/dev/null; then
       if grep -q "client_max_body_size" "$NGINX_CONF" 2>/dev/null; then
@@ -78,8 +79,6 @@ for domain in wall-api.wdbzk.com wall-admin.wdbzk.com; do
     else
       echo "无权限备份线上 Nginx 配置（$NGINX_CONF），跳过上传大小同步" >&2
     fi
-  else
-    echo "未找到线上 Nginx 配置文件（${domain}），跳过上传大小同步" >&2
   fi
 done
 
