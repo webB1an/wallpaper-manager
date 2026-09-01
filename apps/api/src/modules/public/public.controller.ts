@@ -31,6 +31,11 @@ export class PublicController {
     return { code: 200, data: await this.service.facets() };
   }
 
+  @Get("wallpapers/hero")
+  async hero() {
+    return { code: 200, data: await this.service.hero() };
+  }
+
   @Get("wallpapers/:id")
   async detail(@Param("id") id: string) {
     return { code: 200, data: await this.service.detail(id) };

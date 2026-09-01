@@ -138,6 +138,47 @@ export class PublicService {
     };
   }
 
+  /** 首页轮播：每 6 小时按时间桶确定性随机换一批（热门 + 最新混合），同桶内保持稳定。 */
+  async hero() {
+    const ROTATE_MS = 6 * 60 * 60 * 1000;
+    const COUNT = 5;
+    const seed = Math.floor(Date.now() / ROTATE_MS);
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [recent, hotGroups] = await Promise.all([
+      this.prisma.wallpaper.findMany({
+        where: { status: WallpaperStatus.published },
+        orderBy: { createdAt: "desc" },
+        take: 60,
+        include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
+      }),
+      this.prisma.wallpaperClick.groupBy({
+        by: ["wallpaperId"],
+        where: { createdAt: { gte: since7d } },
+        _count: { _all: true },
+        orderBy: { _count: { wallpaperId: "desc" } },
+        take: 20,
+      }),
+    ]);
+    const recentById = new Map(recent.map((item) => [item.id, item]));
+    const pool: Array<(typeof recent)[number]> = [];
+    const seen = new Set<string>();
+    for (const group of hotGroups) {
+      const item = recentById.get(group.wallpaperId);
+      if (item && !seen.has(item.id)) {
+        seen.add(item.id);
+        pool.push(item);
+      }
+    }
+    for (const item of recent) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        pool.push(item);
+      }
+    }
+    const picks = seededPick(pool.length, COUNT, seed);
+    return picks.map((index) => wallpaperCard(pool[index])).filter(Boolean);
+  }
+
   async click(id: string) {
     const item = await this.prisma.wallpaper.findFirst({
       where: { id, status: WallpaperStatus.published },
@@ -566,6 +607,22 @@ function wallpaperCard(item: {
     downloadCount: item.downloadCount,
     createdAt: item.createdAt,
   };
+}
+
+function seededPick(count: number, k: number, seed: number): number[] {
+  let state = seed >>> 0;
+  const rand = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const indices = Array.from({ length: count }, (_, index) => index);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return indices.slice(0, k);
 }
 
 function positiveInt(value: string | number | undefined, fallback: number, label: string, max?: number) {

@@ -4,12 +4,15 @@ const api_1 = require("../../utils/api");
 const ads_1 = require("../../utils/ads");
 let requestToken = 0;
 let lastShareImage = "";
+const HERO_REFRESH_MS = 6 * 60 * 60 * 1000;
+let heroTimer;
 Page({
     data: {
         items: [],
         leftItems: [],
         rightItems: [],
         heroSlides: [],
+        heroLoadedAt: 0,
         hotTags: [],
         total: 0,
         page: 1,
@@ -42,6 +45,22 @@ Page({
         this.loadHero();
         this.load();
         this.loadHotTags();
+        if (!heroTimer) {
+            heroTimer = setInterval(() => {
+                if (Date.now() - this.data.heroLoadedAt > HERO_REFRESH_MS)
+                    this.loadHero();
+            }, 30 * 60 * 1000);
+        }
+    },
+    onShow() {
+        if (Date.now() - this.data.heroLoadedAt > HERO_REFRESH_MS)
+            this.loadHero();
+    },
+    onUnload() {
+        if (heroTimer) {
+            clearInterval(heroTimer);
+            heroTimer = undefined;
+        }
     },
     onPullDownRefresh() {
         this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
@@ -100,12 +119,8 @@ Page({
     },
     async loadHero() {
         try {
-            const data = await (0, api_1.request)("/wallpapers", {
-                page: 1,
-                pageSize: 5,
-                sort: "hot"
-            });
-            this.setData({ heroSlides: data.list.map(decorateCard) });
+            const data = await (0, api_1.request)("/wallpapers/hero");
+            this.setData({ heroSlides: (data || []).map(decorateCard), heroLoadedAt: Date.now() });
         }
         catch {
             // 首页主列表仍然可用时，不因为轮播失败打断用户。
