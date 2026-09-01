@@ -4,6 +4,8 @@ import { ensureOpenid } from "../../utils/reward";
 Page({
   data: {
     files: [] as Array<{ path: string; preview: string; type: "image" | "video" }>,
+    manualTags: [] as string[],
+    tagInput: "",
     autoPublish: false,
     uploading: false,
     isAdmin: true
@@ -63,6 +65,27 @@ Page({
     this.setData({ autoPublish: event.detail.value });
   },
 
+  onTagInput(event: WechatMiniprogram.Input) {
+    this.setData({ tagInput: event.detail.value });
+  },
+
+  addTag() {
+    const names = this.data.tagInput
+      .split(/[,，\n]/)
+      .map((name) => name.trim())
+      .filter(Boolean);
+    if (!names.length) return;
+    this.setData({
+      manualTags: [...new Set([...this.data.manualTags, ...names])].slice(0, 12),
+      tagInput: "",
+    });
+  },
+
+  removeTag(event: WechatMiniprogram.TouchEvent) {
+    const tag = String((event.currentTarget.dataset as { tag?: string }).tag || "");
+    this.setData({ manualTags: this.data.manualTags.filter((item) => item !== tag) });
+  },
+
   async uploadOne(filePath: string, openid: string, batchKey: string, batchTotal: number) {
     await ensureOpenid();
     return new Promise<void>((resolve, reject) => {
@@ -75,6 +98,7 @@ Page({
           autoPublish: this.data.autoPublish ? "true" : "false",
           batchKey,
           batchTotal: String(batchTotal),
+          tags: this.data.manualTags.join(","),
         },
         success: (res) => {
           if (res.statusCode >= 200 && res.statusCode < 300) {

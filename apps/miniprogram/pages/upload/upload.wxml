@@ -12,6 +12,22 @@
       <text class="up-add-text">添加</text>
     </view>
   </view>
+  <view class="up-option up-tags-header">
+    <text>手动标签（可选）</text>
+    <text class="up-tags-count" wx:if="{{manualTags.length}}">已添加 {{manualTags.length}} 个</text>
+  </view>
+  <view wx:if="{{manualTags.length}}" class="up-tag-list">
+    <block wx:for="{{manualTags}}" wx:key="*this">
+      <view class="up-tag">
+        <text>{{item}}</text>
+        <text class="up-tag-remove" catchtap="removeTag" data-tag="{{item}}">×</text>
+      </view>
+    </block>
+  </view>
+  <view class="up-tag-input-row">
+    <input class="up-tag-input" placeholder="输入标签后回车，多个用逗号分隔" value="{{tagInput}}" bindinput="onTagInput" bindconfirm="addTag" confirm-type="done" />
+    <view class="up-tag-add" bindtap="addTag">添加</view>
+  </view>
   <view class="up-option">
     <text>上传后自动发帖到频道</text>
     <switch checked="{{autoPublish}}" bindchange="onAutoPublishChange" color="#c05621" />

@@ -106,7 +106,7 @@ export class PublicController {
 
   @UseInterceptors(FilesInterceptor("file"))
   @Post("wallpapers/upload")
-  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string; batchKey?: string; batchTotal?: string }) {
+  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string; batchKey?: string; batchTotal?: string; tags?: string }) {
     if (!(await this.service.isMiniAdmin(openid || ""))) throw new ForbiddenException("无上传权限");
     const autoPublish = body.autoPublish === "true";
     return {
@@ -116,6 +116,7 @@ export class PublicController {
         autoPublish,
         batchKey: body.batchKey?.trim() || undefined,
         batchTotal: Number(body.batchTotal || 0) > 0 ? Number(body.batchTotal) : undefined,
+        tags: parseMiniTags(body.tags),
       }),
     };
   }
@@ -130,4 +131,18 @@ export class PublicController {
   async short(@Param("code") code: string) {
     return { url: await this.service.redirect(code), statusCode: 302 };
   }
+}
+
+/** 手动标签支持逗号分隔字符串（"二次元,动漫"）或 JSON 数组字符串（["二次元","动漫"]）。 */
+function parseMiniTags(value?: string): string[] {
+  if (!value) return [];
+  let names: string[] = [];
+  const trimmed = value.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) names = parsed.map((item) => String(item));
+  } catch {
+    names = trimmed.split(/[,，]/);
+  }
+  return names.map((name) => name.trim()).filter(Boolean);
 }

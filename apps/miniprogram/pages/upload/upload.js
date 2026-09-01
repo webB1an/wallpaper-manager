@@ -5,6 +5,8 @@ const reward_1 = require("../../utils/reward");
 Page({
     data: {
         files: [],
+        manualTags: [],
+        tagInput: "",
         autoPublish: false,
         uploading: false,
         isAdmin: true
@@ -63,6 +65,25 @@ Page({
     onAutoPublishChange(event) {
         this.setData({ autoPublish: event.detail.value });
     },
+    onTagInput(event) {
+        this.setData({ tagInput: event.detail.value });
+    },
+    addTag() {
+        const names = this.data.tagInput
+            .split(/[,，\n]/)
+            .map((name) => name.trim())
+            .filter(Boolean);
+        if (!names.length)
+            return;
+        this.setData({
+            manualTags: [...new Set([...this.data.manualTags, ...names])].slice(0, 12),
+            tagInput: "",
+        });
+    },
+    removeTag(event) {
+        const tag = String(event.currentTarget.dataset.tag || "");
+        this.setData({ manualTags: this.data.manualTags.filter((item) => item !== tag) });
+    },
     async uploadOne(filePath, openid, batchKey, batchTotal) {
         await (0, reward_1.ensureOpenid)();
         return new Promise((resolve, reject) => {
@@ -75,6 +96,7 @@ Page({
                     autoPublish: this.data.autoPublish ? "true" : "false",
                     batchKey,
                     batchTotal: String(batchTotal),
+                    tags: this.data.manualTags.join(","),
                 },
                 success: (res) => {
                     if (res.statusCode >= 200 && res.statusCode < 300) {
