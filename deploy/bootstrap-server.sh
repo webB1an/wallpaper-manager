@@ -13,7 +13,7 @@ fi
 
 npm run preflight:env
 
-mkdir -p storage/public/originals storage/public/covers storage/public/legacy-covers .runs/tencent-channel
+mkdir -p storage/public/originals storage/public/covers storage/public/legacy-covers storage/tmp-uploads .runs/tencent-channel
 
 # The GitHub runner already validates and builds all workspaces before rsync.
 # On the small production host we only install runtime dependencies for the API.

@@ -5,7 +5,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
@@ -1420,7 +1420,17 @@ export class AdminService implements OnModuleInit {
     const extension = safeExtension(file.originalname);
     const fileName = `${Date.now()}-${nanoid(10)}${extension}`;
     const path = join(dir, fileName);
-    await writeFile(path, file.buffer);
+    if (file.path) {
+      // 磁盘流式上传：把临时文件移入 originals（同盘 rename；跨盘回退复制后删除）。
+      try {
+        await rename(file.path, path);
+      } catch {
+        await copyFile(file.path, path);
+        await unlink(file.path).catch(() => undefined);
+      }
+    } else {
+      await writeFile(path, file.buffer);
+    }
     return {
       path,
       relativePath: `originals/${fileName}`,
