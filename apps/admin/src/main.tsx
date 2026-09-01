@@ -1143,31 +1143,46 @@ function Uploader() {
       }
     },
   };
-  const uploadFiles = async (files: UploadFile[]) => {
-    if (!files.length) return;
-    const ids = files.map((file) => file.uid);
-    setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "uploading", percent: 0 } : item));
-    setBatchUploading(true);
+  const sendOneRequest = async (sendFiles: UploadFile[]) => {
     const form = new FormData();
-    for (const file of files) {
+    for (const file of sendFiles) {
       if (file.originFileObj) form.append("files", file.originFileObj);
     }
     for (const [key, value] of Object.entries(selectedStorageData)) {
       form.append(key, value);
     }
+    const response = await fetch(`${API}/api/admin/uploads`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
+      body: form,
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || body.code !== 200) {
+      throw new Error(uploadErrorMessage(body));
+    }
+    return body;
+  };
+  const uploadFiles = async (files: UploadFile[]) => {
+    if (!files.length) return;
+    const ids = files.map((file) => file.uid);
+    setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "uploading", percent: 0 } : item));
+    setBatchUploading(true);
+    let success = 0;
     try {
-      const response = await fetch(`${API}/api/admin/uploads`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("wm_token") || ""}` },
-        body: form,
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || body.code !== 200) {
-        throw new Error(uploadErrorMessage(body));
+      const imageFiles = files.filter((file) => (file.originFileObj as File | undefined)?.type?.startsWith?.("image/"));
+      const videoFiles = files.filter((file) => !imageFiles.includes(file));
+      // 静态图整批一次提交（合并发帖）
+      if (imageFiles.length) {
+        const created = (await sendOneRequest(imageFiles)).data as Array<{ id: string }> | undefined;
+        success += Array.isArray(created) ? created.length : imageFiles.length;
       }
-      const count = Array.isArray(body.data) ? body.data.length : files.length;
-      message.success(autoProcess ? `已上传 ${count} 张并加入处理队列` : `已上传 ${count} 张为草稿`);
-      setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "done", response: body } : item));
+      // 动态壁纸逐张单独提交（各自发帖，也避免大视频挤进一个超大的请求）
+      for (const videoFile of videoFiles) {
+        await sendOneRequest([videoFile]);
+        success += 1;
+      }
+      message.success(autoProcess ? `已上传 ${success} 张并加入处理队列` : `已上传 ${success} 张为草稿`);
+      setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "done", response: null } : item));
     } catch (error) {
       message.error(`上传失败：${error instanceof Error ? error.message : "请求失败"}`);
       setFileList((prev) => prev.map((item) => ids.includes(item.uid) ? { ...item, status: "error", error } : item));
