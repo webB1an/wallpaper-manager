@@ -216,7 +216,7 @@ requireContains("apps/miniprogram/pages/mine/mine.wxml", "history-passcode");
 requireContains("apps/miniprogram/pages/index/index.wxml", "hero-swiper");
 requireContains("apps/miniprogram/pages/index/index.wxml", "<swiper");
 requireContains("apps/miniprogram/pages/index/index.ts", "loadHero");
-requireContains("apps/miniprogram/pages/index/index.ts", "pageSize: 5");
+requireContains("apps/miniprogram/pages/index/index.ts", "/wallpapers/hero");
 requireContains("apps/miniprogram/app.wxss", "box-sizing: border-box");
 requireContains("apps/miniprogram/app.wxss", "overflow-x: hidden");
 requireContains("apps/miniprogram/app.wxss", "button");
