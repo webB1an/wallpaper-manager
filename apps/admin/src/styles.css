@@ -358,6 +358,116 @@ h1 {
   font-size: 17px;
 }
 
+.ops-panel-title {
+  color: #2b3a2f;
+}
+
+.ops-subtitle {
+  margin: 14px 0 8px;
+  color: #7b887f;
+  font-size: 13px;
+}
+
+.trend-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.trend-bars {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  gap: 3px;
+  height: 88px;
+  min-width: 0;
+}
+
+.trend-bar-col {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  min-width: 2px;
+}
+
+.trend-bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, #e57355, #c05621);
+}
+
+.trend-latest {
+  min-width: 34px;
+  color: #c05621;
+  font-weight: 700;
+  font-size: 15px;
+  text-align: center;
+}
+
+.rank-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f3ef;
+}
+
+.rank-item:last-child {
+  border-bottom: 0;
+}
+
+.rank-no {
+  width: 20px;
+  color: #a89484;
+  font-weight: 700;
+  text-align: center;
+}
+
+.rank-top {
+  color: #c05621;
+}
+
+.rank-cover {
+  display: block;
+  width: 42px;
+  height: 30px;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #e8ece7;
+}
+
+.rank-title {
+  flex: 1;
+  overflow: hidden;
+  color: #2b3a2f;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-clicks {
+  color: #7b887f;
+  font-size: 12px;
+}
+
+.hot-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hot-tag {
+  margin: 0;
+}
+
 .status-pills {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

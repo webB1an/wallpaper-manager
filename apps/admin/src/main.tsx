@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Alert, Button, ConfigProvider, Form, Image, Input, InputNumber, Layout, Menu, Modal, Popconfirm, Progress, Select, Space, Table, Tag, Upload, message, Switch, Statistic, Tabs } from "antd";
 import type { UploadFile, UploadProps } from "antd";
-import { Activity, CloudUpload, Copy, GalleryVerticalEnd, HardDrive, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, UploadCloud } from "lucide-react";
+import { Activity, CloudUpload, Copy, GalleryVerticalEnd, HardDrive, Home, ListChecks, RadioTower, RefreshCw, Search, Settings as SettingsIcon, Tags, TrendingUp, UploadCloud } from "lucide-react";
 import zhCN from "antd/locale/zh_CN";
 import "./styles.css";
 
@@ -240,6 +240,7 @@ function App() {
               { key: "upload", icon: <UploadCloud size={18} />, label: "批量上传" },
               { key: "tasks", icon: <ListChecks size={18} />, label: "任务队列" },
               { key: "searchLogs", icon: <Search size={18} />, label: "搜索日志" },
+              { key: "analytics", icon: <TrendingUp size={18} />, label: "运营分析" },
               { key: "import", icon: <CloudUpload size={18} />, label: "老封面迁移" },
               { key: "storageAccounts", icon: <HardDrive size={18} />, label: "网盘账号" },
               { key: "channels", icon: <RadioTower size={18} />, label: "腾讯频道" },
@@ -254,6 +255,7 @@ function App() {
           {active === "upload" && <Uploader />}
           {active === "tasks" && <Tasks />}
           {active === "searchLogs" && <SearchLogs />}
+          {active === "analytics" && <Analytics />}
           {active === "import" && <OldImport />}
           {active === "storageAccounts" && <StorageAccounts />}
           {active === "channels" && <Channels />}
@@ -1348,6 +1350,163 @@ function SearchLogs() {
         ]}
       />
     </section>
+  );
+}
+
+type AnalyticsData = {
+  range: { days: number };
+  trends: { labels: string[]; published: number[]; views: number[]; downloads: number[]; favorites: number[]; searches: number[] };
+  hotWallpapers: { daily: HotWallpaper[]; weekly: HotWallpaper[]; monthly: HotWallpaper[] };
+  hotTags: Array<{ name: string; heat: number }>;
+  search: { total: number; hitRate: number; topTerms: Array<{ keyword: string; count: number }>; gaps: Array<{ keyword: string; count: number }> };
+  publish: {
+    boards: Array<{ guildName?: string | null; channelName?: string | null; source: string; enabled: boolean; lastRunAt?: string | null; lastMessage?: string | null }>;
+    ai: { analyzed: number; blocked: number; blockRate: number };
+    taskFailures: Array<{ type: string; count: number }>;
+    publishSuccessRate: number;
+  };
+};
+type HotWallpaper = { id: string; title: string; coverUrl: string; clicks: number };
+
+function TrendBars({ labels, values }: { labels: string[]; values: number[] }) {
+  const max = Math.max(1, ...values);
+  const latest = values.length ? values[values.length - 1] : 0;
+  return (
+    <div className="trend-row">
+      <div className="trend-bars">
+        {values.map((value, index) => (
+          <div key={index} className="trend-bar-col" title={`${labels[index]}：${value}`}>
+            <div className="trend-bar" style={{ height: `${(value / max) * 100}%` }} />
+          </div>
+        ))}
+      </div>
+      <span className="trend-latest">{latest}</span>
+    </div>
+  );
+}
+
+function Analytics() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [days, setDays] = useState(30);
+  const [loading, setLoading] = useState(false);
+  const load = async (nextDays = days) => {
+    setLoading(true);
+    try {
+      setData(await request<AnalyticsData>(`/api/admin/analytics?days=${nextDays}`));
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { void load(); }, []);
+  const metric = (title: string, values: number[]) => (
+    <div className="ops-panel">
+      <h2 className="ops-panel-title">{title}（近 {days} 天）</h2>
+      <TrendBars labels={data?.trends.labels || []} values={values || []} />
+    </div>
+  );
+  return (
+    <section>
+      <Header title="运营分析" subtitle="内容趋势、热度排行、搜索洞察与发布健康度。" />
+      <Space className="toolbar">
+        {[7, 30].map((value) => <Button key={value} type={days === value ? "primary" : "default"} onClick={() => { setDays(value); void load(value); }}>{value} 天</Button>)}
+        <Button icon={<RefreshCw size={16} />} loading={loading} onClick={() => void load()}>刷新</Button>
+        <Tag color="gold">统计口径：已上架壁纸 / 点击 / 下载 / 收藏</Tag>
+      </Space>
+      <div className="overview-grid">
+        {metric("新增上架", data?.trends.published || [])}
+        {metric("浏览", data?.trends.views || [])}
+        {metric("下载", data?.trends.downloads || [])}
+        {metric("收藏", data?.trends.favorites || [])}
+        {metric("搜索量", data?.trends.searches || [])}
+      </div>
+
+      <div className="overview-grid">
+        <div className="ops-panel">
+          <h2 className="ops-panel-title">当日热门</h2>
+          <RankList items={data?.hotWallpapers.daily || []} />
+        </div>
+        <div className="ops-panel">
+          <h2 className="ops-panel-title">近 7 天热门</h2>
+          <RankList items={data?.hotWallpapers.weekly || []} />
+        </div>
+        <div className="ops-panel">
+          <h2 className="ops-panel-title">近 30 天热门</h2>
+          <RankList items={data?.hotWallpapers.monthly || []} />
+        </div>
+      </div>
+
+      <div className="overview-grid">
+        <div className="ops-panel">
+          <h2 className="ops-panel-title">近期热门标签</h2>
+          <div className="hot-tag-cloud">
+            {data?.hotTags.map((tag) => <Tag key={tag.name} className="hot-tag">{tag.name} · {tag.heat}</Tag>)}
+          </div>
+        </div>
+        <div className="ops-panel">
+          <h2 className="ops-panel-title">搜索洞察</h2>
+          <div className="stat-grid">
+            <Statistic title="搜索次数" value={data?.search.total ?? "--"} />
+            <Statistic title="命中率" value={data?.search.hitRate ?? "--"} suffix="%" />
+          </div>
+          <div className="ops-subtitle">搜索词 Top</div>
+          <TagCloud items={data?.search.topTerms || []} gap={false} />
+          <div className="ops-subtitle">有搜索、没结果（内容缺口）</div>
+          <TagCloud items={data?.search.gaps || []} gap />
+        </div>
+        <div className="ops-panel">
+          <h2 className="ops-panel-title">发布与审核健康度</h2>
+          <div className="stat-grid">
+            <Statistic title="AI 已识别" value={data?.publish.ai.analyzed ?? "--"} />
+            <Statistic title="AI 拦截" value={data?.publish.ai.blocked ?? "--"} />
+            <Statistic title="拦截率" value={data?.publish.ai.blockRate ?? "--"} suffix="%" />
+            <Statistic title="发帖成功率" value={data?.publish.publishSuccessRate ?? "--"} suffix="%" />
+          </div>
+          <div className="ops-subtitle">近期失败任务</div>
+          <div className="hot-tag-cloud">
+            {data?.publish.taskFailures.map((item) => <Tag key={item.type} color="red">{taskTypeText(item.type)} · {item.count}</Tag>)}
+            {data && data.publish.taskFailures.length === 0 ? <span className="muted">无</span> : null}
+          </div>
+          <div className="ops-subtitle">自动发帖板块</div>
+          <Table
+            rowKey={(board) => `${board.guildName}-${board.channelName}-${board.source}`}
+            size="small"
+            dataSource={data?.publish.boards || []}
+            pagination={false}
+            columns={[
+              { title: "板块", render: (_, board) => `${board.guildName || "?"} / ${board.channelName || "?"}` },
+              { title: "来源", dataIndex: "source" },
+              { title: "状态", dataIndex: "enabled", render: (value: boolean) => value ? <Tag color="green">开启</Tag> : <Tag>关闭</Tag> },
+              { title: "最近", dataIndex: "lastMessage", ellipsis: true },
+            ]}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RankList({ items }: { items: HotWallpaper[] }) {
+  if (!items.length) return <span className="muted">暂无数据</span>;
+  return (
+    <ol className="rank-list">
+      {items.map((item, index) => (
+        <li key={item.id} className="rank-item">
+          <span className={`rank-no ${index < 3 ? "rank-top" : ""}`}>{index + 1}</span>
+          {item.coverUrl ? <img className="rank-cover" src={item.coverUrl} /> : <span className="rank-cover rank-cover-empty" />}
+          <span className="rank-title">{item.title}</span>
+          <span className="rank-clicks">{item.clicks}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function TagCloud({ items, gap }: { items: Array<{ keyword: string; count: number }>; gap: boolean }) {
+  if (!items.length) return <span className="muted">无</span>;
+  return (
+    <div className="hot-tag-cloud">
+      {items.map((item) => <Tag key={item.keyword} color={gap ? "red" : "default"}>{item.keyword} · {item.count}</Tag>)}
+    </div>
   );
 }
 

@@ -789,6 +789,136 @@ export class AdminService implements OnModuleInit {
     return { list, total, page, pageSize };
   }
 
+  /** 运营分析：趋势、热门、搜索洞察、发布/审核健康度。 */
+  async getAnalytics(query: { days?: number }) {
+    const days = positiveInt(query.days, 30, "天数", 90);
+    const dayMs = 24 * 60 * 60 * 1000;
+    const since = new Date(Date.now() - days * dayMs);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [wallpapers, clicks, downloads, favorites, searches, hotDaily, hotWeekly, hotMonthly, aiGroups, failedTasks, publishTasks, boards, searchLogs, clickTagData] = await Promise.all([
+      this.prisma.wallpaper.findMany({ where: { status: WallpaperStatus.published, createdAt: { gte: since } }, select: { createdAt: true } }),
+      this.prisma.wallpaperClick.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+      this.prisma.userDownload.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+      this.prisma.userFavorite.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
+      this.prisma.searchLog.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, keyword: true, hasResult: true } }),
+      this.hotWallpapers(1),
+      this.hotWallpapers(7),
+      this.hotWallpapers(30),
+      this.prisma.aiAnalysis.groupBy({ by: ["safe"], where: { createdAt: { gte: since } }, _count: { _all: true } }),
+      this.prisma.task.findMany({ where: { status: "failed", createdAt: { gte: since } }, select: { type: true, error: true } }),
+      this.prisma.task.findMany({ where: { type: { in: ["auto_publish", "channel_publish"] }, createdAt: { gte: since } }, select: { status: true } }),
+      this.prisma.autoPublishBoard.findMany({ orderBy: { createdAt: "asc" }, select: { guildName: true, channelName: true, source: true, enabled: true, lastRunAt: true, lastMessage: true } }),
+      this.prisma.searchLog.findMany({ where: { createdAt: { gte: since } }, select: { keyword: true, hasResult: true } }),
+      this.clickTagHeat(since),
+    ]);
+
+    const labels: string[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(todayStart.getTime() - i * dayMs);
+      labels.push(`${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`);
+    }
+    const bucket = (records: Array<{ createdAt: Date }>) => {
+      const arr = new Array(days).fill(0);
+      for (const record of records) {
+        const day = new Date(record.createdAt);
+        day.setHours(0, 0, 0, 0);
+        const offset = Math.round((day.getTime() - todayStart.getTime()) / dayMs);
+        const index = days - 1 + offset;
+        if (index >= 0 && index < days) arr[index] += 1;
+      }
+      return arr;
+    };
+
+    const analyzed = (aiGroups as Array<{ safe: boolean; _count: { _all: number } }>).reduce((sum, item) => sum + item._count._all, 0);
+    const blocked = (aiGroups as Array<{ safe: boolean; _count: { _all: number } }>).reduce((sum, item) => sum + (item.safe ? 0 : item._count._all), 0);
+    const failByType = new Map<string, number>();
+    for (const task of failedTasks) failByType.set(task.type, (failByType.get(task.type) || 0) + 1);
+    const publishSuccess = publishTasks.filter((task) => task.status === "success").length;
+
+    const termCount = new Map<string, number>();
+    const gapCount = new Map<string, number>();
+    for (const log of searchLogs) {
+      const key = log.keyword.trim();
+      termCount.set(key, (termCount.get(key) || 0) + 1);
+      if (!log.hasResult) gapCount.set(key, (gapCount.get(key) || 0) + 1);
+    }
+
+    return {
+      range: { days },
+      trends: {
+        labels,
+        published: bucket(wallpapers),
+        views: bucket(clicks),
+        downloads: bucket(downloads),
+        favorites: bucket(favorites),
+        searches: bucket(searches),
+      },
+      hotWallpapers: { daily: hotDaily, weekly: hotWeekly, monthly: hotMonthly },
+      hotTags: clickTagData,
+      search: {
+        total: searchLogs.length,
+        hitRate: searchLogs.length ? Number(((searchLogs.filter((item) => item.hasResult).length / searchLogs.length) * 100).toFixed(1)) : 0,
+        topTerms: [...termCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([keyword, count]) => ({ keyword, count })),
+        gaps: [...gapCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([keyword, count]) => ({ keyword, count })),
+      },
+      publish: {
+        boards,
+        ai: { analyzed, blocked, blockRate: analyzed ? Number(((blocked / analyzed) * 100).toFixed(1)) : 0 },
+        taskFailures: [...failByType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([type, count]) => ({ type, count })),
+        publishSuccessRate: publishTasks.length ? Number(((publishSuccess / publishTasks.length) * 100).toFixed(1)) : 0,
+      },
+    };
+  }
+
+  private async hotWallpapers(periodDays: number) {
+    const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+    const groups = await this.prisma.wallpaperClick.groupBy({
+      by: ["wallpaperId"],
+      where: { createdAt: { gte: since } },
+      _count: { _all: true },
+      orderBy: { _count: { wallpaperId: "desc" } },
+      take: 10,
+    });
+    if (!groups.length) return [];
+    const wallpapers = await this.prisma.wallpaper.findMany({
+      where: { id: { in: groups.map((group) => group.wallpaperId) } },
+      select: { id: true, title: true, coverUrl: true },
+    });
+    const byId = new Map(wallpapers.map((item) => [item.id, item]));
+    return groups.map((group) => ({
+      id: group.wallpaperId,
+      title: byId.get(group.wallpaperId)?.title || "",
+      coverUrl: byId.get(group.wallpaperId)?.coverUrl || "",
+      clicks: group._count._all,
+    }));
+  }
+
+  private async clickTagHeat(since: Date) {
+    const groups = await this.prisma.wallpaperClick.groupBy({
+      by: ["wallpaperId"],
+      where: { createdAt: { gte: since } },
+      _count: { _all: true },
+      orderBy: { _count: { wallpaperId: "desc" } },
+      take: 100,
+    });
+    if (!groups.length) return [];
+    const wallpapers = await this.prisma.wallpaper.findMany({
+      where: { id: { in: groups.map((group) => group.wallpaperId) } },
+      select: { id: true, tags: { select: { tag: { select: { name: true } } } } },
+    });
+    const clickById = new Map(groups.map((group) => [group.wallpaperId, group._count._all]));
+    const heat = new Map<string, number>();
+    for (const wallpaper of wallpapers) {
+      const clicks = clickById.get(wallpaper.id) || 0;
+      for (const entry of wallpaper.tags) {
+        heat.set(entry.tag.name, (heat.get(entry.tag.name) || 0) + clicks);
+      }
+    }
+    return [...heat.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, value]) => ({ name, heat: value }));
+  }
+
   async updateWallpaper(id: string, data: {
     title?: string;
     type?: WallpaperType;

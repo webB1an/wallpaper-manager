@@ -187,6 +187,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get("analytics")
+  async analytics(@Query() query: { days?: number }) {
+    return { code: 200, data: await this.admin.getAnalytics(query) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Patch("wallpapers/:id")
   async update(@Param("id") id: string, @Body() body: {
     title?: string;
