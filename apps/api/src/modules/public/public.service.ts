@@ -26,7 +26,13 @@ export class PublicService {
     const tag = cleanSearchText(query.tag);
     const where = {
       status: WallpaperStatus.published,
-      ...(keyword ? { title: { contains: keyword } } : {}),
+      // 搜索同时匹配标题和标签，方便按标签词检索壁纸。
+      ...(keyword ? {
+        OR: [
+          { title: { contains: keyword } },
+          { tags: { some: { tag: { name: { contains: keyword } } } } },
+        ],
+      } : {}),
       ...(type ? { type } : {}),
       ...(orientation ? { orientation } : {}),
       ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
