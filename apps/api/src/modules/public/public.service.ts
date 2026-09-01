@@ -17,6 +17,10 @@ export class PublicService {
     private readonly assetFetch: AssetFetchService,
   ) {}
 
+  /** 标签封面缓存：每个标签每 TAG_COVER_TTL_MS 随机换一张封面。 */
+  private readonly tagCoverCache = new Map<string, { coverUrl: string; expiresAt: number }>();
+  private readonly TAG_COVER_TTL_MS = 6 * 60 * 60 * 1000;
+
   async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }, openid?: string) {
     const page = positiveInt(query.page, 1, "页码");
     const pageSize = positiveInt(query.pageSize, 20, "每页数量", 50);
@@ -497,16 +501,25 @@ export class PublicService {
 
   private async tagCoverMap(tagIds: string[]) {
     const result = new Map<string, string>();
+    const now = Date.now();
     for (const tagId of tagIds) {
-      const item = await this.prisma.wallpaper.findFirst({
-        where: { status: WallpaperStatus.published, tags: { some: { tagId } } },
-        orderBy: [
-          { downloadCount: "desc" },
-          { sortOrder: "desc" },
-          { createdAt: "desc" },
-        ],
+      const cached = this.tagCoverCache.get(tagId);
+      if (cached && cached.expiresAt > now) {
+        result.set(tagId, cached.coverUrl);
+        continue;
+      }
+      const count = await this.prisma.wallpaperTag.count({
+        where: { tagId, wallpaper: { status: WallpaperStatus.published } },
       });
-      if (item) result.set(tagId, publicCoverUrl(item.coverUrl));
+      if (!count) continue;
+      const item = await this.prisma.wallpaperTag.findFirst({
+        where: { tagId, wallpaper: { status: WallpaperStatus.published } },
+        skip: Math.floor(Math.random() * count),
+        include: { wallpaper: { select: { coverUrl: true } } },
+      });
+      const coverUrl = item?.wallpaper?.coverUrl ? publicCoverUrl(item.wallpaper.coverUrl) : FALLBACK_COVER_URL;
+      this.tagCoverCache.set(tagId, { coverUrl, expiresAt: now + this.TAG_COVER_TTL_MS });
+      result.set(tagId, coverUrl);
     }
     return result;
   }

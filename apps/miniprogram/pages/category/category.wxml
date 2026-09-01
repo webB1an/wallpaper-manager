@@ -35,13 +35,13 @@
 
   <view class="section-title">
     <text>热门标签</text>
-    <text class="muted">按热度排序</text>
+    <text class="all-tags-link" bindtap="openAllTags">查看全部标签 ›</text>
   </view>
   <view class="masonry-grid">
     <view class="masonry-column">
       <block wx:for="{{leftTags}}" wx:key="name">
         <view class="poster-card" bindtap="openTag" data-tag="{{item.name}}">
-          <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+          <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
           <view class="poster-info">
             <text class="poster-title">#{{item.name}}</text>
             <text class="poster-count">{{item.count}} 张</text>
@@ -52,7 +52,7 @@
     <view class="masonry-column">
       <block wx:for="{{rightTags}}" wx:key="name">
         <view class="poster-card" bindtap="openTag" data-tag="{{item.name}}">
-          <image src="{{item.coverUrl}}" mode="aspectFill" lazy-load />
+          <image src="{{item.coverUrl}}" mode="widthFix" lazy-load />
           <view class="poster-info">
             <text class="poster-title">#{{item.name}}</text>
             <text class="poster-count">{{item.count}} 张</text>
@@ -60,10 +60,6 @@
         </view>
       </block>
     </view>
-  </view>
-  <view class="all-tags-entry" bindtap="openAllTags">
-    <text>查看全部标签</text>
-    <text class="all-tags-arrow">›</text>
   </view>
   <view wx:if="{{loading && tags.length === 0}}" class="category-skeleton-grid">
     <view class="category-skeleton-card"></view>
