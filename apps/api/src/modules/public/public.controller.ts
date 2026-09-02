@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query, Redirect, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query, Redirect, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { removeUploadedTempFiles, uploadDiskStorage, uploadFileFilter, uploadMaxBytes } from "../../common/upload";
@@ -121,8 +121,26 @@ export class PublicController {
   }
 
   @Post("user/wallpaper-requests")
-  async createWallpaperRequest(@Body() body: { code?: string; subject?: string; description?: string; wallpaperType?: string; orientation?: string }) {
+  async createWallpaperRequest(@Body() body: { code?: string; subject?: string; description?: string; wallpaperType?: string; orientation?: string; referenceTokens?: string }) {
     return { code: 200, data: await this.service.createMemberRequest(body.code || "", body) };
+  }
+
+  @UseInterceptors(FilesInterceptor("file", 1, {
+    storage: uploadDiskStorage(),
+    limits: { fileSize: 3 * 1024 * 1024 },
+    fileFilter: (_request, file, callback) => {
+      if (["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return callback(null, true);
+      callback(new BadRequestException("参考图仅支持 JPG、PNG、WebP"), false);
+    },
+  }))
+  @Post("user/wallpaper-requests/references")
+  async uploadWallpaperRequestReference(@UploadedFiles() files: Express.Multer.File[], @Body() body: { code?: string }) {
+    try {
+      return { code: 200, data: await this.service.stageMemberRequestReference(body.code || "", files?.[0]) };
+    } catch (error) {
+      removeUploadedTempFiles(files);
+      throw error;
+    }
   }
 
   @Post("wallpapers/:id/offline")

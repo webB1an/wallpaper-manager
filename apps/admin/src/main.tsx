@@ -42,6 +42,7 @@ type MemberWallpaperRequest = {
   userId: string;
   subject: string;
   description: string;
+  referenceImages?: string[];
   wallpaperType: string;
   orientation: string;
   status: string;
@@ -1600,13 +1601,15 @@ function MemberRequests() {
         { title: "提交时间", dataIndex: "createdAt", width: 170, render: (value: string) => new Date(value).toLocaleString("zh-CN") },
         { title: "用户", dataIndex: "userId", width: 180, ellipsis: true },
         { title: "主题", dataIndex: "subject", width: 180 },
-        { title: "需求", dataIndex: "description", ellipsis: true },
+        { title: "需求", dataIndex: "description", ellipsis: true, render: (value: string) => value || "（见参考图）" },
+        { title: "参考图", width: 150, render: (_: unknown, item: MemberWallpaperRequest) => item.referenceImages?.length ? <Image.PreviewGroup>{item.referenceImages.map((url) => <Image key={url} src={url} width={42} height={42} style={{ objectFit: "cover", marginRight: 6, borderRadius: 4 }} />)}</Image.PreviewGroup> : "-" },
         { title: "规格", width: 130, render: (_: unknown, item: MemberWallpaperRequest) => `${item.wallpaperType} / ${item.orientation}` },
         { title: "状态", dataIndex: "status", width: 110, render: (value: string) => <Tag>{requestStatusLabel(value)}</Tag> },
         { title: "关联壁纸", width: 160, render: (_: unknown, item: MemberWallpaperRequest) => item.wallpaper?.title || "-" },
         { title: "操作", width: 90, render: (_: unknown, item: MemberWallpaperRequest) => <Button size="small" onClick={() => openEdit(item)}>处理</Button> },
       ]} />
       <Modal title="处理求图需求" open={Boolean(editing)} onCancel={() => setEditing(null)} onOk={() => form.submit()} destroyOnHidden>
+        {editing?.referenceImages?.length ? <div style={{ marginBottom: 16 }}><div style={{ marginBottom: 8 }}>用户参考图</div><Image.PreviewGroup>{editing.referenceImages.map((url) => <Image key={url} src={url} width={88} height={88} style={{ objectFit: "cover", marginRight: 8, borderRadius: 6 }} />)}</Image.PreviewGroup></div> : null}
         <Form form={form} layout="vertical" onFinish={async (values) => {
           if (!editing) return;
           await request(`/api/admin/wallpaper-requests/${editing.id}`, { method: "PATCH", body: JSON.stringify(values) });

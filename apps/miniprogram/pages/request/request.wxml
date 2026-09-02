@@ -10,7 +10,18 @@
   <view wx:elif="{{!loading && access}}" class="request-form">
     <text class="form-title">提交新需求</text>
     <input class="request-input" maxlength="60" placeholder="作品、角色或主题" value="{{subject}}" bindinput="onSubjectInput" />
-    <textarea class="request-textarea" maxlength="500" placeholder="请描述画面、风格、清晰度等要求" value="{{description}}" bindinput="onDescriptionInput" />
+    <textarea class="request-textarea" maxlength="500" placeholder="请描述画面、风格、清晰度等要求（与参考图至少填写一项）" value="{{description}}" bindinput="onDescriptionInput" />
+    <view class="reference-section">
+      <view class="reference-heading"><text>参考图（选填）</text><text>{{references.length}} / 3</text></view>
+      <view class="reference-grid">
+        <view wx:for="{{references}}" wx:key="path" class="reference-item">
+          <image src="{{item.path}}" mode="aspectFill" data-src="{{item.path}}" bindtap="previewReference" />
+          <view class="reference-remove" data-index="{{index}}" catchtap="removeReference">×</view>
+        </view>
+        <view wx:if="{{references.length < 3}}" class="reference-add" bindtap="chooseReferences"><text>＋</text><text>添加图片</text></view>
+      </view>
+      <text class="reference-hint">最多 3 张，单张不超过 3MB；上传后会自动压缩</text>
+    </view>
     <view class="picker-row">
       <picker mode="selector" range="{{typeOptions}}" value="{{typeIndex}}" bindchange="onTypeChange"><view>{{typeOptions[typeIndex]}}</view></picker>
       <picker mode="selector" range="{{orientationOptions}}" value="{{orientationIndex}}" bindchange="onOrientationChange"><view>{{orientationOptions[orientationIndex]}}</view></picker>
@@ -21,12 +32,15 @@
 
   <view wx:if="{{items.length}}" class="request-history">
     <text class="history-heading">我的求图</text>
-    <view wx:for="{{items}}" wx:key="id" class="request-card">
-      <view class="request-card-head"><text>{{item.subject}}</text><text>{{item.statusText}}</text></view>
-      <text class="request-description">{{item.description}}</text>
-      <text wx:if="{{item.adminNote}}" class="admin-note">处理说明：{{item.adminNote}}</text>
-      <image wx:if="{{item.wallpaper}}" src="{{item.wallpaper.coverUrl}}" mode="aspectFill" data-id="{{item.wallpaper.id}}" bindtap="openWallpaper" />
-      <text class="request-date">{{item.createdText}}</text>
+    <view wx:for="{{items}}" wx:for-item="requestItem" wx:for-index="requestIndex" wx:key="id" class="request-card">
+      <view class="request-card-head"><text>{{requestItem.subject}}</text><text>{{requestItem.statusText}}</text></view>
+      <text wx:if="{{requestItem.description}}" class="request-description">{{requestItem.description}}</text>
+      <view wx:if="{{requestItem.referenceImages.length}}" class="history-reference-grid">
+        <image wx:for="{{requestItem.referenceImages}}" wx:for-item="imageUrl" wx:key="*this" src="{{imageUrl}}" mode="aspectFill" data-src="{{imageUrl}}" data-item-index="{{requestIndex}}" bindtap="previewHistoryReference" />
+      </view>
+      <text wx:if="{{requestItem.adminNote}}" class="admin-note">处理说明：{{requestItem.adminNote}}</text>
+      <image wx:if="{{requestItem.wallpaper}}" src="{{requestItem.wallpaper.coverUrl}}" mode="aspectFill" data-id="{{requestItem.wallpaper.id}}" bindtap="openWallpaper" />
+      <text class="request-date">{{requestItem.createdText}}</text>
     </view>
   </view>
 </view>

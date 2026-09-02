@@ -183,6 +183,7 @@ model WallpaperRequest {
   userId        String
   subject       String
   description   String                 @db.Text
+  referenceImages Json?
   wallpaperType WallpaperType          @default(static)
   orientation   WallpaperOrientation   @default(portrait)
   status        WallpaperRequestStatus @default(pending)

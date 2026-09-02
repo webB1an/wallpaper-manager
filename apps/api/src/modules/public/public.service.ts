@@ -1,17 +1,20 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperRequestStatus, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { Prisma, RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperRequestStatus, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { nanoid } from "nanoid";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, unlink } from "node:fs/promises";
-import { join } from "node:path";
-import { shortUrl } from "../../common/public-url";
+import { copyFile, mkdir, readdir, rename, stat, unlink } from "node:fs/promises";
+import { basename, join } from "node:path";
+import sharp from "sharp";
+import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { PaymentService } from "../payment/payment.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssetFetchService } from "../storage/asset-fetch.service";
 
 @Injectable()
-export class PublicService {
+export class PublicService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PublicService.name);
+  private referenceCleanupTimer?: NodeJS.Timeout;
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -22,6 +25,24 @@ export class PublicService {
   /** 标签封面缓存：每个标签每 TAG_COVER_TTL_MS 随机换一张封面。 */
   private readonly tagCoverCache = new Map<string, { coverUrl: string; expiresAt: number }>();
   private readonly TAG_COVER_TTL_MS = 6 * 60 * 60 * 1000;
+
+  onModuleInit() {
+    void this.runWallpaperRequestImageCleanup();
+    this.referenceCleanupTimer = setInterval(() => void this.runWallpaperRequestImageCleanup(), 24 * 60 * 60 * 1000);
+    this.referenceCleanupTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.referenceCleanupTimer) clearInterval(this.referenceCleanupTimer);
+  }
+
+  private async runWallpaperRequestImageCleanup() {
+    try {
+      await this.cleanupWallpaperRequestImages();
+    } catch (error) {
+      this.logger.warn(`求图参考图清理失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 
   async memberRequestStatusByCode(code: string) {
     const openid = await this.payment.openidForCode(code);
@@ -56,7 +77,23 @@ export class PublicService {
     });
   }
 
-  async createMemberRequest(code: string, input: { subject?: string; description?: string; wallpaperType?: string; orientation?: string }) {
+  async stageMemberRequestReference(code: string, file?: Express.Multer.File) {
+    const openid = await this.payment.openidForCode(code);
+    const access = await this.memberRequestStatus(openid);
+    if (!access.eligible) throw new BadRequestException("仅限已开通全部壁纸永久下载权益的用户上传参考图");
+    if (!file?.path) throw new BadRequestException("请选择参考图");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) throw new BadRequestException("参考图仅支持 JPG、PNG、WebP");
+    const token = `${Date.now()}-${nanoid(10)}.webp`;
+    const target = join(process.cwd(), "storage", "tmp-uploads", token);
+    try {
+      await sharp(file.path).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).webp({ quality: 82 }).toFile(target);
+    } finally {
+      await unlink(file.path).catch(() => undefined);
+    }
+    return { token };
+  }
+
+  async createMemberRequest(code: string, input: { subject?: string; description?: string; wallpaperType?: string; orientation?: string; referenceTokens?: string }) {
     const openid = await this.payment.openidForCode(code);
     const access = await this.memberRequestStatus(openid);
     if (!access.eligible) throw new BadRequestException("仅限已开通全部壁纸永久下载权益的用户提交求图");
@@ -65,12 +102,62 @@ export class PublicService {
     const subject = String(input.subject || "").trim();
     const description = String(input.description || "").trim();
     if (subject.length < 2 || subject.length > 60) throw new BadRequestException("作品、角色或主题请填写 2–60 个字");
-    if (description.length < 5 || description.length > 500) throw new BadRequestException("求图说明请填写 5–500 个字");
+    const referenceTokens = String(input.referenceTokens || "").split(",").map((item) => item.trim()).filter(Boolean);
+    if (referenceTokens.length > 3) throw new BadRequestException("参考图最多上传 3 张");
+    if (description.length > 500) throw new BadRequestException("求图说明最多填写 500 个字");
+    if (!description && !referenceTokens.length) throw new BadRequestException("请填写求图说明或上传至少一张参考图");
     const wallpaperType = ["static", "live", "mobile", "desktop", "other"].includes(String(input.wallpaperType))
       ? input.wallpaperType as WallpaperType : WallpaperType.static;
     const orientation = ["portrait", "landscape", "square", "unknown"].includes(String(input.orientation))
       ? input.orientation as WallpaperOrientation : WallpaperOrientation.portrait;
-    return this.prisma.wallpaperRequest.create({ data: { userId: openid, subject, description, wallpaperType, orientation } });
+    const targetDir = join(process.cwd(), "storage", "public", "request-references");
+    await mkdir(targetDir, { recursive: true });
+    const referenceImages: string[] = [];
+    for (const token of referenceTokens) {
+      if (!/^\d+-[A-Za-z0-9_-]{10}\.webp$/.test(token)) throw new BadRequestException("参考图凭证无效，请重新选择图片");
+      const source = join(process.cwd(), "storage", "tmp-uploads", token);
+      if (!existsSync(source)) throw new BadRequestException("参考图已失效，请重新选择图片");
+      const name = `${Date.now()}-${nanoid(12)}.webp`;
+      await rename(source, join(targetDir, name));
+      referenceImages.push(publicAssetUrl(this.config, `request-references/${name}`));
+    }
+    return this.prisma.wallpaperRequest.create({ data: { userId: openid, subject, description, referenceImages, wallpaperType, orientation } });
+  }
+
+  async cleanupWallpaperRequestImages() {
+    const now = Date.now();
+    const completedBefore = new Date(now - 30 * 24 * 60 * 60 * 1000);
+    const completed = await this.prisma.wallpaperRequest.findMany({
+      where: { status: { in: [WallpaperRequestStatus.fulfilled, WallpaperRequestStatus.not_found, WallpaperRequestStatus.closed] }, updatedAt: { lt: completedBefore } },
+      select: { id: true, referenceImages: true },
+    });
+    let removed = 0;
+    for (const request of completed) {
+      const urls = Array.isArray(request.referenceImages) ? request.referenceImages.filter((item): item is string => typeof item === "string") : [];
+      for (const url of urls) {
+        try {
+          const name = basename(new URL(url).pathname);
+          if (/^\d+-[A-Za-z0-9_-]{12}\.webp$/.test(name)) {
+            await unlink(join(process.cwd(), "storage", "public", "request-references", name)).catch(() => undefined);
+            removed += 1;
+          }
+        } catch { /* 无效历史地址只清数据库字段 */ }
+      }
+      if (urls.length) await this.prisma.wallpaperRequest.update({ where: { id: request.id }, data: { referenceImages: Prisma.DbNull } });
+    }
+    const tempDir = join(process.cwd(), "storage", "tmp-uploads");
+    if (existsSync(tempDir)) {
+      for (const name of await readdir(tempDir)) {
+        if (!/^\d+-[A-Za-z0-9_-]{10}\.webp$/.test(name)) continue;
+        const path = join(tempDir, name);
+        if ((await stat(path)).mtimeMs < now - 24 * 60 * 60 * 1000) {
+          await unlink(path).catch(() => undefined);
+          removed += 1;
+        }
+      }
+    }
+    if (removed) this.logger.log(`已清理 ${removed} 张过期求图参考图`);
+    return { removed };
   }
 
   async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }, openid?: string) {

@@ -11,6 +11,7 @@ text,
 image,
 button,
 input,
+textarea,
 scroll-view {
   box-sizing: border-box;
 }
