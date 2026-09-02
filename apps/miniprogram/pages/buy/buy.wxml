@@ -14,6 +14,24 @@
     <button class="retry-button" bindtap="retry">重试</button>
   </view>
 
+  <view wx:elif="{{purchased}}" class="delivery-card">
+    <view class="delivery-head">
+      <text class="delivery-title">永久资源</text>
+      <text class="delivery-tip">点击对应按钮复制链接，请妥善保存</text>
+    </view>
+    <view class="resource-list">
+      <view wx:for="{{resources}}" wx:key="key" class="resource-item">
+        <view class="resource-info">
+          <text class="resource-name">{{item.name}}</text>
+          <text class="resource-url">{{item.url}}</text>
+          <text wx:if="{{item.passcode}}" class="resource-code">提取码：{{item.passcode}}</text>
+        </view>
+        <button class="resource-copy" data-index="{{index}}" bindtap="copyResource">复制</button>
+      </view>
+    </view>
+    <text class="delivery-note">网盘资源如有更新，将继续在本页面提供最新地址。</text>
+  </view>
+
   <view wx:elif="{{product}}" class="purchase-card">
     <view class="purchase-head">
       <text class="purchase-title">{{product.name}}</text>

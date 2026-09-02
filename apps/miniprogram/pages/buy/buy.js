@@ -6,6 +6,8 @@ Page({
     data: {
         product: null,
         entitlementText: "尚未开通全部壁纸下载权益",
+        purchased: false,
+        resources: [],
         paying: false,
         loading: true,
         error: ""
@@ -20,7 +22,7 @@ Page({
         this.setData({ loading: true, error: "" });
         try {
             await (0, reward_1.ensureOpenid)();
-            const catalog = await (0, payment_1.getPaymentCatalog)();
+            const [catalog, delivery] = await Promise.all([(0, payment_1.getPaymentCatalog)(), (0, payment_1.getPaymentDelivery)()]);
             const product = catalog.products.find((item) => item.key === "direct_download_lifetime") || null;
             let entitlementText = "尚未开通全部壁纸下载权益";
             if (catalog.entitlement?.hasPaidDownload) {
@@ -34,7 +36,9 @@ Page({
                     entitlementText = `当前剩余 ${catalog.entitlement.singleRemaining} 次付费直接下载`;
                 }
             }
-            this.setData({ product, entitlementText });
+            if (delivery.purchased)
+                entitlementText = "已永久解锁，以下资源可永久使用";
+            this.setData({ product: delivery.purchased ? null : product, entitlementText, purchased: delivery.purchased, resources: delivery.resources || [] });
         }
         catch (error) {
             this.setData({ error: error instanceof Error ? error.message : "商品信息加载失败" });
@@ -42,6 +46,17 @@ Page({
         finally {
             this.setData({ loading: false });
         }
+    },
+    copyResource(event) {
+        const index = Number(event.currentTarget.dataset.index);
+        const resource = this.data.resources[index];
+        if (!resource)
+            return;
+        const text = resource.passcode ? `${resource.url}\n提取码：${resource.passcode}` : resource.url;
+        wx.setClipboardData({
+            data: text,
+            success: () => wx.showToast({ title: "资源链接已复制", icon: "success" })
+        });
     },
     retry() {
         void this.loadProduct();

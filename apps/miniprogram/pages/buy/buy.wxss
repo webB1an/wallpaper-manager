@@ -49,6 +49,98 @@
   box-shadow: 0 14rpx 34rpx rgba(29, 37, 33, 0.08);
 }
 
+.delivery-card {
+  margin-top: 28rpx;
+  padding: 30rpx 28rpx;
+  border: 1rpx solid #e6d6c2;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 14rpx 34rpx rgba(29, 37, 33, 0.08);
+}
+
+.delivery-title {
+  display: block;
+  color: #2b211b;
+  font-size: 34rpx;
+  font-weight: 820;
+}
+
+.delivery-tip,
+.delivery-note {
+  display: block;
+  margin-top: 10rpx;
+  color: #8a7668;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.resource-list {
+  display: grid;
+  gap: 18rpx;
+  margin-top: 26rpx;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 22rpx;
+  border-radius: 16rpx;
+  background: #fbf7f0;
+}
+
+.resource-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.resource-name,
+.resource-url,
+.resource-code {
+  display: block;
+}
+
+.resource-name {
+  color: #2b211b;
+  font-size: 27rpx;
+  font-weight: 760;
+}
+
+.resource-url {
+  overflow: hidden;
+  margin-top: 8rpx;
+  color: #a89484;
+  font-size: 20rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-code {
+  margin-top: 7rpx;
+  color: #c05621;
+  font-size: 21rpx;
+}
+
+.resource-copy {
+  width: 112rpx;
+  height: 62rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 999rpx;
+  color: #ffffff;
+  background: #c05621;
+  font-size: 23rpx;
+  line-height: 62rpx;
+}
+
+.resource-copy::after {
+  border: 0;
+}
+
+.delivery-note {
+  margin-top: 22rpx;
+}
+
 .purchase-head {
   display: flex;
   justify-content: space-between;

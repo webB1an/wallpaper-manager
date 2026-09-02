@@ -431,8 +431,7 @@
 }
 
 .paid-download-card {
-  display: grid;
-  grid-template-columns: 1fr 190rpx;
+  display: flex;
   gap: 16rpx;
   align-items: center;
   margin-top: 18rpx;
@@ -443,6 +442,7 @@
 }
 
 .paid-download-main {
+  flex: 1;
   min-width: 0;
 }
 
@@ -462,9 +462,13 @@
 }
 
 .paid-download-button {
-  width: 100%;
+  box-sizing: border-box;
+  width: 190rpx;
+  max-width: 190rpx;
+  flex: 0 0 190rpx;
   min-width: 0;
   height: 72rpx;
+  margin: 0;
   padding: 0;
   border-radius: 14rpx;
   color: #ffffff;

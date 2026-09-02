@@ -17,6 +17,14 @@ type ProductConfig = {
   entitlementValue: number;
 };
 
+type DeliveryResource = {
+  key: string;
+  name: string;
+  provider: "baidu" | "quark";
+  url: string;
+  passcode?: string;
+};
+
 type WechatSession = {
   openid: string;
   sessionKey: string;
@@ -68,9 +76,10 @@ export class PaymentService {
   ) {}
 
   async catalog(openid?: string) {
+    const entitlement = openid ? await this.entitlementStatus(openid) : null;
     return {
       offerId: this.requireOfferId(false),
-      products: this.products().map((product) => ({
+      products: (entitlement?.permanent ? [] : this.products()).map((product) => ({
         key: product.key,
         name: product.name,
         description: product.description,
@@ -79,7 +88,17 @@ export class PaymentService {
         entitlementType: product.entitlementType,
         entitlementValue: product.entitlementValue,
       })),
-      entitlement: openid ? await this.entitlementStatus(openid) : null,
+      entitlement,
+    };
+  }
+
+  async delivery(code: string) {
+    if (!code?.trim()) throw new BadRequestException("缺少微信登录凭证");
+    const session = await this.code2Session(code);
+    const entitlement = await this.entitlementStatus(session.openid);
+    return {
+      purchased: entitlement.permanent,
+      resources: entitlement.permanent ? this.deliveryResources() : [],
     };
   }
 
@@ -88,6 +107,10 @@ export class PaymentService {
     const session = await this.code2Session(code);
     const product = this.products().find((item) => item.key === productKey);
     if (!product) throw new BadRequestException("虚拟支付商品不存在或未配置");
+    if (product.entitlementType === "unlimited_permanent") {
+      const entitlement = await this.entitlementStatus(session.openid);
+      if (entitlement.permanent) throw new BadRequestException("已经永久解锁，无需重复购买");
+    }
     this.assertServerConfig();
 
     const offerId = this.requireOfferId();
@@ -495,6 +518,37 @@ export class PaymentService {
         buyQuantity: 1,
         entitlementType: "unlimited_permanent",
         entitlementValue: 0,
+      },
+    ];
+  }
+
+  private deliveryResources(): DeliveryResource[] {
+    return [
+      {
+        key: "baidu-1",
+        name: "百度网盘 1",
+        provider: "baidu",
+        url: "https://pan.baidu.com/s/1GXNyw2r1PdBxiELPFdw7GQ?pwd=8888",
+        passcode: "8888",
+      },
+      {
+        key: "baidu-2",
+        name: "百度网盘 2",
+        provider: "baidu",
+        url: "https://pan.baidu.com/s/1mrjt24X6mE6SGufD640k9w?pwd=8888",
+        passcode: "8888",
+      },
+      {
+        key: "quark-1",
+        name: "夸克网盘 1",
+        provider: "quark",
+        url: "https://pan.quark.cn/s/a9f27f37d4bf",
+      },
+      {
+        key: "quark-2",
+        name: "夸克网盘 2",
+        provider: "quark",
+        url: "https://pan.quark.cn/s/69df606f9f99",
       },
     ];
   }

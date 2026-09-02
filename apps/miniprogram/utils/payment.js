@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPaymentCatalog = getPaymentCatalog;
 exports.createPaymentOrder = createPaymentOrder;
+exports.getPaymentDelivery = getPaymentDelivery;
 exports.getPaymentOrderStatus = getPaymentOrderStatus;
 exports.payProduct = payProduct;
 exports.waitForPaymentDelivery = waitForPaymentDelivery;
@@ -16,6 +17,10 @@ async function getPaymentCatalog() {
 async function createPaymentOrder(productKey) {
     const code = await loginCode();
     return (0, api_1.post)("/pay/order", { code, productKey });
+}
+async function getPaymentDelivery() {
+    const code = await loginCode();
+    return (0, api_1.post)("/pay/delivery", { code });
 }
 async function getPaymentOrderStatus(outTradeNo) {
     return (0, api_1.request)(`/pay/orders/${encodeURIComponent(outTradeNo)}`);

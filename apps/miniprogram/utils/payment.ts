@@ -46,6 +46,19 @@ export interface PaymentOrderStatus {
   delivered: boolean;
 }
 
+export interface PaymentDeliveryResource {
+  key: string;
+  name: string;
+  provider: "baidu" | "quark";
+  url: string;
+  passcode?: string;
+}
+
+export interface PaymentDelivery {
+  purchased: boolean;
+  resources: PaymentDeliveryResource[];
+}
+
 export async function getPaymentCatalog(): Promise<PaymentCatalog> {
   await ensureOpenid();
   return request<PaymentCatalog>("/pay/catalog");
@@ -54,6 +67,11 @@ export async function getPaymentCatalog(): Promise<PaymentCatalog> {
 export async function createPaymentOrder(productKey: string): Promise<PaymentOrderData> {
   const code = await loginCode();
   return post<PaymentOrderData>("/pay/order", { code, productKey });
+}
+
+export async function getPaymentDelivery(): Promise<PaymentDelivery> {
+  const code = await loginCode();
+  return post<PaymentDelivery>("/pay/delivery", { code });
 }
 
 export async function getPaymentOrderStatus(outTradeNo: string): Promise<PaymentOrderStatus> {

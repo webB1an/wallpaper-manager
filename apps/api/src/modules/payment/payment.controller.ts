@@ -18,6 +18,11 @@ export class PaymentController {
     return { code: 200, data: await this.payment.createOrder(body.code || "", body.productKey || "") };
   }
 
+  @Post("delivery")
+  async delivery(@Body() body: { code?: string }) {
+    return { code: 200, data: await this.payment.delivery(body.code || "") };
+  }
+
   @Get("orders/:outTradeNo")
   async orderStatus(@Headers("x-openid") openid: string, @Param("outTradeNo") outTradeNo: string) {
     return { code: 200, data: await this.payment.orderStatus(openid || "", outTradeNo) };
