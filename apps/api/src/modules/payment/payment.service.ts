@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnav
 import { ConfigService } from "@nestjs/config";
 import { Prisma, VirtualPaymentOrderStatus } from "@prisma/client";
 import { createHash, createHmac, randomBytes } from "node:crypto";
-import { XMLParser } from "fast-xml-parser";
 import { PrismaService } from "../prisma/prisma.service";
 
 type EntitlementType = "single_download" | "unlimited_days" | "unlimited_permanent" | "remove_ads_days";
@@ -61,11 +60,6 @@ type DownloadAccess =
 @Injectable()
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
-  private readonly xmlParser = new XMLParser({
-    ignoreAttributes: true,
-    parseTagValue: true,
-    trimValues: true,
-  });
   private accessToken?: { token: string; expiresAt: number };
 
   constructor(
@@ -171,7 +165,7 @@ export class PaymentService {
     if (!this.verifyMessageSignature(query)) {
       return xmlError("签名校验失败");
     }
-    const parsed = this.xmlParser.parse(rawBody) as ParsedNotify;
+    const parsed = parseNotifyXml(rawBody);
     const event = asText(parsed.Event);
     if (event !== "xpay_goods_deliver_notify") {
       this.logger.warn(`忽略非发货事件：${event || "未知"}`);
@@ -507,6 +501,45 @@ export class PaymentService {
     const raw = [token, query.timestamp, query.nonce].sort().join("");
     return createHash("sha1").update(raw).digest("hex") === query.signature;
   }
+}
+
+function parseNotifyXml(raw: string): ParsedNotify {
+  const root = parseXmlObject(raw);
+  const wechatPayload = extractXmlElement(raw, "WeChatPayInfo");
+  const goodsPayload = extractXmlElement(raw, "GoodsInfo");
+  return {
+    ...root,
+    WeChatPayInfo: wechatPayload ? parseXmlObject(wechatPayload) : undefined,
+    GoodsInfo: goodsPayload ? parseXmlObject(goodsPayload) : undefined,
+  };
+}
+
+function parseXmlObject(xml: string) {
+  const result: Record<string, unknown> = {};
+  const tagPattern = /<([A-Za-z0-9_]+)>([\s\S]*?)<\/\1>/g;
+  let match: RegExpExecArray | null;
+  while ((match = tagPattern.exec(xml))) {
+    const tag = match[1];
+    const rawValue = match[2];
+    if (!(tag in result)) result[tag] = decodeXmlValue(rawValue);
+  }
+  return result;
+}
+
+function extractXmlElement(xml: string, tag: string) {
+  const pattern = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i");
+  return xml.match(pattern)?.[1] || "";
+}
+
+function decodeXmlValue(value: string) {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .trim();
 }
 
 function hmacHex(secret: string, message: string) {
