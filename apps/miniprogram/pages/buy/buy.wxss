@@ -5,8 +5,9 @@
 }
 
 .hero {
-  margin: 34rpx -28rpx 0;
-  padding: 48rpx 28rpx 42rpx;
+  margin: 34rpx 0 0;
+  padding: 40rpx 28rpx 36rpx;
+  border-radius: 20rpx;
   color: #ffffff;
   background:
     linear-gradient(135deg, rgba(230, 181, 102, 0.2), transparent 46%),
