@@ -161,15 +161,20 @@ export class PaymentService {
     };
   }
 
-  async notify(rawBody: string, query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string } = {}) {
+  async notify(
+    rawBody: string,
+    query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string } = {},
+    contentType = "",
+  ): Promise<string | { ErrCode: number; ErrMsg: string }> {
     if (!this.verifyMessageSignature(query)) {
-      return xmlError("签名校验失败");
+      return this.notifyResponse(contentType, "签名校验失败");
     }
-    const parsed = parseNotifyXml(rawBody);
+    const jsonMode = contentType.toLowerCase().includes("json") || rawBody.trimStart().startsWith("{");
+    const parsed = jsonMode ? parseJsonNotify(rawBody) : parseNotifyXml(rawBody);
     const event = asText(parsed.Event);
     if (event !== "xpay_goods_deliver_notify") {
       this.logger.warn(`忽略非发货事件：${event || "未知"}`);
-      return xmlSuccess();
+      return this.notifyResponse(contentType, "", true);
     }
 
     const openid = asText(parsed.OpenId);
@@ -181,25 +186,25 @@ export class PaymentService {
     const paidTime = asNumber(parsed.WeChatPayInfo?.PaidTime, 0);
     if (!openid || !outTradeNo || !productId || !quantity) {
       this.logger.error("发货推送缺少 openid、outTradeNo、productId 或 quantity", parsed);
-      return xmlError("发货推送字段不完整");
+      return this.notifyResponse(contentType, "发货推送字段不完整");
     }
 
     const order = await this.prisma.virtualPaymentOrder.findUnique({ where: { outTradeNo } });
     if (!order) {
       this.logger.warn(`收到本地不存在的订单发货推送：${outTradeNo}`);
-      return xmlSuccess();
+      return this.notifyResponse(contentType, "", true);
     }
     if (order.openid !== openid || order.productId !== productId) {
       this.logger.error("发货推送订单信息不匹配", { order, parsed });
-      return xmlError("订单信息不匹配");
+      return this.notifyResponse(contentType, "订单信息不匹配");
     }
     if (quantity !== order.buyQuantity) {
       this.logger.error("发货推送购买数量不匹配", { expected: order.buyQuantity, actual: quantity });
-      return xmlError("订单数量不匹配");
+      return this.notifyResponse(contentType, "订单数量不匹配");
     }
     if (!actualPrice || actualPrice !== order.totalFee) {
       this.logger.error("发货推送金额不匹配", { expected: order.totalFee, actual: actualPrice });
-      return xmlError("订单金额不匹配");
+      return this.notifyResponse(contentType, "订单金额不匹配");
     }
 
     const delivered = await this.deliverOrder(order.outTradeNo, {
@@ -207,8 +212,8 @@ export class PaymentService {
       paidTime,
       rawPayload: parsed as unknown as Prisma.InputJsonValue,
     });
-    if (!delivered) return xmlError("发货失败");
-    return xmlSuccess();
+    if (!delivered) return this.notifyResponse(contentType, "发货失败");
+    return this.notifyResponse(contentType, "", true);
   }
 
   async verifyNotifyUrl(query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string }) {
@@ -494,6 +499,14 @@ export class PaymentService {
     ];
   }
 
+  private notifyResponse(contentType: string, message: string, success = false) {
+    const jsonMode = contentType.toLowerCase().includes("json");
+    if (jsonMode) {
+      return success ? { ErrCode: 0, ErrMsg: "success" } : { ErrCode: -1, ErrMsg: message };
+    }
+    return success ? xmlSuccess() : xmlError(message);
+  }
+
   private verifyMessageSignature(query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string }) {
     const token = this.config.get<string>("WECHAT_MESSAGE_TOKEN")?.trim() || "";
     if (!token) return true;
@@ -512,6 +525,35 @@ function parseNotifyXml(raw: string): ParsedNotify {
     WeChatPayInfo: wechatPayload ? parseXmlObject(wechatPayload) : undefined,
     GoodsInfo: goodsPayload ? parseXmlObject(goodsPayload) : undefined,
   };
+}
+
+function parseJsonNotify(raw: string): ParsedNotify {
+  const payload = parseJson<Record<string, unknown>>(raw);
+  return {
+    Event: firstValue(payload, "Event", "event"),
+    OpenId: firstValue(payload, "OpenId", "openid", "openId"),
+    OutTradeNo: firstValue(payload, "OutTradeNo", "outTradeNo", "out_trade_no"),
+    Env: firstValue(payload, "Env", "env"),
+    WeChatPayInfo: normalizeNestedNotify(firstValue(payload, "WeChatPayInfo", "weChatPayInfo")) as ParsedNotify["WeChatPayInfo"],
+    GoodsInfo: normalizeNestedNotify(firstValue(payload, "GoodsInfo", "goodsInfo")) as ParsedNotify["GoodsInfo"],
+  };
+}
+
+function normalizeNestedNotify(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  return {
+    MchOrderNo: firstValue(source, "MchOrderNo", "mchOrderNo", "mch_order_no"),
+    TransactionId: firstValue(source, "TransactionId", "transactionId", "transaction_id"),
+    PaidTime: firstValue(source, "PaidTime", "paidTime", "paid_time"),
+  };
+}
+
+function firstValue(source: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    if (source[key] !== undefined && source[key] !== null) return source[key];
+  }
+  return undefined;
 }
 
 function parseXmlObject(xml: string) {

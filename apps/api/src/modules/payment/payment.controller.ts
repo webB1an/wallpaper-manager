@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Header, Headers, Param, Post, Query, Req } from "@nestjs/common";
-import type { Request } from "express";
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { PaymentService } from "./payment.service";
 
 type RawRequest = Request & { rawBody?: Buffer };
@@ -29,9 +29,23 @@ export class PaymentController {
   }
 
   @Post("notify")
-  @Header("Content-Type", "application/xml")
-  async notify(@Req() request: RawRequest, @Query() query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string }) {
+  async notify(
+    @Req() request: RawRequest,
+    @Res() response: Response,
+    @Query() query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string },
+    @Headers("content-type") contentType = "",
+  ) {
     const rawBody = request.rawBody?.toString("utf8") || request.body || "";
-    return await this.payment.notify(typeof rawBody === "string" ? rawBody : JSON.stringify(rawBody), query);
+    const body = await this.payment.notify(
+      typeof rawBody === "string" ? rawBody : JSON.stringify(rawBody),
+      query,
+      contentType,
+    );
+    if (typeof body === "string") {
+      response.setHeader("Content-Type", "application/xml; charset=utf-8");
+      return response.send(body);
+    }
+    response.setHeader("Content-Type", "application/json; charset=utf-8");
+    return response.json(body);
   }
 }
