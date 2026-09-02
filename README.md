@@ -96,8 +96,8 @@ WECHAT_APP_SECRET=
 WECHAT_MESSAGE_TOKEN=
 VIRTUAL_PAY_OFFER_ID=
 VIRTUAL_PAY_APP_KEY=
-VIRTUAL_PAY_LIFETIME_PRODUCT_ID=wallpaper_direct_lifetime
-VIRTUAL_PAY_LIFETIME_PRICE=9900
+VIRTUAL_PAY_LIFETIME_PRODUCT_ID=download_lifetime
+VIRTUAL_PAY_LIFETIME_PRICE=100
 ```
 
 `VIRTUAL_PAY_*_PRODUCT_ID` 需要与微信公众平台「虚拟支付 → 道具管理」中创建并发布的道具 ID、价格完全一致。发货推送 URL 填 `https://wall-api.wdbzk.com/api/pay/notify`。

@@ -484,11 +484,11 @@ export class PaymentService {
   }
 
   private products(): ProductConfig[] {
-    const lifetimePrice = positiveConfigInt(this.config, "VIRTUAL_PAY_LIFETIME_PRICE", 9900);
+    const lifetimePrice = positiveConfigInt(this.config, "VIRTUAL_PAY_LIFETIME_PRICE", 100);
     return [
       {
         key: "direct_download_lifetime",
-        productId: this.config.get<string>("VIRTUAL_PAY_LIFETIME_PRODUCT_ID")?.trim() || "wallpaper_direct_lifetime",
+        productId: this.config.get<string>("VIRTUAL_PAY_LIFETIME_PRODUCT_ID")?.trim() || "download_lifetime",
         name: "全部壁纸永久下载权益",
         description: "一次购买，永久不限次数直接保存全部已上架壁纸，无需观看激励视频。",
         goodsPrice: lifetimePrice,
