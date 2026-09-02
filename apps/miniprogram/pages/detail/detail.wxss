@@ -334,6 +334,11 @@
   background: #c05621;
 }
 
+.reward-guide-btn.confirm.paid {
+  color: #2b211b;
+  background: #e8b87b;
+}
+
 .album-guide {
   position: fixed;
   z-index: 9998;
@@ -423,6 +428,61 @@
 .primary-download button.disabled {
   color: rgba(29, 37, 33, 0.46);
   background: rgba(255, 255, 255, 0.42);
+}
+
+.paid-download-card {
+  display: grid;
+  grid-template-columns: 1fr 190rpx;
+  gap: 16rpx;
+  align-items: center;
+  margin-top: 18rpx;
+  padding: 22rpx;
+  border: 2rpx solid #efe4d6;
+  border-radius: 18rpx;
+  background: #ffffff;
+}
+
+.paid-download-main {
+  min-width: 0;
+}
+
+.paid-download-title {
+  display: block;
+  color: #2b211b;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.paid-download-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #8a7668;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.paid-download-button {
+  width: 100%;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0;
+  border-radius: 14rpx;
+  color: #ffffff;
+  background: #c05621;
+  font-size: 25rpx;
+  font-weight: 820;
+  line-height: 72rpx;
+}
+
+.paid-download-button::after {
+  border: 0;
+}
+
+.paid-download-note {
+  margin-top: 8rpx;
+  color: #a89484;
+  font-size: 20rpx;
+  line-height: 30rpx;
 }
 
 .download-heading {

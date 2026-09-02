@@ -91,7 +91,7 @@ add(
 );
 
 const tabs = new Set((app.tabBar?.list || []).map((item) => item.pagePath));
-for (const page of ["pages/index/index", "pages/category/category", "pages/mine/mine"]) {
+for (const page of ["pages/index/index", "pages/category/category", "pages/buy/buy", "pages/mine/mine"]) {
   add(tabs.has(page), `tab_${page}`, "底部导航", page, `app.json tabBar 需要包含 ${page}。`);
 }
 

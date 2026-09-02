@@ -40,6 +40,14 @@
       </view>
       <button class="{{primaryLink ? '' : 'disabled'}}" disabled="{{!primaryLink}}" bindtap="copyPrimaryLink">{{primaryLink ? '复制链接' : '暂无短链'}}</button>
     </view>
+    <view wx:if="{{paymentProducts.length}}" class="paid-download-card">
+      <view class="paid-download-main">
+        <text class="paid-download-title">永久下载权益</text>
+        <text class="paid-download-desc">{{paymentProducts[0].name}} · {{paymentProducts[0].priceText}}</text>
+      </view>
+      <button class="paid-download-button" bindtap="onPaidDownload" loading="{{paying}}">{{paying ? '支付中' : '开通永久'}}</button>
+    </view>
+    <view wx:if="{{paymentProducts.length}}" class="paid-download-note">Android/鸿蒙技术服务费 1%，iOS 佣金 12%；iOS 退款由 App Store 处理。</view>
     <ad wx:if="{{adUnit}}" class="detail-ad" unit-id="{{adUnit}}" binderror="onAdError" />
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">
@@ -92,6 +100,7 @@
   <view class="reward-guide-actions">
     <button class="reward-guide-btn cancel" bindtap="onRewardCancel">取消</button>
     <button class="reward-guide-btn confirm" bindtap="onRewardConfirm">去观看</button>
+    <button wx:if="{{paymentProducts.length}}" class="reward-guide-btn confirm paid" bindtap="onPaidDownload">开通永久</button>
   </view>
 </view>
 <view wx:if="{{showAlbumGuide}}" class="album-guide">

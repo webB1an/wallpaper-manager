@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/category/category",
+    "pages/buy/buy",
     "pages/list/list",
     "pages/tags/tags",
     "pages/detail/detail",
@@ -32,6 +33,12 @@
         "text": "标签",
         "iconPath": "assets/tabbar/tag.png",
         "selectedIconPath": "assets/tabbar/tag-active.png"
+      },
+      {
+        "pagePath": "pages/buy/buy",
+        "text": "购买",
+        "iconPath": "assets/icons/download.png",
+        "selectedIconPath": "assets/icons/download.png"
       },
       {
         "pagePath": "pages/mine/mine",

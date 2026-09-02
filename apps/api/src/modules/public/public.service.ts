@@ -6,6 +6,7 @@ import { existsSync } from "node:fs";
 import { copyFile, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { shortUrl } from "../../common/public-url";
+import { PaymentService } from "../payment/payment.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssetFetchService } from "../storage/asset-fetch.service";
 
@@ -15,6 +16,7 @@ export class PublicService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly assetFetch: AssetFetchService,
+    private readonly payment: PaymentService,
   ) {}
 
   /** 标签封面缓存：每个标签每 TAG_COVER_TTL_MS 随机换一张封面。 */
@@ -243,9 +245,12 @@ export class PublicService {
     const fresh = await this.prisma.wallpaper.findUnique({ where: { id: wallpaper.id }, select: { assetPath: true } });
     if (!fresh?.assetPath) throw new BadRequestException("该壁纸暂无源文件");
     const assetPath = fresh.assetPath;
-    const reward = await this.requireTodayReward(openid);
-    if (reward.type === "daily10" && reward.usedCount >= 10) {
-      throw new BadRequestException("今日免费下载次数已用完，明天再来或观看一次视频");
+    const paidAccess = await this.payment.downloadAccess(openid);
+    if (!paidAccess.allowed) {
+      const reward = await this.requireTodayReward(openid);
+      if (reward.type === "daily10" && reward.usedCount >= 10) {
+        throw new BadRequestException("今日免费下载次数已用完，明天再来、观看视频或使用付费下载");
+      }
     }
     await this.cleanupExpiredTokens();
     const token = nanoid(24);
@@ -253,15 +258,30 @@ export class PublicService {
     await this.prisma.downloadToken.create({
       data: { token, wallpaperId, userId: openid, filePath, expiresAt: new Date(Date.now() + 5 * 60_000) },
     });
-    if (reward.type === "daily10") {
-      await this.prisma.wallpaperReward.update({
-        where: { id: reward.id },
-        data: { usedCount: { increment: 1 } },
+    let remaining: number;
+    let type: string;
+    if (paidAccess.allowed) {
+      await this.payment.consumeDownloadAccess(openid, paidAccess);
+      remaining = paidAccess.type === "paid_unlimited" || paidAccess.type === "paid_permanent"
+        ? -1
+        : Math.max(0, paidAccess.remaining - 1);
+      type = paidAccess.type;
+    } else {
+      const reward = await this.prisma.wallpaperReward.findUnique({
+        where: { userId_date: { userId: openid, date: this.startOfDay() } },
       });
+      if (!reward) throw new BadRequestException("下载额度已失效，请重新解锁");
+      if (reward.type === "daily10") {
+        await this.prisma.wallpaperReward.update({
+          where: { id: reward.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+      remaining = reward.type === "unlimited" ? -1 : 10 - reward.usedCount - 1;
+      type = reward.type;
     }
     await this.recordDownload(openid, wallpaper.id);
-    const remaining = reward.type === "unlimited" ? -1 : 10 - reward.usedCount - 1;
-    return { token, expiresIn: 300, remaining: Math.max(0, remaining), type: reward.type };
+    return { token, expiresIn: 300, remaining: Math.max(0, remaining), type };
   }
 
   async resolveDownloadToken(token: string) {

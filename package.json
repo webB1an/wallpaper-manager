@@ -21,6 +21,7 @@
     "readiness:production": "node scripts/production-readiness.mjs",
     "readiness:production:strict": "node scripts/production-readiness.mjs --strict",
     "readiness:miniprogram": "node scripts/miniprogram-readiness.mjs",
+    "readiness:virtual-payment": "node scripts/virtual-payment-readiness.mjs",
     "preflight:env": "node scripts/preflight-env.mjs",
     "readiness:launch": "node scripts/launch-readiness.mjs",
     "smoke:admin": "node scripts/smoke-admin.mjs",

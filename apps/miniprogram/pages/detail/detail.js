@@ -4,6 +4,7 @@ const api_1 = require("../../utils/api");
 const ads_1 = require("../../utils/ads");
 const logger_1 = require("../../utils/logger");
 const local_history_1 = require("../../utils/local-history");
+const payment_1 = require("../../utils/payment");
 const HISTORY_KEY = "wallpaper_download_history";
 let requestToken = 0;
 Page({
@@ -28,7 +29,10 @@ Page({
         showRewardGuide: false,
         rewardModalText: "",
         fav: false,
-        isAdmin: false
+        isAdmin: false,
+        paymentProducts: [],
+        paying: false,
+        payGuideText: ""
     },
     onAdError() {
         // 广告加载失败时静默隐藏。
@@ -76,6 +80,7 @@ Page({
             wx.setNavigationBarTitle({ title: item.title.slice(0, 12) || "壁纸详情" });
             void this.loadFavStatus(item.id);
             void this.loadAdminStatus();
+            void this.loadPaymentCatalog();
         }
         catch (error) {
             if (token !== requestToken)
@@ -143,6 +148,15 @@ Page({
         }
         catch {
             // 非管理员或未登录时不展示管理入口。
+        }
+    },
+    async loadPaymentCatalog() {
+        try {
+            const catalog = await (0, payment_1.getPaymentCatalog)();
+            this.setData({ paymentProducts: catalog.products || [] });
+        }
+        catch {
+            this.setData({ paymentProducts: [] });
         }
     },
     async offlineWallpaper() {
@@ -242,7 +256,12 @@ Page({
         }
         if (!ads_1.AD_UNITS.rewarded) {
             (0, logger_1.logDownload)("noRewardedAdUnit");
-            this.showNotice("激励广告未配置");
+            if (this.data.paymentProducts.length) {
+                this.setData({ rewardModalText: "当前可开通永久下载权益，无需观看视频", showRewardGuide: true });
+            }
+            else {
+                this.showNotice("激励广告未配置");
+            }
             return;
         }
         // 没有下载次数：先弹窗确认，用户点确认才播放激励广告，取消则不执行。
@@ -261,6 +280,58 @@ Page({
     },
     onRewardCancel() {
         this.setData({ showRewardGuide: false });
+    },
+    async onPaidDownload() {
+        if (!this.data.item || this.data.paying || this.data.downloading)
+            return;
+        this.setData({ showRewardGuide: false });
+        const product = this.data.paymentProducts[0];
+        if (!product) {
+            this.showNotice("永久下载权益暂未配置");
+            return;
+        }
+        if (!(0, payment_1.canUseVirtualPayment)()) {
+            this.showNotice("当前微信版本不支持虚拟支付，请先升级微信");
+            return;
+        }
+        if (!(0, payment_1.checkIosVersion)())
+            return;
+        const permission = await this.ensureSavePermission();
+        if (permission === "privacy") {
+            this.showNotice("请先同意《用户隐私保护指引》再保存");
+            return;
+        }
+        if (permission === "album") {
+            this.showNotice("需要相册权限，请点击“去开启权限”");
+            this.setData({ showAlbumGuide: true });
+            return;
+        }
+        this.setData({ paying: true, payGuideText: "正在拉起微信支付…" });
+        try {
+            await ensureOpenid();
+            const order = await (0, payment_1.payProduct)(product.key);
+            this.setData({ payGuideText: "支付成功，正在确认订单…" });
+            const delivered = await (0, payment_1.waitForPaymentDelivery)(order.outTradeNo, 20000);
+            if (!delivered) {
+                this.showNotice("订单确认超时，请稍后在“我的”页面查看或重新下载");
+                return;
+            }
+            this.setData({ downloading: true, downloadMessage: this.downloadMessageFor() });
+            await this.downloadPaid();
+        }
+        catch (error) {
+            (0, logger_1.logDownloadError)("paidDownload", error);
+            this.showNotice(downloadErrorText(error));
+        }
+        finally {
+            this.setData({ paying: false, downloading: false });
+        }
+    },
+    async downloadPaid() {
+        if (!this.data.item)
+            return;
+        const result = await this.requestDownloadToken(this.data.item.id);
+        await this.downloadToAlbum(result.token);
     },
     async playRewardAd() {
         if (!ads_1.AD_UNITS.rewarded) {

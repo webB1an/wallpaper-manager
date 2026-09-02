@@ -36,6 +36,15 @@ enum RewardDownloadType {
   unlimited
 }
 
+enum VirtualPaymentOrderStatus {
+  pending
+  paid
+  delivered
+  closed
+  refunded
+  failed
+}
+
 enum StorageProvider {
   quark
   baidu
@@ -119,6 +128,45 @@ model WallpaperReward {
   updatedAt DateTime           @updatedAt
 
   @@unique([userId, date])
+}
+
+model VirtualPaymentOrder {
+  id           String                    @id @default(cuid())
+  outTradeNo   String                    @unique
+  wxOrderId    String?                   @unique
+  openid       String
+  productKey   String
+  productId    String
+  goodsPrice   Int
+  buyQuantity  Int
+  totalFee     Int
+  status       VirtualPaymentOrderStatus @default(pending)
+  attach       String                    @db.Text
+  signData     String                    @db.Text
+  paySig       String                    @db.Text
+  signature    String                    @db.Text
+  rawPayload   Json?
+  paidAt       DateTime?
+  deliveredAt  DateTime?
+  lastQueryAt  DateTime?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@index([openid, createdAt])
+  @@index([status, createdAt])
+}
+
+model VirtualPaymentEntitlement {
+  id            String    @id @default(cuid())
+  openid        String
+  type          String
+  remaining     Int       @default(0)
+  expiresAt     DateTime?
+  sourceOrderId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([openid, type, expiresAt])
 }
 
 model DownloadToken {

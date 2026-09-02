@@ -9,6 +9,7 @@ import { AiModule } from "./modules/ai/ai.module";
 import { ChannelModule } from "./modules/channel/channel.module";
 import { HealthController } from "./modules/health.controller";
 import { ImportModule } from "./modules/import/import.module";
+import { PaymentModule } from "./modules/payment/payment.module";
 import { PrismaModule } from "./modules/prisma/prisma.module";
 import { PublicModule } from "./modules/public/public.module";
 import { StorageModule } from "./modules/storage/storage.module";
@@ -38,6 +39,7 @@ import { WdbzkModule } from "./modules/wdbzk/wdbzk.module";
     WdbzkModule,
     ChannelModule,
     TasksModule,
+    PaymentModule,
     PublicModule,
     AdminModule,
     ImportModule,

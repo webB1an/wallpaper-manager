@@ -41,6 +41,12 @@ for (const key of [
   "FFMPEG_PATH",
   "UPLOAD_MAX_FILE_MB",
   "TENCENT_CHANNEL_RUN_ROOT",
+  "WECHAT_APP_SECRET",
+  "WECHAT_MESSAGE_TOKEN",
+  "VIRTUAL_PAY_OFFER_ID",
+  "VIRTUAL_PAY_APP_KEY",
+  "VIRTUAL_PAY_LIFETIME_PRODUCT_ID",
+  "VIRTUAL_PAY_LIFETIME_PRICE",
 ]) {
   if (!env[key]?.trim()) warnings.push(`${key} 未配置，可能影响对应功能`);
 }

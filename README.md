@@ -81,3 +81,29 @@ To audit the remaining non-published resources that still have active short-link
 ```bash
 npm run cleanup:unpublished-links
 ```
+
+## Virtual Payment (个人主体小程序)
+
+当前小程序已接入个人主体虚拟支付的「道具直购」能力，用于在原有激励视频之外提供付费直接下载场景：
+
+- 购买 tab：全部壁纸永久下载权益。
+- 服务端：`POST /api/pay/order` 下单签名、`POST /api/pay/notify` 发货推送、`GET /api/pay/orders/:outTradeNo` 订单查询，以及 `query_order` 兜底查单。
+
+上线前需在服务器 `.env` 配置：
+
+```dotenv
+WECHAT_APP_SECRET=
+WECHAT_MESSAGE_TOKEN=
+VIRTUAL_PAY_OFFER_ID=
+VIRTUAL_PAY_APP_KEY=
+VIRTUAL_PAY_LIFETIME_PRODUCT_ID=wallpaper_direct_lifetime
+VIRTUAL_PAY_LIFETIME_PRICE=9900
+```
+
+`VIRTUAL_PAY_*_PRODUCT_ID` 需要与微信公众平台「虚拟支付 → 道具管理」中创建并发布的道具 ID、价格完全一致。发货推送 URL 填 `https://wall-api.wdbzk.com/api/pay/notify`。
+
+验收：
+
+```bash
+npm run readiness:virtual-payment
+```

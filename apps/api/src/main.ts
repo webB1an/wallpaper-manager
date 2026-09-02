@@ -15,7 +15,7 @@ async function bootstrap() {
     assertProductionConfig(process.env);
   }
 
-  const app = await NestFactory.create(AppModule, { cors: false });
+  const app = await NestFactory.create(AppModule, { cors: false, rawBody: true });
   (app.getHttpAdapter().getInstance() as Express).set("trust proxy", 1);
   const config = app.get(ConfigService);
   const adminOrigin = config.get<string>("ADMIN_ORIGIN") || "http://127.0.0.1:5173";

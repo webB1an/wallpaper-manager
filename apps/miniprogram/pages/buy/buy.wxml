@@ -1,0 +1,35 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">全部壁纸下载</text>
+    <text class="hero-subtitle">一次购买，永久不限次数直接保存壁纸</text>
+    <view class="hero-badge">{{entitlementText}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="state-card">
+    <text>正在加载商品信息…</text>
+  </view>
+
+  <view wx:elif="{{error}}" class="state-card">
+    <text>{{error}}</text>
+    <button class="retry-button" bindtap="retry">重试</button>
+  </view>
+
+  <view wx:elif="{{product}}" class="purchase-card">
+    <view class="purchase-head">
+      <text class="purchase-title">{{product.name}}</text>
+      <text class="purchase-price">{{product.priceText}}</text>
+    </view>
+    <text class="purchase-desc">{{product.description}}</text>
+    <view class="feature-list">
+      <text>· 全站已上架壁纸可直接保存</text>
+      <text>· 无需观看激励视频</text>
+      <text>· 购买后永久生效，不限次数</text>
+    </view>
+    <button class="purchase-button" bindtap="buyAll" loading="{{paying}}">{{paying ? '购买中' : '立即开通'}}</button>
+    <text class="purchase-note">Android/鸿蒙技术服务费 1%，iOS 佣金 12%；iOS 退款由 App Store 处理。请确认当前微信账号登录状态。</text>
+  </view>
+
+  <view wx:else class="state-card">
+    <text>全部壁纸下载权益暂未配置</text>
+  </view>
+</view>

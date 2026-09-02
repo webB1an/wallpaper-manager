@@ -1,0 +1,579 @@
+import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Prisma, VirtualPaymentOrderStatus } from "@prisma/client";
+import { createHash, createHmac, randomBytes } from "node:crypto";
+import { XMLParser } from "fast-xml-parser";
+import { PrismaService } from "../prisma/prisma.service";
+
+type EntitlementType = "single_download" | "unlimited_days" | "unlimited_permanent" | "remove_ads_days";
+
+type ProductConfig = {
+  key: string;
+  productId: string;
+  name: string;
+  description: string;
+  goodsPrice: number;
+  buyQuantity: number;
+  entitlementType: EntitlementType;
+  entitlementValue: number;
+};
+
+type WechatSession = {
+  openid: string;
+  sessionKey: string;
+};
+
+type WechatOrder = {
+  order_id?: string;
+  status?: number;
+  wx_order_id?: string;
+  paid_time?: number;
+  order_fee?: number;
+  paid_fee?: number;
+};
+
+type ParsedNotify = {
+  Event?: unknown;
+  OpenId?: unknown;
+  OutTradeNo?: unknown;
+  Env?: unknown;
+  GoodsInfo?: {
+    ProductId?: unknown;
+    Quantity?: unknown;
+    OrigPrice?: unknown;
+    ActualPrice?: unknown;
+    Attach?: unknown;
+  };
+  WeChatPayInfo?: {
+    MchOrderNo?: unknown;
+    TransactionId?: unknown;
+    PaidTime?: unknown;
+  };
+  [key: string]: unknown;
+};
+
+type DownloadAccess =
+  | { allowed: false; type: null }
+  | { allowed: true; type: "paid_unlimited"; expiresAt: string }
+  | { allowed: true; type: "paid_permanent" }
+  | { allowed: true; type: "paid_single"; remaining: number };
+
+@Injectable()
+export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+  private readonly xmlParser = new XMLParser({
+    ignoreAttributes: true,
+    parseTagValue: true,
+    trimValues: true,
+  });
+  private accessToken?: { token: string; expiresAt: number };
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
+
+  async catalog(openid?: string) {
+    return {
+      offerId: this.requireOfferId(false),
+      products: this.products().map((product) => ({
+        key: product.key,
+        name: product.name,
+        description: product.description,
+        price: product.goodsPrice,
+        priceText: formatPrice(product.goodsPrice),
+        entitlementType: product.entitlementType,
+        entitlementValue: product.entitlementValue,
+      })),
+      entitlement: openid ? await this.entitlementStatus(openid) : null,
+    };
+  }
+
+  async createOrder(code: string, productKey: string) {
+    if (!code?.trim()) throw new BadRequestException("缺少微信登录凭证");
+    const session = await this.code2Session(code);
+    const product = this.products().find((item) => item.key === productKey);
+    if (!product) throw new BadRequestException("虚拟支付商品不存在或未配置");
+    this.assertServerConfig();
+
+    const offerId = this.requireOfferId();
+    const appKey = this.requireAppKey();
+    const outTradeNo = this.createOutTradeNo();
+    const attach = JSON.stringify({
+      openid: session.openid,
+      productKey: product.key,
+      entitlementType: product.entitlementType,
+      entitlementValue: product.entitlementValue,
+      source: "wallpaper-manager",
+    });
+    const signData = JSON.stringify({
+      offerId,
+      buyQuantity: product.buyQuantity,
+      env: 0,
+      currencyType: "CNY",
+      productId: product.productId,
+      goodsPrice: product.goodsPrice,
+      outTradeNo,
+      attach,
+    });
+    const paySig = hmacHex(appKey, `requestVirtualPayment&${signData}`);
+    const signature = hmacHex(session.sessionKey, signData);
+
+    await this.prisma.virtualPaymentOrder.create({
+      data: {
+        outTradeNo,
+        openid: session.openid,
+        productKey: product.key,
+        productId: product.productId,
+        goodsPrice: product.goodsPrice,
+        buyQuantity: product.buyQuantity,
+        totalFee: product.goodsPrice * product.buyQuantity,
+        status: VirtualPaymentOrderStatus.pending,
+        attach,
+        signData,
+        paySig,
+        signature,
+      },
+    });
+
+    return {
+      outTradeNo,
+      mode: "short_series_goods" as const,
+      signData,
+      paySig,
+      signature,
+      product: {
+        key: product.key,
+        name: product.name,
+        price: product.goodsPrice,
+        priceText: formatPrice(product.goodsPrice),
+      },
+    };
+  }
+
+  async orderStatus(openid: string, outTradeNo: string) {
+    const order = await this.prisma.virtualPaymentOrder.findUnique({ where: { outTradeNo } });
+    if (!order) throw new NotFoundException("订单不存在");
+    if (order.openid !== openid) throw new BadRequestException("订单与当前用户不匹配");
+    if (order.status === VirtualPaymentOrderStatus.delivered) {
+      return { outTradeNo: order.outTradeNo, status: order.status, delivered: true };
+    }
+    await this.syncOrder(order.outTradeNo);
+    const fresh = await this.prisma.virtualPaymentOrder.findUniqueOrThrow({ where: { outTradeNo } });
+    return {
+      outTradeNo: fresh.outTradeNo,
+      status: fresh.status,
+      delivered: fresh.status === VirtualPaymentOrderStatus.delivered,
+    };
+  }
+
+  async notify(rawBody: string, query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string } = {}) {
+    if (!this.verifyMessageSignature(query)) {
+      return xmlError("签名校验失败");
+    }
+    const parsed = this.xmlParser.parse(rawBody) as ParsedNotify;
+    const event = asText(parsed.Event);
+    if (event !== "xpay_goods_deliver_notify") {
+      this.logger.warn(`忽略非发货事件：${event || "未知"}`);
+      return xmlSuccess();
+    }
+
+    const openid = asText(parsed.OpenId);
+    const outTradeNo = asText(parsed.OutTradeNo);
+    const productId = asText(parsed.GoodsInfo?.ProductId);
+    const quantity = asNumber(parsed.GoodsInfo?.Quantity, 0);
+    const actualPrice = asNumber(parsed.GoodsInfo?.ActualPrice, 0);
+    const wxOrderId = asText(parsed.WeChatPayInfo?.MchOrderNo);
+    const paidTime = asNumber(parsed.WeChatPayInfo?.PaidTime, 0);
+    if (!openid || !outTradeNo || !productId || !quantity) {
+      this.logger.error("发货推送缺少 openid、outTradeNo、productId 或 quantity", parsed);
+      return xmlError("发货推送字段不完整");
+    }
+
+    const order = await this.prisma.virtualPaymentOrder.findUnique({ where: { outTradeNo } });
+    if (!order) {
+      this.logger.warn(`收到本地不存在的订单发货推送：${outTradeNo}`);
+      return xmlSuccess();
+    }
+    if (order.openid !== openid || order.productId !== productId) {
+      this.logger.error("发货推送订单信息不匹配", { order, parsed });
+      return xmlError("订单信息不匹配");
+    }
+    if (quantity !== order.buyQuantity) {
+      this.logger.error("发货推送购买数量不匹配", { expected: order.buyQuantity, actual: quantity });
+      return xmlError("订单数量不匹配");
+    }
+    if (!actualPrice || actualPrice !== order.totalFee) {
+      this.logger.error("发货推送金额不匹配", { expected: order.totalFee, actual: actualPrice });
+      return xmlError("订单金额不匹配");
+    }
+
+    const delivered = await this.deliverOrder(order.outTradeNo, {
+      wxOrderId,
+      paidTime,
+      rawPayload: parsed as unknown as Prisma.InputJsonValue,
+    });
+    if (!delivered) return xmlError("发货失败");
+    return xmlSuccess();
+  }
+
+  async verifyNotifyUrl(query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string }) {
+    if (!this.verifyMessageSignature(query)) throw new BadRequestException("签名校验失败");
+    return query.echostr || "";
+  }
+
+  async entitlementStatus(openid: string) {
+    const now = new Date();
+    const rows = await this.prisma.virtualPaymentEntitlement.findMany({
+      where: {
+        openid,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    let singleRemaining = 0;
+    let unlimitedUntil: Date | null = null;
+    let removeAdsUntil: Date | null = null;
+    let permanent = false;
+    for (const row of rows) {
+      if (row.type === "single_download") singleRemaining += Math.max(0, row.remaining);
+      if (row.type === "unlimited_days") unlimitedUntil = later(unlimitedUntil, row.expiresAt);
+      if (row.type === "unlimited_permanent") permanent = true;
+      if (row.type === "remove_ads_days") removeAdsUntil = later(removeAdsUntil, row.expiresAt);
+    }
+    return {
+      singleRemaining,
+      unlimitedUntil: unlimitedUntil?.toISOString() || null,
+      removeAdsUntil: removeAdsUntil?.toISOString() || null,
+      permanent,
+      hasPaidDownload: permanent || singleRemaining > 0 || (unlimitedUntil ? unlimitedUntil > now : false),
+      hasRemoveAds: Boolean(removeAdsUntil && removeAdsUntil > now),
+    };
+  }
+
+  async downloadAccess(openid: string): Promise<DownloadAccess> {
+    const status = await this.entitlementStatus(openid);
+    if (status.permanent) {
+      return { allowed: true, type: "paid_permanent" };
+    }
+    if (status.unlimitedUntil && new Date(status.unlimitedUntil) > new Date()) {
+      return { allowed: true, type: "paid_unlimited" as const, expiresAt: status.unlimitedUntil };
+    }
+    if (status.singleRemaining > 0) {
+      return { allowed: true, type: "paid_single" as const, remaining: status.singleRemaining };
+    }
+    return { allowed: false, type: null };
+  }
+
+  async consumeDownloadAccess(openid: string, access: { type: "paid_unlimited" | "paid_permanent" | "paid_single" }) {
+    if (access.type === "paid_unlimited" || access.type === "paid_permanent") return;
+    await this.prisma.$transaction(async (tx) => {
+      const row = await tx.virtualPaymentEntitlement.findFirst({
+        where: { openid, type: "single_download", remaining: { gt: 0 } },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!row) throw new BadRequestException("付费下载次数已用完");
+      await tx.virtualPaymentEntitlement.update({
+        where: { id: row.id },
+        data: { remaining: { decrement: 1 } },
+      });
+    });
+  }
+
+  async hasRemoveAdsAccess(openid: string) {
+    const status = await this.entitlementStatus(openid);
+    return status.hasRemoveAds;
+  }
+
+  private async syncOrder(outTradeNo: string) {
+    const order = await this.prisma.virtualPaymentOrder.findUniqueOrThrow({ where: { outTradeNo } });
+    const response = await this.queryWechatOrder(order.openid, order.outTradeNo);
+    const status = response?.order?.status;
+    if (status === 2 || status === 3 || status === 4) {
+      await this.deliverOrder(order.outTradeNo, {
+        wxOrderId: response.order?.wx_order_id || order.wxOrderId || undefined,
+        paidTime: response.order?.paid_time || 0,
+        rawPayload: (response.order || {}) as unknown as Prisma.InputJsonValue,
+      });
+      return;
+    }
+    const mapped = mapWechatOrderStatus(status);
+    if (mapped && mapped !== order.status) {
+      await this.prisma.virtualPaymentOrder.update({
+        where: { outTradeNo },
+        data: { status: mapped, lastQueryAt: new Date() },
+      });
+    }
+  }
+
+  private async deliverOrder(
+    outTradeNo: string,
+    payload: { wxOrderId?: string; paidTime?: number; rawPayload?: Prisma.InputJsonValue },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.virtualPaymentOrder.findUnique({ where: { outTradeNo } });
+      if (!order) return false;
+      if (order.status === VirtualPaymentOrderStatus.delivered) return true;
+      const now = new Date();
+      await tx.virtualPaymentOrder.update({
+        where: { outTradeNo },
+        data: {
+          status: VirtualPaymentOrderStatus.delivered,
+          wxOrderId: payload.wxOrderId || order.wxOrderId || undefined,
+          rawPayload: payload.rawPayload || order.rawPayload || undefined,
+          paidAt: payload.paidTime ? new Date(payload.paidTime * 1000) : now,
+          deliveredAt: now,
+          lastQueryAt: now,
+        },
+      });
+      await this.grantEntitlement(tx, {
+        openid: order.openid,
+        productKey: order.productKey,
+        quantity: order.buyQuantity,
+        attach: order.attach,
+        sourceOrderId: order.outTradeNo,
+      });
+      return true;
+    });
+  }
+
+  private async grantEntitlement(
+    tx: Prisma.TransactionClient,
+    order: { openid: string; productKey: string; quantity: number; attach: string; sourceOrderId: string },
+  ) {
+    const product = this.products().find((item) => item.key === order.productKey);
+    const attach = parseJson<{ entitlementType?: EntitlementType; entitlementValue?: number }>(order.attach);
+    const entitlementType = product?.entitlementType || attach.entitlementType || "single_download";
+    const entitlementValue = Number(product?.entitlementValue ?? attach.entitlementValue ?? 1);
+
+    if (entitlementType === "single_download") {
+      await tx.virtualPaymentEntitlement.create({
+        data: {
+          openid: order.openid,
+          type: "single_download",
+          remaining: order.quantity,
+          sourceOrderId: order.sourceOrderId,
+        },
+      });
+      return;
+    }
+
+    if (entitlementType === "unlimited_permanent") {
+      await tx.virtualPaymentEntitlement.create({
+        data: {
+          openid: order.openid,
+          type: "unlimited_permanent",
+          sourceOrderId: order.sourceOrderId,
+        },
+      });
+      return;
+    }
+
+    const active = await tx.virtualPaymentEntitlement.findFirst({
+      where: {
+        openid: order.openid,
+        type: entitlementType,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { expiresAt: "desc" },
+    });
+    const base = active?.expiresAt && active.expiresAt > new Date() ? active.expiresAt : new Date();
+    const expiresAt = new Date(base.getTime() + entitlementValue * 24 * 60 * 60 * 1000);
+    await tx.virtualPaymentEntitlement.create({
+      data: {
+        openid: order.openid,
+        type: entitlementType,
+        expiresAt,
+        sourceOrderId: order.sourceOrderId,
+      },
+    });
+  }
+
+  private async queryWechatOrder(openid: string, outTradeNo: string) {
+    this.assertServerConfig();
+    const accessToken = await this.getAccessToken();
+    const postBody = JSON.stringify({ openid, env: 0, order_id: outTradeNo });
+    const uri = "/xpay/query_order";
+    const paySig = hmacHex(this.requireAppKey(), `${uri}&${postBody}`);
+    const url = new URL("https://api.weixin.qq.com/xpay/query_order");
+    url.searchParams.set("access_token", accessToken);
+    url.searchParams.set("pay_sig", paySig);
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: postBody,
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = (await response.json()) as { errcode?: number; errmsg?: string; order?: WechatOrder };
+    if (body.errcode !== 0 || !body.order) {
+      throw new ServiceUnavailableException(body.errmsg || "虚拟支付查单失败");
+    }
+    await this.prisma.virtualPaymentOrder.update({
+      where: { outTradeNo },
+      data: { lastQueryAt: new Date() },
+    });
+    return body;
+  }
+
+  private async getAccessToken() {
+    if (this.accessToken && this.accessToken.expiresAt > Date.now() + 60_000) {
+      return this.accessToken.token;
+    }
+    const appid = this.requireMiniProgramAppid();
+    const secret = this.config.get<string>("WECHAT_APP_SECRET")?.trim();
+    if (!secret) throw new BadRequestException("WECHAT_APP_SECRET 未配置");
+    const url = new URL("https://api.weixin.qq.com/cgi-bin/token");
+    url.searchParams.set("grant_type", "client_credential");
+    url.searchParams.set("appid", appid);
+    url.searchParams.set("secret", secret);
+    const response = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+    const body = (await response.json()) as { access_token?: string; expires_in?: number; errcode?: number; errmsg?: string };
+    if (!body.access_token) throw new ServiceUnavailableException(body.errmsg || "获取微信 access_token 失败");
+    this.accessToken = {
+      token: body.access_token,
+      expiresAt: Date.now() + Math.max(0, Number(body.expires_in || 7200)) * 1000,
+    };
+    return this.accessToken.token;
+  }
+
+  private async code2Session(code: string): Promise<WechatSession> {
+    const appid = this.requireMiniProgramAppid();
+    const secret = this.config.get<string>("WECHAT_APP_SECRET")?.trim();
+    if (!secret) throw new BadRequestException("WECHAT_APP_SECRET 未配置");
+    const url = new URL("https://api.weixin.qq.com/sns/jscode2session");
+    url.searchParams.set("appid", appid);
+    url.searchParams.set("secret", secret);
+    url.searchParams.set("js_code", code);
+    url.searchParams.set("grant_type", "authorization_code");
+    const response = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
+    const body = (await response.json()) as { openid?: string; session_key?: string; errcode?: number; errmsg?: string };
+    if (!body.openid || !body.session_key) {
+      throw new BadRequestException(body.errmsg || "微信登录失败，请重新进入小程序");
+    }
+    return { openid: body.openid, sessionKey: body.session_key };
+  }
+
+  private createOutTradeNo() {
+    const stamp = Date.now().toString(36).toUpperCase();
+    const random = randomBytes(6).toString("hex").toUpperCase();
+    const value = `VP${stamp}${random}`;
+    return value.slice(0, 32);
+  }
+
+  private assertServerConfig() {
+    this.requireOfferId();
+    this.requireAppKey();
+    this.requireMiniProgramAppid();
+  }
+
+  private requireOfferId(required = true) {
+    const value = this.config.get<string>("VIRTUAL_PAY_OFFER_ID")?.trim() || "";
+    if (required && !value) throw new BadRequestException("VIRTUAL_PAY_OFFER_ID 未配置");
+    return value;
+  }
+
+  private requireAppKey() {
+    const value = this.config.get<string>("VIRTUAL_PAY_APP_KEY")?.trim() || "";
+    if (!value) throw new BadRequestException("VIRTUAL_PAY_APP_KEY 未配置");
+    return value;
+  }
+
+  private requireMiniProgramAppid() {
+    const value = this.config.get<string>("MINIPROGRAM_APPID")?.trim() || this.config.get<string>("WECHAT_APPID")?.trim() || "";
+    if (!value) throw new BadRequestException("MINIPROGRAM_APPID 未配置");
+    return value;
+  }
+
+  private products(): ProductConfig[] {
+    const lifetimePrice = positiveConfigInt(this.config, "VIRTUAL_PAY_LIFETIME_PRICE", 9900);
+    return [
+      {
+        key: "direct_download_lifetime",
+        productId: this.config.get<string>("VIRTUAL_PAY_LIFETIME_PRODUCT_ID")?.trim() || "wallpaper_direct_lifetime",
+        name: "全部壁纸永久下载权益",
+        description: "一次购买，永久不限次数直接保存全部已上架壁纸，无需观看激励视频。",
+        goodsPrice: lifetimePrice,
+        buyQuantity: 1,
+        entitlementType: "unlimited_permanent",
+        entitlementValue: 0,
+      },
+    ];
+  }
+
+  private verifyMessageSignature(query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string }) {
+    const token = this.config.get<string>("WECHAT_MESSAGE_TOKEN")?.trim() || "";
+    if (!token) return true;
+    if (!query.signature || !query.timestamp || !query.nonce) return false;
+    const raw = [token, query.timestamp, query.nonce].sort().join("");
+    return createHash("sha1").update(raw).digest("hex") === query.signature;
+  }
+}
+
+function hmacHex(secret: string, message: string) {
+  return createHmac("sha256", secret).update(message, "utf8").digest("hex");
+}
+
+function positiveConfigInt(config: ConfigService, key: string, fallback: number) {
+  const value = Number(config.get<string>(key) || fallback);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function formatPrice(value: number) {
+  const yuan = value / 100;
+  return Number.isInteger(yuan) ? `¥${yuan}` : `¥${yuan.toFixed(2)}`;
+}
+
+function asText(value: unknown) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+}
+
+function asNumber(value: unknown, fallback: number) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function parseJson<T>(value: string): Partial<T> {
+  try {
+    return JSON.parse(value) as Partial<T>;
+  } catch {
+    return {};
+  }
+}
+
+function later(left: Date | null, right: Date | null) {
+  if (!left) return right;
+  if (!right) return left;
+  return right > left ? right : left;
+}
+
+function mapWechatOrderStatus(status?: number): VirtualPaymentOrderStatus | null {
+  if (status === 2 || status === 3) return VirtualPaymentOrderStatus.paid;
+  if (status === 4) return VirtualPaymentOrderStatus.delivered;
+  if (status === 5 || status === 8) return VirtualPaymentOrderStatus.refunded;
+  if (status === 6) return VirtualPaymentOrderStatus.closed;
+  if (status === 7) return VirtualPaymentOrderStatus.failed;
+  return null;
+}
+
+function xmlSuccess() {
+  return "<xml><ErrCode>0</ErrCode><ErrMsg><![CDATA[success]]></ErrMsg></xml>";
+}
+
+function xmlError(message: string) {
+  return `<xml><ErrCode>-1</ErrCode><ErrMsg><![CDATA[${escapeXml(message)}]]></ErrMsg></xml>`;
+}
+
+function escapeXml(value: string) {
+  return value.replace(/[<>&'"]/g, (character) => {
+    const map: Record<string, string> = {
+      "<": "&lt;",
+      ">": "&gt;",
+      "&": "&amp;",
+      "'": "&apos;",
+      '"': "&quot;",
+    };
+    return map[character];
+  });
+}
