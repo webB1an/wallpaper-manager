@@ -153,7 +153,11 @@ Page({
     async loadPaymentCatalog() {
         try {
             const catalog = await (0, payment_1.getPaymentCatalog)();
-            this.setData({ paymentProducts: catalog.entitlement?.permanent ? [] : (catalog.products || []) });
+            this.setData({
+                paymentProducts: catalog.entitlement?.permanent
+                    ? []
+                    : (catalog.products || []).filter((product) => product.entitlementType === "unlimited_permanent")
+            });
         }
         catch {
             this.setData({ paymentProducts: [] });

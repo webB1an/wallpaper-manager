@@ -168,6 +168,14 @@
   font-weight: 860;
 }
 
+.purchase-desc {
+  display: block;
+  margin-top: 20rpx;
+  color: #8a7668;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
 .feature-list {
   display: grid;
   gap: 12rpx;

@@ -82,6 +82,11 @@ export class AdminController {
     defaultAutoPublish?: boolean;
     rewardDownloadType?: RewardDownloadType;
     permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
+    virtualPaymentProducts?: Array<{
+      key: string; productId: string; name: string; description: string; goodsPrice: number; buyQuantity: number;
+      entitlementType: "single_download" | "unlimited_days" | "unlimited_permanent" | "remove_ads_days";
+      entitlementValue: number; enabled: boolean;
+    }>;
   }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
   }

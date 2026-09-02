@@ -88,6 +88,7 @@ npm run cleanup:unpublished-links
 
 - 购买 tab：全部壁纸永久下载权益。
 - 服务端：`POST /api/pay/order` 下单签名、`POST /api/pay/notify` 发货推送、`GET /api/pay/orders/:outTradeNo` 订单查询，以及 `query_order` 兜底查单。
+- 商品目录：在管理端「系统设置 → 虚拟支付商品」维护，可增删、停用和排序；保存后即时生效，无需修改服务器环境变量或重启。
 
 上线前需在服务器 `.env` 配置：
 
@@ -96,11 +97,9 @@ WECHAT_APP_SECRET=
 WECHAT_MESSAGE_TOKEN=
 VIRTUAL_PAY_OFFER_ID=
 VIRTUAL_PAY_APP_KEY=
-VIRTUAL_PAY_LIFETIME_PRODUCT_ID=download_lifetime
-VIRTUAL_PAY_LIFETIME_PRICE=100
 ```
 
-`VIRTUAL_PAY_*_PRODUCT_ID` 需要与微信公众平台「虚拟支付 → 道具管理」中创建并发布的道具 ID、价格完全一致。发货推送 URL 填 `https://wall-api.wdbzk.com/api/pay/notify`。
+每个商品仍需先在微信公众平台「虚拟支付 → 道具管理」创建并发布，再到管理端填写完全一致的道具 ID 和价格。商品 ID、价格和权益不再由服务器环境变量维护。发货推送 URL 填 `https://wall-api.wdbzk.com/api/pay/notify`。
 
 验收：
 

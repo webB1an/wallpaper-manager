@@ -118,6 +118,17 @@ type SystemSettings = {
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
   permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
+  virtualPaymentProducts?: Array<{
+    key: string;
+    productId: string;
+    name: string;
+    description: string;
+    goodsPrice: number;
+    buyQuantity: number;
+    entitlementType: "single_download" | "unlimited_days" | "unlimited_permanent" | "remove_ads_days";
+    entitlementValue: number;
+    enabled: boolean;
+  }>;
 };
 
 type StorageSelectionForm = {
@@ -1590,6 +1601,59 @@ function Settings() {
             { value: "unlimited", label: "无限次" },
           ]} />
         </Form.Item>
+        <div className="form-field settings-wide-field">
+          <div className="form-label">虚拟支付商品</div>
+          <Form.List name="virtualPaymentProducts">
+            {(fields, { add, remove }) => (
+              <div className="payment-product-list">
+                {fields.map((field, index) => (
+                  <div key={field.key} className="payment-product-card">
+                    <div className="payment-product-card-head">
+                      <strong>商品 {index + 1}</strong>
+                      <Space>
+                        <Form.Item name={[field.name, "enabled"]} valuePropName="checked" noStyle><Switch checkedChildren="启用" unCheckedChildren="停用" /></Form.Item>
+                        <Button size="small" danger type="text" onClick={() => remove(field.name)}>删除</Button>
+                      </Space>
+                    </div>
+                    <div className="payment-product-grid">
+                      <Form.Item label="业务标识" name={[field.name, "key"]} rules={[{ required: true }, { pattern: /^[a-z][a-z0-9_-]{2,63}$/, message: "小写字母开头，可用数字、-、_" }]}>
+                        <Input placeholder="例如 download_lifetime" />
+                      </Form.Item>
+                      <Form.Item label="微信道具 ID" name={[field.name, "productId"]} rules={[{ required: true }]}>
+                        <Input placeholder="须与微信后台完全一致" />
+                      </Form.Item>
+                      <Form.Item label="商品名称" name={[field.name, "name"]} rules={[{ required: true }]}>
+                        <Input placeholder="用户可见名称" />
+                      </Form.Item>
+                      <Form.Item label="价格（分）" name={[field.name, "goodsPrice"]} rules={[{ required: true }]}>
+                        <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+                      </Form.Item>
+                      <Form.Item label="权益类型" name={[field.name, "entitlementType"]} rules={[{ required: true }]}>
+                        <Select options={[
+                          { value: "unlimited_permanent", label: "永久不限次下载" },
+                          { value: "unlimited_days", label: "限时不限次下载" },
+                          { value: "single_download", label: "单次下载次数" },
+                          { value: "remove_ads_days", label: "限时去广告" },
+                        ]} />
+                      </Form.Item>
+                      <Form.Item label="权益数值" name={[field.name, "entitlementValue"]} tooltip="限时权益填写天数；永久权益填 0；单次下载通常填 1">
+                        <InputNumber min={0} precision={0} style={{ width: "100%" }} />
+                      </Form.Item>
+                      <Form.Item label="微信购买数量" name={[field.name, "buyQuantity"]}>
+                        <InputNumber min={1} precision={0} style={{ width: "100%" }} />
+                      </Form.Item>
+                      <Form.Item className="payment-product-description" label="商品说明" name={[field.name, "description"]} rules={[{ required: true }]}>
+                        <Input.TextArea rows={2} placeholder="说明购买后获得的内容" />
+                      </Form.Item>
+                    </div>
+                  </div>
+                ))}
+                <Button type="dashed" onClick={() => add({ key: "", productId: "", name: "", description: "", goodsPrice: 100, buyQuantity: 1, entitlementType: "single_download", entitlementValue: 1, enabled: true })}>+ 添加虚拟支付商品</Button>
+              </div>
+            )}
+          </Form.List>
+          <div className="form-hint">先在微信后台创建并发布道具，再在这里填写完全一致的道具 ID 和价格。保存后立即生效，不需要修改服务器环境变量或重启。</div>
+        </div>
         <Form.Item label="仅在空闲时段自动处理上传" name="processIdleEnabled" valuePropName="checked">
           <Switch />
         </Form.Item>

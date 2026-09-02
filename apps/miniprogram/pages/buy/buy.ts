@@ -3,11 +3,12 @@ import { canUseVirtualPayment, checkIosVersion, getPaymentCatalog, getPaymentDel
 
 Page({
   data: {
-    product: null as PaymentProduct | null,
+    products: [] as PaymentProduct[],
     entitlementText: "尚未购买",
     purchased: false,
     resources: [] as PaymentDeliveryResource[],
     paying: false,
+    payingKey: "",
     loading: true,
     error: ""
   },
@@ -25,7 +26,6 @@ Page({
     try {
       await ensureOpenid();
       const [catalog, delivery] = await Promise.all([getPaymentCatalog(), getPaymentDelivery()]);
-      const product = catalog.products.find((item) => item.key === "direct_download_lifetime") || null;
       let entitlementText = "尚未购买";
       if (catalog.entitlement?.hasPaidDownload) {
         if (catalog.entitlement.permanent) {
@@ -37,7 +37,7 @@ Page({
         }
       }
       if (delivery.purchased) entitlementText = "已永久解锁，以下资源可永久使用";
-      this.setData({ product: delivery.purchased ? null : product, entitlementText, purchased: delivery.purchased, resources: delivery.resources || [] });
+      this.setData({ products: catalog.products || [], entitlementText, purchased: delivery.purchased, resources: delivery.resources || [] });
     } catch (error) {
       this.setData({ error: error instanceof Error ? error.message : "商品信息加载失败" });
     } finally {
@@ -60,17 +60,19 @@ Page({
     void this.loadProduct();
   },
 
-  async buyAll() {
-    if (!this.data.product || this.data.paying) return;
+  async buyAll(event: WechatMiniprogram.TouchEvent) {
+    const productKey = String(event.currentTarget.dataset.key || "");
+    const product = this.data.products.find((item) => item.key === productKey);
+    if (!product || this.data.paying) return;
     if (!canUseVirtualPayment()) {
       wx.showToast({ title: "当前微信版本不支持虚拟支付，请先升级微信", icon: "none" });
       return;
     }
     if (!checkIosVersion()) return;
-    this.setData({ paying: true });
+    this.setData({ paying: true, payingKey: product.key });
     try {
       await ensureOpenid();
-      const order = await payProduct(this.data.product.key);
+      const order = await payProduct(product.key);
       wx.showLoading({ title: "正在确认订单" });
       const delivered = await waitForPaymentDelivery(order.outTradeNo, 20_000);
       wx.hideLoading();
@@ -78,13 +80,13 @@ Page({
         wx.showToast({ title: "订单确认超时，请稍后重试", icon: "none" });
         return;
       }
-      wx.showToast({ title: "已开通全部壁纸下载权益", icon: "success" });
+      wx.showToast({ title: "购买成功", icon: "success" });
       await this.loadProduct();
     } catch (error) {
       wx.hideLoading();
       wx.showToast({ title: error instanceof Error ? error.message : "购买失败", icon: "none" });
     } finally {
-      this.setData({ paying: false });
+      this.setData({ paying: false, payingKey: "" });
     }
   },
 

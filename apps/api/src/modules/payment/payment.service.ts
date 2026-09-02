@@ -15,6 +15,7 @@ type ProductConfig = {
   buyQuantity: number;
   entitlementType: EntitlementType;
   entitlementValue: number;
+  enabled: boolean;
 };
 
 type DeliveryResource = {
@@ -87,9 +88,12 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
 
   async catalog(openid?: string) {
     const entitlement = openid ? await this.entitlementStatus(openid) : null;
+    const products = await this.products();
     return {
       offerId: this.requireOfferId(false),
-      products: (entitlement?.permanent ? [] : this.products()).map((product) => ({
+      products: products
+        .filter((product) => product.enabled && !(entitlement?.permanent && product.entitlementType === "unlimited_permanent"))
+        .map((product) => ({
         key: product.key,
         name: product.name,
         description: product.description,
@@ -115,7 +119,7 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
   async createOrder(code: string, productKey: string) {
     if (!code?.trim()) throw new BadRequestException("缺少微信登录凭证");
     const session = await this.code2Session(code);
-    const product = this.products().find((item) => item.key === productKey);
+    const product = (await this.products()).find((item) => item.enabled && item.key === productKey);
     if (!product) throw new BadRequestException("虚拟支付商品不存在或未配置");
     if (product.entitlementType === "unlimited_permanent") {
       const entitlement = await this.entitlementStatus(session.openid);
@@ -424,17 +428,17 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
     tx: Prisma.TransactionClient,
     order: { openid: string; productKey: string; quantity: number; attach: string; sourceOrderId: string },
   ) {
-    const product = this.products().find((item) => item.key === order.productKey);
     const attach = parseJson<{ entitlementType?: EntitlementType; entitlementValue?: number }>(order.attach);
-    const entitlementType = product?.entitlementType || attach.entitlementType || "single_download";
-    const entitlementValue = Number(product?.entitlementValue ?? attach.entitlementValue ?? 1);
+    // 权益以创建订单时写入 attach 的快照为准，避免后台后续修改商品影响历史订单发货。
+    const entitlementType = attach.entitlementType || "single_download";
+    const entitlementValue = Number(attach.entitlementValue ?? 1);
 
     if (entitlementType === "single_download") {
       await tx.virtualPaymentEntitlement.create({
         data: {
           openid: order.openid,
           type: "single_download",
-          remaining: order.quantity,
+          remaining: order.quantity * Math.max(1, entitlementValue),
           sourceOrderId: order.sourceOrderId,
         },
       });
@@ -567,20 +571,47 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
     return value;
   }
 
-  private products(): ProductConfig[] {
-    const lifetimePrice = positiveConfigInt(this.config, "VIRTUAL_PAY_LIFETIME_PRICE", 100);
-    return [
+  private async products(): Promise<ProductConfig[]> {
+    const defaults: ProductConfig[] = [
       {
         key: "direct_download_lifetime",
-        productId: this.config.get<string>("VIRTUAL_PAY_LIFETIME_PRODUCT_ID")?.trim() || "download_lifetime",
+        productId: "download_lifetime",
         name: "全部壁纸永久下载权益",
         description: "一次购买，永久不限次数直接保存全部已上架壁纸，无需观看激励视频。",
-        goodsPrice: lifetimePrice,
+        goodsPrice: 100,
         buyQuantity: 1,
         entitlementType: "unlimited_permanent",
         entitlementValue: 0,
+        enabled: true,
       },
     ];
+    const row = await this.prisma.setting.findUnique({ where: { key: "system" }, select: { value: true } });
+    const configured = (row?.value as { virtualPaymentProducts?: unknown } | null)?.virtualPaymentProducts;
+    if (!Array.isArray(configured)) return defaults;
+    return configured.flatMap((raw) => {
+      if (!raw || typeof raw !== "object") return [];
+      const item = raw as Record<string, unknown>;
+      const entitlementType = String(item.entitlementType || "");
+      if (!isEntitlementType(entitlementType)) return [];
+      const key = String(item.key || "").trim();
+      const productId = String(item.productId || "").trim();
+      const name = String(item.name || "").trim();
+      const goodsPrice = Number(item.goodsPrice);
+      const buyQuantity = Number(item.buyQuantity || 1);
+      const entitlementValue = Number(item.entitlementValue || 0);
+      if (!key || !productId || !name || !Number.isInteger(goodsPrice) || goodsPrice <= 0) return [];
+      return [{
+        key,
+        productId,
+        name,
+        description: String(item.description || "").trim(),
+        goodsPrice,
+        buyQuantity: Number.isInteger(buyQuantity) && buyQuantity > 0 ? buyQuantity : 1,
+        entitlementType,
+        entitlementValue: Number.isInteger(entitlementValue) && entitlementValue >= 0 ? entitlementValue : 0,
+        enabled: item.enabled !== false,
+      }];
+    });
   }
 
   private async deliveryResources(): Promise<DeliveryResource[]> {
@@ -732,9 +763,8 @@ function hmacHex(secret: string, message: string) {
   return createHmac("sha256", secret).update(message, "utf8").digest("hex");
 }
 
-function positiveConfigInt(config: ConfigService, key: string, fallback: number) {
-  const value = Number(config.get<string>(key) || fallback);
-  return Number.isInteger(value) && value > 0 ? value : fallback;
+function isEntitlementType(value: string): value is EntitlementType {
+  return ["single_download", "unlimited_days", "unlimited_permanent", "remove_ads_days"].includes(value);
 }
 
 function formatPrice(value: number) {

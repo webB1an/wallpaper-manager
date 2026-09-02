@@ -33,8 +33,7 @@ add(Boolean(appKey) && !["CHANGE_ME", ""].includes(appKey), "app_key", "现网 A
 const messageToken = String(env.WECHAT_MESSAGE_TOKEN || "").trim();
 add(Boolean(messageToken) && messageToken !== "CHANGE_ME", "message_token", "消息推送 Token", messageToken ? "已配置" : "未配置", "服务器 .env 填写与 MP 后台消息推送配置一致的 WECHAT_MESSAGE_TOKEN。");
 
-const lifetimeProductId = String(env.VIRTUAL_PAY_LIFETIME_PRODUCT_ID || "").trim();
-add(Boolean(lifetimeProductId) && lifetimeProductId !== "CHANGE_ME", "lifetime_product", "全部壁纸永久下载道具 ID", lifetimeProductId || "未配置", "在 MP 后台「道具管理」创建并发布后，将道具 ID 填入 VIRTUAL_PAY_LIFETIME_PRODUCT_ID。");
+add(paymentService.includes("virtualPaymentProducts"), "product_catalog", "后台商品目录", "虚拟支付商品由管理端动态配置，不再依赖单个商品环境变量", "在管理端“系统设置 → 虚拟支付商品”维护道具 ID、价格和权益。");
 
 add(paymentService.includes("requestVirtualPayment&"), "pay_sig", "支付签名 paySig", "服务端已实现 requestVirtualPayment&signData 的 HMAC-SHA256", "保持签名算法与官方一致。");
 add(paymentService.includes("/xpay/query_order") && paymentService.includes("syncPendingOrders"), "query_order", "定时兜底查单", "服务端已接入 /xpay/query_order 并每 5 分钟补查待确认订单", "保持 query_order 定时兜底发货逻辑。");
@@ -43,7 +42,7 @@ add(paymentService.includes("status === VirtualPaymentOrderStatus.delivered"), "
 add(paymentService.includes('event === "xpay_refund_notify"'), "refund_notify", "退款通知", "服务端会接收退款通知并撤销对应权益", "上线前分别验证 Android 和 iOS 退款通知。");
 add(paymentFrontend.includes("wx.requestVirtualPayment"), "frontend_pay", "前端支付调用", "已调用 wx.requestVirtualPayment", "在真机完成支付联调。");
 add(detailFrontend.includes("onPaidDownload"), "frontend_scenario", "永久下载入口", "详情页已增加永久下载权益入口", "按运营需要配置道具价格后发布。");
-add(buyFrontend.includes("direct_download_lifetime") && buyFrontend.includes("payProduct"), "buy_tab", "全部壁纸购买 tab", "已新增独立购买页并接入永久全部壁纸下载权益", "确认 tab 图标、文案和道具 ID 后发布。");
+add(buyFrontend.includes("catalog.products") && buyFrontend.includes("payProduct"), "buy_tab", "动态商品购买 tab", "独立购买页会展示管理端启用的虚拟支付商品", "在管理端确认商品文案、道具 ID 和价格后发布。");
 add(publicService.includes("this.payment.downloadAccess"), "entitlement", "付费权益发货", "下载接口已识别单次/包时权益", "保持发货通知和查单补发都写入权益。");
 add(existsSync(join(root, "apps/api/prisma/migrations/20260902010000_add_virtual_payment/migration.sql")), "migration", "支付数据表迁移", "虚拟支付订单与权益表迁移文件存在", "部署时执行 npm run prisma:deploy。");
 

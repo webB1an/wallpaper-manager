@@ -14,7 +14,7 @@
     <button class="retry-button" bindtap="retry">重试</button>
   </view>
 
-  <view wx:elif="{{purchased}}" class="delivery-card">
+  <view wx:if="{{!loading && !error && purchased}}" class="delivery-card">
     <view class="delivery-head">
       <text class="delivery-title">全部壁纸资源</text>
       <text class="delivery-tip">点击对应资源复制链接，请妥善保存</text>
@@ -32,20 +32,21 @@
     <text class="delivery-note">网盘资源如有更新，将继续在本页面提供最新地址。</text>
   </view>
 
-  <view wx:elif="{{product}}" class="purchase-card">
+  <view wx:for="{{products}}" wx:key="key" wx:if="{{!loading && !error}}" class="purchase-card">
     <view class="purchase-head">
-      <text class="purchase-title">全部壁纸永久下载权益</text>
-      <text class="purchase-price">{{product.priceText}}</text>
+      <text class="purchase-title">{{item.name}}</text>
+      <text class="purchase-price">{{item.priceText}}</text>
     </view>
-    <view class="feature-list">
+    <view wx:if="{{item.entitlementType === 'unlimited_permanent'}}" class="feature-list">
       <text>购买后获得全部壁纸资源</text>
       <text>一次购买，永久有效</text>
       <text>资源更新后仍可在这里查看</text>
     </view>
-    <button class="purchase-button" bindtap="buyAll" loading="{{paying}}">{{paying ? '购买中' : '立即开通永久权益'}}</button>
+    <text wx:else class="purchase-desc">{{item.description}}</text>
+    <button class="purchase-button" data-key="{{item.key}}" bindtap="buyAll" loading="{{payingKey === item.key}}" disabled="{{paying}}">{{payingKey === item.key ? '购买中' : (item.entitlementType === 'unlimited_permanent' ? '立即开通永久权益' : '立即购买')}}</button>
   </view>
 
-  <view wx:else class="state-card">
-    <text>全部壁纸下载权益暂未配置</text>
+  <view wx:if="{{!loading && !error && !purchased && !products.length}}" class="state-card">
+    <text>虚拟支付商品暂未配置</text>
   </view>
 </view>

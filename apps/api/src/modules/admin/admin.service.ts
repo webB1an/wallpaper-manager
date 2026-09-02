@@ -35,6 +35,17 @@ type SystemSettings = {
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
   permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
+  virtualPaymentProducts?: Array<{
+    key: string;
+    productId: string;
+    name: string;
+    description: string;
+    goodsPrice: number;
+    buyQuantity: number;
+    entitlementType: "single_download" | "unlimited_days" | "unlimited_permanent" | "remove_ads_days";
+    entitlementValue: number;
+    enabled: boolean;
+  }>;
 };
 
 type DiagnosticItem = {
@@ -516,7 +527,21 @@ export class AdminService implements OnModuleInit {
 
   async getSettings(): Promise<SystemSettings> {
     const row = await this.prisma.setting.findUnique({ where: { key: "system" } });
-    return { ...DEFAULT_SETTINGS, ...(row?.value as Partial<SystemSettings> | undefined) };
+    const settings = { ...DEFAULT_SETTINGS, ...(row?.value as Partial<SystemSettings> | undefined) };
+    if (!Array.isArray(settings.virtualPaymentProducts)) {
+      settings.virtualPaymentProducts = [{
+        key: "direct_download_lifetime",
+        productId: "download_lifetime",
+        name: "全部壁纸永久下载权益",
+        description: "购买后获得全部壁纸资源，一次购买永久有效，资源更新后仍可查看。",
+        goodsPrice: 100,
+        buyQuantity: 1,
+        entitlementType: "unlimited_permanent",
+        entitlementValue: 0,
+        enabled: true,
+      }];
+    }
+    return settings;
   }
 
   async updateSettings(input: Partial<SystemSettings>) {
@@ -539,6 +564,9 @@ export class AdminService implements OnModuleInit {
         : {}),
       ...(Array.isArray(input.permanentDeliveryResources)
         ? { permanentDeliveryResources: sanitizeDeliveryResources(input.permanentDeliveryResources) }
+        : {}),
+      ...(Array.isArray(input.virtualPaymentProducts)
+        ? { virtualPaymentProducts: sanitizeVirtualPaymentProducts(input.virtualPaymentProducts) }
         : {}),
     };
     await this.prisma.setting.upsert({
@@ -1893,6 +1921,35 @@ function sanitizeDeliveryResources(resources: NonNullable<SystemSettings["perman
       throw new BadRequestException(`第 ${index + 1} 个永久权益资源链接必须是有效的 HTTPS 地址`);
     }
     return { name, provider, url, ...(passcode ? { passcode } : {}) };
+  });
+}
+
+function sanitizeVirtualPaymentProducts(products: NonNullable<SystemSettings["virtualPaymentProducts"]>) {
+  const keys = new Set<string>();
+  const productIds = new Set<string>();
+  return products.map((item, index) => {
+    const position = index + 1;
+    const key = String(item?.key || "").trim();
+    const productId = String(item?.productId || "").trim();
+    const name = String(item?.name || "").trim();
+    const description = String(item?.description || "").trim();
+    const goodsPrice = Number(item?.goodsPrice);
+    const buyQuantity = Number(item?.buyQuantity || 1);
+    const entitlementValue = Number(item?.entitlementValue || 0);
+    const entitlementType = item?.entitlementType;
+    if (!/^[a-z][a-z0-9_-]{2,63}$/.test(key)) throw new BadRequestException(`第 ${position} 个商品业务标识格式不正确`);
+    if (!productId || !name || !description) throw new BadRequestException(`第 ${position} 个商品缺少道具 ID、名称或说明`);
+    if (keys.has(key)) throw new BadRequestException(`商品业务标识重复：${key}`);
+    if (productIds.has(productId)) throw new BadRequestException(`微信道具 ID 重复：${productId}`);
+    if (!Number.isInteger(goodsPrice) || goodsPrice <= 0) throw new BadRequestException(`第 ${position} 个商品价格必须是正整数（单位：分）`);
+    if (!Number.isInteger(buyQuantity) || buyQuantity <= 0) throw new BadRequestException(`第 ${position} 个商品购买数量必须是正整数`);
+    if (!["single_download", "unlimited_days", "unlimited_permanent", "remove_ads_days"].includes(entitlementType)) {
+      throw new BadRequestException(`第 ${position} 个商品权益类型不正确`);
+    }
+    if (!Number.isInteger(entitlementValue) || entitlementValue < 0) throw new BadRequestException(`第 ${position} 个商品权益数值不正确`);
+    keys.add(key);
+    productIds.add(productId);
+    return { key, productId, name, description, goodsPrice, buyQuantity, entitlementType, entitlementValue, enabled: item.enabled !== false };
   });
 }
 
