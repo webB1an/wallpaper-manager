@@ -4,7 +4,7 @@ import { canUseVirtualPayment, checkIosVersion, getPaymentCatalog, getPaymentDel
 Page({
   data: {
     product: null as PaymentProduct | null,
-    entitlementText: "尚未开通全部壁纸下载权益",
+    entitlementText: "尚未购买",
     purchased: false,
     resources: [] as PaymentDeliveryResource[],
     paying: false,
@@ -26,7 +26,7 @@ Page({
       await ensureOpenid();
       const [catalog, delivery] = await Promise.all([getPaymentCatalog(), getPaymentDelivery()]);
       const product = catalog.products.find((item) => item.key === "direct_download_lifetime") || null;
-      let entitlementText = "尚未开通全部壁纸下载权益";
+      let entitlementText = "尚未购买";
       if (catalog.entitlement?.hasPaidDownload) {
         if (catalog.entitlement.permanent) {
           entitlementText = "已永久解锁全部壁纸下载";

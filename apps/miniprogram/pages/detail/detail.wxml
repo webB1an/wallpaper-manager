@@ -47,7 +47,6 @@
       </view>
       <button class="paid-download-button" bindtap="onPaidDownload" loading="{{paying}}">{{paying ? '支付中' : '开通永久'}}</button>
     </view>
-    <view wx:if="{{paymentProducts.length}}" class="paid-download-note">Android/鸿蒙技术服务费 1%，iOS 佣金 12%；iOS 退款由 App Store 处理。</view>
     <ad wx:if="{{adUnit}}" class="detail-ad" unit-id="{{adUnit}}" binderror="onAdError" />
     <view wx:if="{{item.related.length}}" class="related-section">
       <view class="related-head">

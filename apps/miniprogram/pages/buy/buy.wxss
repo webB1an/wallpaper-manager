@@ -1,4 +1,6 @@
 .page {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 100vh;
   padding: 0 28rpx 60rpx;
   background: #fbf7f0;
@@ -122,7 +124,10 @@
 }
 
 .resource-copy {
+  box-sizing: border-box;
   width: 112rpx;
+  max-width: 112rpx;
+  flex: 0 0 112rpx;
   height: 62rpx;
   margin: 0;
   padding: 0;
@@ -149,23 +154,18 @@
 }
 
 .purchase-title {
+  min-width: 0;
+  flex: 1;
   color: #2b211b;
   font-size: 34rpx;
   font-weight: 820;
 }
 
 .purchase-price {
+  flex: 0 0 auto;
   color: #c05621;
   font-size: 40rpx;
   font-weight: 860;
-}
-
-.purchase-desc {
-  display: block;
-  margin-top: 16rpx;
-  color: #8a7668;
-  font-size: 25rpx;
-  line-height: 1.55;
 }
 
 .feature-list {
@@ -180,9 +180,12 @@
 }
 
 .purchase-button {
-  width: 100%;
+  display: block;
+  box-sizing: border-box;
+  width: auto;
+  max-width: 100%;
   height: 82rpx;
-  margin-top: 28rpx;
+  margin: 28rpx 0 0;
   padding: 0;
   border-radius: 16rpx;
   color: #ffffff;
@@ -194,14 +197,6 @@
 
 .purchase-button::after {
   border: 0;
-}
-
-.purchase-note {
-  display: block;
-  margin-top: 18rpx;
-  color: #a89484;
-  font-size: 20rpx;
-  line-height: 30rpx;
 }
 
 .state-card {

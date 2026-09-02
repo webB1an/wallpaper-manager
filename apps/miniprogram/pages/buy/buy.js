@@ -5,7 +5,7 @@ const payment_1 = require("../../utils/payment");
 Page({
     data: {
         product: null,
-        entitlementText: "尚未开通全部壁纸下载权益",
+        entitlementText: "尚未购买",
         purchased: false,
         resources: [],
         paying: false,
@@ -24,7 +24,7 @@ Page({
             await (0, reward_1.ensureOpenid)();
             const [catalog, delivery] = await Promise.all([(0, payment_1.getPaymentCatalog)(), (0, payment_1.getPaymentDelivery)()]);
             const product = catalog.products.find((item) => item.key === "direct_download_lifetime") || null;
-            let entitlementText = "尚未开通全部壁纸下载权益";
+            let entitlementText = "尚未购买";
             if (catalog.entitlement?.hasPaidDownload) {
                 if (catalog.entitlement.permanent) {
                     entitlementText = "已永久解锁全部壁纸下载";

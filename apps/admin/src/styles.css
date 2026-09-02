@@ -669,6 +669,29 @@ small {
   flex: 1;
 }
 
+.delivery-resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.delivery-resource-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.8fr) 120px minmax(260px, 2fr) minmax(120px, 0.7fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 980px) {
+  .delivery-resource-row {
+    grid-template-columns: 1fr 120px;
+  }
+
+  .delivery-resource-row > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
+
 .muted-text {
   color: #7b887f;
 }

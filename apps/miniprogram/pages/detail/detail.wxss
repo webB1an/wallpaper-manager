@@ -482,13 +482,6 @@
   border: 0;
 }
 
-.paid-download-note {
-  margin-top: 8rpx;
-  color: #a89484;
-  font-size: 20rpx;
-  line-height: 30rpx;
-}
-
 .download-heading {
   display: flex;
   justify-content: space-between;

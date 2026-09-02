@@ -81,6 +81,7 @@ export class AdminController {
     defaultAutoProcess?: boolean;
     defaultAutoPublish?: boolean;
     rewardDownloadType?: RewardDownloadType;
+    permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
   }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
   }

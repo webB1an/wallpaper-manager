@@ -34,6 +34,7 @@ type SystemSettings = {
   miniAdminOpenids?: string[];
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
+  permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
 };
 
 type DiagnosticItem = {
@@ -61,6 +62,12 @@ const DEFAULT_SETTINGS: SystemSettings = {
     { start: "00:00", end: "09:00" },
     { start: "12:00", end: "14:00" },
     { start: "18:00", end: "00:00" },
+  ],
+  permanentDeliveryResources: [
+    { name: "百度网盘 1", provider: "baidu", url: "https://pan.baidu.com/s/1GXNyw2r1PdBxiELPFdw7GQ?pwd=8888", passcode: "8888" },
+    { name: "百度网盘 2", provider: "baidu", url: "https://pan.baidu.com/s/1mrjt24X6mE6SGufD640k9w?pwd=8888", passcode: "8888" },
+    { name: "夸克网盘 1", provider: "quark", url: "https://pan.quark.cn/s/a9f27f37d4bf" },
+    { name: "夸克网盘 2", provider: "quark", url: "https://pan.quark.cn/s/69df606f9f99" },
   ],
 };
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
@@ -529,6 +536,9 @@ export class AdminService implements OnModuleInit {
       ...(Array.isArray(input.processIdleWindows) ? { processIdleWindows: sanitizeIdleWindows(input.processIdleWindows) } : {}),
       ...(Array.isArray(input.miniAdminOpenids)
         ? { miniAdminOpenids: [...new Set(input.miniAdminOpenids.map((item) => String(item).trim()).filter(Boolean))] }
+        : {}),
+      ...(Array.isArray(input.permanentDeliveryResources)
+        ? { permanentDeliveryResources: sanitizeDeliveryResources(input.permanentDeliveryResources) }
         : {}),
     };
     await this.prisma.setting.upsert({
@@ -1867,6 +1877,23 @@ export class AdminService implements OnModuleInit {
       lockedUntil: count >= MAX_LOGIN_ATTEMPTS ? now + LOGIN_LOCK_MS : undefined,
     });
   }
+}
+
+function sanitizeDeliveryResources(resources: NonNullable<SystemSettings["permanentDeliveryResources"]>) {
+  return resources.map((item, index) => {
+    const name = String(item?.name || "").trim();
+    const url = String(item?.url || "").trim();
+    const provider: "baidu" | "quark" = item?.provider === "quark" ? "quark" : "baidu";
+    const passcode = String(item?.passcode || "").trim();
+    if (!name || !url) throw new BadRequestException(`第 ${index + 1} 个永久权益资源缺少名称或链接`);
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:") throw new Error("invalid protocol");
+    } catch {
+      throw new BadRequestException(`第 ${index + 1} 个永久权益资源链接必须是有效的 HTTPS 地址`);
+    }
+    return { name, provider, url, ...(passcode ? { passcode } : {}) };
+  });
 }
 
 async function detectOrientation(path: string): Promise<WallpaperOrientation> {

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma, VirtualPaymentOrderStatus } from "@prisma/client";
 import { createHash, createHmac, randomBytes } from "node:crypto";
@@ -66,14 +66,24 @@ type DownloadAccess =
   | { allowed: true; type: "paid_single"; remaining: number };
 
 @Injectable()
-export class PaymentService {
+export class PaymentService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PaymentService.name);
   private accessToken?: { token: string; expiresAt: number };
+  private orderSyncTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {}
+
+  onModuleInit() {
+    this.orderSyncTimer = setInterval(() => void this.syncPendingOrders(), 5 * 60_000);
+    this.orderSyncTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.orderSyncTimer) clearInterval(this.orderSyncTimer);
+  }
 
   async catalog(openid?: string) {
     const entitlement = openid ? await this.entitlementStatus(openid) : null;
@@ -98,7 +108,7 @@ export class PaymentService {
     const entitlement = await this.entitlementStatus(session.openid);
     return {
       purchased: entitlement.permanent,
-      resources: entitlement.permanent ? this.deliveryResources() : [],
+      resources: entitlement.permanent ? await this.deliveryResources() : [],
     };
   }
 
@@ -195,6 +205,9 @@ export class PaymentService {
     const jsonMode = contentType.toLowerCase().includes("json") || rawBody.trimStart().startsWith("{");
     const parsed = jsonMode ? parseJsonNotify(rawBody) : parseNotifyXml(rawBody);
     const event = asText(parsed.Event);
+    if (event === "xpay_refund_notify") {
+      return this.handleRefundNotify(parsed, contentType);
+    }
     if (event !== "xpay_goods_deliver_notify") {
       this.logger.warn(`忽略非发货事件：${event || "未知"}`);
       return this.notifyResponse(contentType, "", true);
@@ -224,6 +237,16 @@ export class PaymentService {
     if (quantity !== order.buyQuantity) {
       this.logger.error("发货推送购买数量不匹配", { expected: order.buyQuantity, actual: quantity });
       return this.notifyResponse(contentType, "订单数量不匹配");
+    }
+    if (wxOrderId) {
+      const deliveredOrder = await this.prisma.virtualPaymentOrder.findFirst({
+        where: { wxOrderId, status: VirtualPaymentOrderStatus.delivered },
+        select: { outTradeNo: true },
+      });
+      if (deliveredOrder && deliveredOrder.outTradeNo !== outTradeNo) {
+        this.logger.error("平台订单号已关联其他已发货订单", { wxOrderId, outTradeNo });
+        return this.notifyResponse(contentType, "平台订单号冲突");
+      }
     }
     if (!actualPrice || actualPrice !== order.totalFee) {
       this.logger.error("发货推送金额不匹配", { expected: order.totalFee, actual: actualPrice });
@@ -326,6 +349,44 @@ export class PaymentService {
         data: { status: mapped, lastQueryAt: new Date() },
       });
     }
+  }
+
+  private async syncPendingOrders() {
+    if (!this.config.get<string>("VIRTUAL_PAY_OFFER_ID")?.trim() || !this.config.get<string>("VIRTUAL_PAY_APP_KEY")?.trim()) return;
+    const staleBefore = new Date(Date.now() - 5 * 60_000);
+    const recentAfter = new Date(Date.now() - 24 * 60 * 60_000);
+    const orders = await this.prisma.virtualPaymentOrder.findMany({
+      where: {
+        status: { in: [VirtualPaymentOrderStatus.pending, VirtualPaymentOrderStatus.paid] },
+        createdAt: { gt: recentAfter },
+        OR: [{ lastQueryAt: null }, { lastQueryAt: { lt: staleBefore } }],
+      },
+      orderBy: { createdAt: "asc" },
+      take: 50,
+      select: { outTradeNo: true },
+    });
+    for (const order of orders) {
+      try {
+        await this.syncOrder(order.outTradeNo);
+      } catch (error) {
+        this.logger.warn(`虚拟支付兜底查单失败：${order.outTradeNo} ${(error as Error).message}`);
+      }
+    }
+  }
+
+  private async handleRefundNotify(parsed: ParsedNotify, contentType: string) {
+    const outTradeNo = asText(parsed.OutTradeNo);
+    if (!outTradeNo) return this.notifyResponse(contentType, "退款通知缺少 OutTradeNo");
+    await this.prisma.$transaction(async (tx) => {
+      const order = await tx.virtualPaymentOrder.findUnique({ where: { outTradeNo }, select: { outTradeNo: true } });
+      if (!order) return;
+      await tx.virtualPaymentEntitlement.deleteMany({ where: { sourceOrderId: outTradeNo } });
+      await tx.virtualPaymentOrder.update({
+        where: { outTradeNo },
+        data: { status: VirtualPaymentOrderStatus.refunded, rawPayload: parsed as unknown as Prisma.InputJsonValue },
+      });
+    });
+    return this.notifyResponse(contentType, "", true);
   }
 
   private async deliverOrder(
@@ -522,35 +583,49 @@ export class PaymentService {
     ];
   }
 
-  private deliveryResources(): DeliveryResource[] {
-    return [
+  private async deliveryResources(): Promise<DeliveryResource[]> {
+    const defaults: Omit<DeliveryResource, "key">[] = [
       {
-        key: "baidu-1",
         name: "百度网盘 1",
         provider: "baidu",
         url: "https://pan.baidu.com/s/1GXNyw2r1PdBxiELPFdw7GQ?pwd=8888",
         passcode: "8888",
       },
       {
-        key: "baidu-2",
         name: "百度网盘 2",
         provider: "baidu",
         url: "https://pan.baidu.com/s/1mrjt24X6mE6SGufD640k9w?pwd=8888",
         passcode: "8888",
       },
       {
-        key: "quark-1",
         name: "夸克网盘 1",
         provider: "quark",
         url: "https://pan.quark.cn/s/a9f27f37d4bf",
       },
       {
-        key: "quark-2",
         name: "夸克网盘 2",
         provider: "quark",
         url: "https://pan.quark.cn/s/69df606f9f99",
       },
     ];
+    const row = await this.prisma.setting.findUnique({ where: { key: "system" }, select: { value: true } });
+    const configured = (row?.value as { permanentDeliveryResources?: unknown } | null)?.permanentDeliveryResources;
+    const resources = Array.isArray(configured) ? configured : defaults;
+    return resources.flatMap((raw, index) => {
+      if (!raw || typeof raw !== "object") return [];
+      const item = raw as Record<string, unknown>;
+      const name = String(item.name || "").trim();
+      const url = String(item.url || "").trim();
+      if (!name || !url) return [];
+      const passcode = String(item.passcode || "").trim();
+      return [{
+        key: `delivery-${index + 1}`,
+        name,
+        provider: item.provider === "quark" ? "quark" as const : "baidu" as const,
+        url,
+        ...(passcode ? { passcode } : {}),
+      }];
+    });
   }
 
   private notifyResponse(contentType: string, message: string, success = false) {
@@ -563,7 +638,10 @@ export class PaymentService {
 
   private verifyMessageSignature(query: { signature?: string; timestamp?: string; nonce?: string; echostr?: string }) {
     const token = this.config.get<string>("WECHAT_MESSAGE_TOKEN")?.trim() || "";
-    if (!token) return true;
+    if (!token) {
+      this.logger.error("WECHAT_MESSAGE_TOKEN 未配置，拒绝处理虚拟支付通知");
+      return false;
+    }
     if (!query.signature || !query.timestamp || !query.nonce) return false;
     const raw = [token, query.timestamp, query.nonce].sort().join("");
     return createHash("sha1").update(raw).digest("hex") === query.signature;
@@ -589,7 +667,19 @@ function parseJsonNotify(raw: string): ParsedNotify {
     OutTradeNo: firstValue(payload, "OutTradeNo", "outTradeNo", "out_trade_no"),
     Env: firstValue(payload, "Env", "env"),
     WeChatPayInfo: normalizeNestedNotify(firstValue(payload, "WeChatPayInfo", "weChatPayInfo")) as ParsedNotify["WeChatPayInfo"],
-    GoodsInfo: normalizeNestedNotify(firstValue(payload, "GoodsInfo", "goodsInfo")) as ParsedNotify["GoodsInfo"],
+    GoodsInfo: normalizeGoodsInfo(firstValue(payload, "GoodsInfo", "goodsInfo")),
+  };
+}
+
+function normalizeGoodsInfo(value: unknown): ParsedNotify["GoodsInfo"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  return {
+    ProductId: firstValue(source, "ProductId", "productId", "product_id"),
+    Quantity: firstValue(source, "Quantity", "quantity"),
+    OrigPrice: firstValue(source, "OrigPrice", "origPrice", "orig_price"),
+    ActualPrice: firstValue(source, "ActualPrice", "actualPrice", "actual_price"),
+    Attach: firstValue(source, "Attach", "attach"),
   };
 }
 

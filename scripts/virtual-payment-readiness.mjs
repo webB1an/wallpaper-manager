@@ -30,13 +30,17 @@ add(Boolean(offerId) && !["CHANGE_ME", ""].includes(offerId), "offer_id", "虚�
 const appKey = String(env.VIRTUAL_PAY_APP_KEY || "").trim();
 add(Boolean(appKey) && !["CHANGE_ME", ""].includes(appKey), "app_key", "现网 AppKey", appKey ? "已配置" : "未配置", "在 MP 后台「虚拟支付 → 基本配置」获取现网 AppKey。");
 
+const messageToken = String(env.WECHAT_MESSAGE_TOKEN || "").trim();
+add(Boolean(messageToken) && messageToken !== "CHANGE_ME", "message_token", "消息推送 Token", messageToken ? "已配置" : "未配置", "服务器 .env 填写与 MP 后台消息推送配置一致的 WECHAT_MESSAGE_TOKEN。");
+
 const lifetimeProductId = String(env.VIRTUAL_PAY_LIFETIME_PRODUCT_ID || "").trim();
 add(Boolean(lifetimeProductId) && lifetimeProductId !== "CHANGE_ME", "lifetime_product", "全部壁纸永久下载道具 ID", lifetimeProductId || "未配置", "在 MP 后台「道具管理」创建并发布后，将道具 ID 填入 VIRTUAL_PAY_LIFETIME_PRODUCT_ID。");
 
 add(paymentService.includes("requestVirtualPayment&"), "pay_sig", "支付签名 paySig", "服务端已实现 requestVirtualPayment&signData 的 HMAC-SHA256", "保持签名算法与官方一致。");
-add(paymentService.includes("/xpay/query_order"), "query_order", "兜底查单", "服务端已接入 /xpay/query_order", "保持 query_order 兜底发货逻辑。");
+add(paymentService.includes("/xpay/query_order") && paymentService.includes("syncPendingOrders"), "query_order", "定时兜底查单", "服务端已接入 /xpay/query_order 并每 5 分钟补查待确认订单", "保持 query_order 定时兜底发货逻辑。");
 add(paymentController.includes('@Post("notify")'), "notify_route", "发货推送路由", "服务端已提供 POST /api/pay/notify", "在 MP 后台发货推送配置中填写公网回调地址。");
 add(paymentService.includes("status === VirtualPaymentOrderStatus.delivered"), "idempotent", "发货幂等", "以订单状态和 wx_order_id 去重", "保留幂等判断，避免重复发货。");
+add(paymentService.includes('event === "xpay_refund_notify"'), "refund_notify", "退款通知", "服务端会接收退款通知并撤销对应权益", "上线前分别验证 Android 和 iOS 退款通知。");
 add(paymentFrontend.includes("wx.requestVirtualPayment"), "frontend_pay", "前端支付调用", "已调用 wx.requestVirtualPayment", "在真机完成支付联调。");
 add(detailFrontend.includes("onPaidDownload"), "frontend_scenario", "永久下载入口", "详情页已增加永久下载权益入口", "按运营需要配置道具价格后发布。");
 add(buyFrontend.includes("direct_download_lifetime") && buyFrontend.includes("payProduct"), "buy_tab", "全部壁纸购买 tab", "已新增独立购买页并接入永久全部壁纸下载权益", "确认 tab 图标、文案和道具 ID 后发布。");
@@ -65,8 +69,8 @@ manual.push({
 manual.push({
   key: "rules",
   label: "退款与费率告知",
-  message: "上线前需在用户可见处说明 Android 1%、iOS 12%，以及退款规则。",
-  nextStep: "在“我的”或付费弹窗中补充说明，确保用户支付前可见。",
+  message: "官方部署清单要求上线前向用户说明退款、结算周期与费率规则。",
+  nextStep: "在独立的“购买须知”或用户协议页面说明，避免占用购买卡片主视觉，并确保支付前可进入查看。",
 });
 
 const summary = checks.reduce((acc, item) => {

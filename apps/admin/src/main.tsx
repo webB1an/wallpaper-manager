@@ -117,6 +117,7 @@ type SystemSettings = {
   rewardDownloadType: string;
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
+  permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
 };
 
 type StorageSelectionForm = {
@@ -1614,6 +1615,34 @@ function Settings() {
             )}
           </Form.List>
           <div className="form-hint">非空闲时段上传的壁纸会排队，等到下一个空闲时段自动处理；格式 HH:mm，结束填 00:00 表示次日零点。</div>
+        </div>
+        <div className="form-field">
+          <div className="form-label">永久下载权益交付资源</div>
+          <Form.List name="permanentDeliveryResources">
+            {(fields, { add, remove }) => (
+              <div className="delivery-resource-list">
+                {fields.map((field) => (
+                  <div key={field.key} className="delivery-resource-row">
+                    <Form.Item name={[field.name, "name"]} noStyle rules={[{ required: true, message: "请填写资源名称" }]}>
+                      <Input placeholder="资源名称" />
+                    </Form.Item>
+                    <Form.Item name={[field.name, "provider"]} noStyle rules={[{ required: true }]}>
+                      <Select options={[{ value: "baidu", label: "百度网盘" }, { value: "quark", label: "夸克网盘" }]} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, "url"]} noStyle rules={[{ required: true, type: "url", message: "请填写有效链接" }]}>
+                      <Input placeholder="https://..." />
+                    </Form.Item>
+                    <Form.Item name={[field.name, "passcode"]} noStyle>
+                      <Input placeholder="提取码（可选）" />
+                    </Form.Item>
+                    <Button size="small" danger type="text" onClick={() => remove(field.name)}>删除</Button>
+                  </div>
+                ))}
+                <Button size="small" type="dashed" onClick={() => add({ name: "", provider: "baidu", url: "", passcode: "" })}>+ 添加交付资源</Button>
+              </div>
+            )}
+          </Form.List>
+          <div className="form-hint">购买永久下载权益后展示给用户，可配置任意数量；保存顺序即小程序展示顺序。</div>
         </div>
         <div className="form-field">
           <div className="form-label">小程序管理员 openid（白名单）</div>
