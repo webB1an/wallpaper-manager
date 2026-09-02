@@ -41,6 +41,7 @@
       <text>购买后获得全部壁纸资源</text>
       <text>一次购买，永久有效</text>
       <text>资源更新后仍可在这里查看</text>
+      <text>享会员求图权益，每月可免费提交</text>
     </view>
     <text wx:else class="purchase-desc">{{item.description}}</text>
     <button class="purchase-button" data-key="{{item.key}}" bindtap="buyAll" loading="{{payingKey === item.key}}" disabled="{{paying}}">{{payingKey === item.key ? '购买中' : (item.entitlementType === 'unlimited_permanent' ? '立即开通永久权益' : '立即购买')}}</button>

@@ -1,0 +1,32 @@
+<view class="page request-page">
+  <view class="request-hero">
+    <text class="request-title">会员求图</text>
+    <text class="request-subtitle">永久下载权益附加服务，我们会尽力查找并更新资源库</text>
+    <text wx:if="{{access}}" class="request-quota">本月剩余 {{access.remaining}} / {{access.monthlyLimit}} 次</text>
+  </view>
+
+  <view wx:if="{{error}}" class="request-state">{{error}}</view>
+  <view wx:elif="{{!loading && access && !access.eligible}}" class="request-state">仅限已开通全部壁纸永久下载权益的用户使用</view>
+  <view wx:elif="{{!loading && access}}" class="request-form">
+    <text class="form-title">提交新需求</text>
+    <input class="request-input" maxlength="60" placeholder="作品、角色或主题" value="{{subject}}" bindinput="onSubjectInput" />
+    <textarea class="request-textarea" maxlength="500" placeholder="请描述画面、风格、清晰度等要求" value="{{description}}" bindinput="onDescriptionInput" />
+    <view class="picker-row">
+      <picker mode="selector" range="{{typeOptions}}" value="{{typeIndex}}" bindchange="onTypeChange"><view>{{typeOptions[typeIndex]}}</view></picker>
+      <picker mode="selector" range="{{orientationOptions}}" value="{{orientationIndex}}" bindchange="onOrientationChange"><view>{{orientationOptions[orientationIndex]}}</view></picker>
+    </view>
+    <text class="request-rule">求图为会员附加服务，不保证指定内容一定能找到或在指定时间收录；找到后将加入壁纸库。</text>
+    <button class="submit-request" disabled="{{submitting || access.hasActive || access.remaining <= 0}}" loading="{{submitting}}" bindtap="submit">{{access.hasActive ? '已有需求处理中' : (access.remaining <= 0 ? '本月次数已用完' : '提交求图')}}</button>
+  </view>
+
+  <view wx:if="{{items.length}}" class="request-history">
+    <text class="history-heading">我的求图</text>
+    <view wx:for="{{items}}" wx:key="id" class="request-card">
+      <view class="request-card-head"><text>{{item.subject}}</text><text>{{item.statusText}}</text></view>
+      <text class="request-description">{{item.description}}</text>
+      <text wx:if="{{item.adminNote}}" class="admin-note">处理说明：{{item.adminNote}}</text>
+      <image wx:if="{{item.wallpaper}}" src="{{item.wallpaper.coverUrl}}" mode="aspectFill" data-id="{{item.wallpaper.id}}" bindtap="openWallpaper" />
+      <text class="request-date">{{item.createdText}}</text>
+    </view>
+  </view>
+</view>

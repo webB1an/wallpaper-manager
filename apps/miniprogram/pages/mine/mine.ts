@@ -2,6 +2,7 @@ import { request } from "../../utils/api";
 import { ensureOpenid, getRewardStatus } from "../../utils/reward";
 import { readDownloadHistory, readFavorites, replaceDownloads, replaceFavorites } from "../../utils/local-history";
 import type { LocalWallpaper } from "../../utils/local-history";
+import { getPaymentCatalog } from "../../utils/payment";
 
 const HISTORY_KEY = "wallpaper_download_history";
 
@@ -26,7 +27,8 @@ Page({
     favorites: [] as LocalWallpaper[],
     quotaText: "",
     userOpenid: "",
-    isAdmin: false
+    isAdmin: false,
+    hasPermanentRequestAccess: false
   },
 
   onShow() {
@@ -38,6 +40,20 @@ Page({
     void this.syncFromServer();
     void this.loadOpenid();
     void this.loadAdminStatus();
+    void this.loadMemberAccess();
+  },
+
+  async loadMemberAccess() {
+    try {
+      const catalog = await getPaymentCatalog();
+      this.setData({ hasPermanentRequestAccess: Boolean(catalog.entitlement?.permanent) });
+    } catch {
+      this.setData({ hasPermanentRequestAccess: false });
+    }
+  },
+
+  goMemberRequest() {
+    wx.navigateTo({ url: "/pages/request/request" });
   },
 
   async loadAdminStatus() {

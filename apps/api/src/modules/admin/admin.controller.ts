@@ -58,6 +58,18 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get("wallpaper-requests")
+  async wallpaperRequests(@Query("status") status?: string) {
+    return { code: 200, data: await this.admin.listWallpaperRequests(status) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Patch("wallpaper-requests/:id")
+  async updateWallpaperRequest(@Param("id") id: string, @Body() body: { status?: string; adminNote?: string; wallpaperId?: string | null }) {
+    return { code: 200, data: await this.admin.updateWallpaperRequest(id, body) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Get("diagnostics")
   async diagnostics() {
     return { code: 200, data: await this.admin.diagnostics() };
@@ -87,6 +99,7 @@ export class AdminController {
       entitlementType: "single_download" | "unlimited_days" | "unlimited_permanent" | "remove_ads_days";
       entitlementValue: number; enabled: boolean;
     }>;
+    memberRequestMonthlyLimit?: number;
   }) {
     return { code: 200, data: await this.admin.updateSettings(body) };
   }

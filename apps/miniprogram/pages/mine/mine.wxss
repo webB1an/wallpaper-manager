@@ -36,6 +36,39 @@
   color: #ffe4c9;
 }
 
+.member-request-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding: 26rpx 28rpx;
+  border: 1rpx solid #ead8c4;
+  border-radius: 16rpx;
+  background: #ffffff;
+}
+
+.member-request-title,
+.member-request-desc {
+  display: block;
+}
+
+.member-request-title {
+  color: #2b211b;
+  font-size: 29rpx;
+  font-weight: 800;
+}
+
+.member-request-desc {
+  margin-top: 8rpx;
+  color: #8a7668;
+  font-size: 22rpx;
+}
+
+.member-request-arrow {
+  color: #c05621;
+  font-size: 44rpx;
+}
+
 .panel {
   margin-top: 26rpx;
   overflow: hidden;

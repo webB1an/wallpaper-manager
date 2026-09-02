@@ -9,7 +9,7 @@ import { copyFile, mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
-import { Prisma, RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { Prisma, RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperRequestStatus, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
@@ -46,6 +46,7 @@ type SystemSettings = {
     entitlementValue: number;
     enabled: boolean;
   }>;
+  memberRequestMonthlyLimit?: number;
 };
 
 type DiagnosticItem = {
@@ -80,6 +81,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
     { name: "夸克网盘 1", provider: "quark", url: "https://pan.quark.cn/s/a9f27f37d4bf" },
     { name: "夸克网盘 2", provider: "quark", url: "https://pan.quark.cn/s/69df606f9f99" },
   ],
+  memberRequestMonthlyLimit: 3,
 };
 const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -533,7 +535,7 @@ export class AdminService implements OnModuleInit {
         key: "direct_download_lifetime",
         productId: "download_lifetime",
         name: "全部壁纸永久下载权益",
-        description: "购买后获得全部壁纸资源，一次购买永久有效，资源更新后仍可查看。",
+        description: "购买后获得全部壁纸资源，一次购买永久有效，并享会员免费求图权益。",
         goodsPrice: 100,
         buyQuantity: 1,
         entitlementType: "unlimited_permanent",
@@ -568,6 +570,9 @@ export class AdminService implements OnModuleInit {
       ...(Array.isArray(input.virtualPaymentProducts)
         ? { virtualPaymentProducts: sanitizeVirtualPaymentProducts(input.virtualPaymentProducts) }
         : {}),
+      ...(Number.isInteger(input.memberRequestMonthlyLimit) && Number(input.memberRequestMonthlyLimit) >= 0
+        ? { memberRequestMonthlyLimit: Math.min(100, Number(input.memberRequestMonthlyLimit)) }
+        : {}),
     };
     await this.prisma.setting.upsert({
       where: { key: "system" },
@@ -575,6 +580,35 @@ export class AdminService implements OnModuleInit {
       create: { key: "system", value },
     });
     return value;
+  }
+
+  async listWallpaperRequests(status?: string) {
+    const normalized = Object.values(WallpaperRequestStatus).includes(status as WallpaperRequestStatus)
+      ? status as WallpaperRequestStatus : undefined;
+    return this.prisma.wallpaperRequest.findMany({
+      where: normalized ? { status: normalized } : {},
+      include: { wallpaper: { select: { id: true, title: true, coverUrl: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+    });
+  }
+
+  async updateWallpaperRequest(id: string, input: { status?: string; adminNote?: string; wallpaperId?: string | null }) {
+    const current = await this.prisma.wallpaperRequest.findUnique({ where: { id } });
+    if (!current) throw new BadRequestException("求图需求不存在");
+    const status = Object.values(WallpaperRequestStatus).includes(input.status as WallpaperRequestStatus)
+      ? input.status as WallpaperRequestStatus : current.status;
+    const wallpaperId = input.wallpaperId === null ? null : String(input.wallpaperId || "").trim() || current.wallpaperId;
+    if (status === WallpaperRequestStatus.fulfilled && !wallpaperId) throw new BadRequestException("标记已收录前请填写关联壁纸 ID");
+    if (wallpaperId) {
+      const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId }, select: { status: true } });
+      if (!wallpaper || wallpaper.status !== WallpaperStatus.published) throw new BadRequestException("关联壁纸不存在或尚未上架");
+    }
+    return this.prisma.wallpaperRequest.update({
+      where: { id },
+      data: { status, adminNote: String(input.adminNote || "").trim() || null, wallpaperId },
+      include: { wallpaper: { select: { id: true, title: true, coverUrl: true } } },
+    });
   }
 
   async diagnostics(): Promise<DiagnosticItem[]> {

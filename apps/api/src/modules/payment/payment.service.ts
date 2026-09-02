@@ -116,6 +116,11 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async openidForCode(code: string) {
+    if (!code?.trim()) throw new BadRequestException("缺少微信登录凭证");
+    return (await this.code2Session(code)).openid;
+  }
+
   async createOrder(code: string, productKey: string) {
     if (!code?.trim()) throw new BadRequestException("缺少微信登录凭证");
     const session = await this.code2Session(code);
@@ -577,7 +582,7 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
         key: "direct_download_lifetime",
         productId: "download_lifetime",
         name: "全部壁纸永久下载权益",
-        description: "一次购买，永久不限次数直接保存全部已上架壁纸，无需观看激励视频。",
+        description: "购买后获得全部壁纸资源，一次购买永久有效，并享会员免费求图权益。",
         goodsPrice: 100,
         buyQuantity: 1,
         entitlementType: "unlimited_permanent",

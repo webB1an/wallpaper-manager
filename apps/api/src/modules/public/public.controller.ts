@@ -110,6 +110,21 @@ export class PublicController {
     return { code: 200, data: await this.service.getUserStatus(openid || "") };
   }
 
+  @Post("user/wallpaper-requests/status")
+  async wallpaperRequestStatus(@Body() body: { code?: string }) {
+    return { code: 200, data: await this.service.memberRequestStatusByCode(body.code || "") };
+  }
+
+  @Post("user/wallpaper-requests/list")
+  async wallpaperRequests(@Body() body: { code?: string }) {
+    return { code: 200, data: await this.service.memberRequests(body.code || "") };
+  }
+
+  @Post("user/wallpaper-requests")
+  async createWallpaperRequest(@Body() body: { code?: string; subject?: string; description?: string; wallpaperType?: string; orientation?: string }) {
+    return { code: 200, data: await this.service.createMemberRequest(body.code || "", body) };
+  }
+
   @Post("wallpapers/:id/offline")
   async offlineWallpaper(@Headers("x-openid") openid: string, @Param("id") id: string) {
     return { code: 200, data: await this.service.offlineWallpaper(openid || "", id) };

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperRequestStatus, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { nanoid } from "nanoid";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, unlink } from "node:fs/promises";
@@ -22,6 +22,56 @@ export class PublicService {
   /** 标签封面缓存：每个标签每 TAG_COVER_TTL_MS 随机换一张封面。 */
   private readonly tagCoverCache = new Map<string, { coverUrl: string; expiresAt: number }>();
   private readonly TAG_COVER_TTL_MS = 6 * 60 * 60 * 1000;
+
+  async memberRequestStatusByCode(code: string) {
+    const openid = await this.payment.openidForCode(code);
+    return this.memberRequestStatus(openid);
+  }
+
+  private async memberRequestStatus(openid: string) {
+    const entitlement = await this.payment.entitlementStatus(openid);
+    const settings = await this.prisma.setting.findUnique({ where: { key: "system" }, select: { value: true } });
+    const configuredLimit = Number((settings?.value as { memberRequestMonthlyLimit?: unknown } | null)?.memberRequestMonthlyLimit);
+    const monthlyLimit = Number.isInteger(configuredLimit) && configuredLimit >= 0 ? Math.min(100, configuredLimit) : 3;
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const [used, active] = await Promise.all([
+      this.prisma.wallpaperRequest.count({ where: { userId: openid, createdAt: { gte: monthStart } } }),
+      this.prisma.wallpaperRequest.findFirst({
+        where: { userId: openid, status: { in: [WallpaperRequestStatus.pending, WallpaperRequestStatus.searching] } },
+        select: { id: true, status: true },
+      }),
+    ]);
+    return { eligible: entitlement.permanent, monthlyLimit, used, remaining: Math.max(0, monthlyLimit - used), hasActive: Boolean(active) };
+  }
+
+  async memberRequests(code: string) {
+    const openid = await this.payment.openidForCode(code);
+    return this.prisma.wallpaperRequest.findMany({
+      where: { userId: openid },
+      orderBy: { createdAt: "desc" },
+      include: { wallpaper: { select: { id: true, title: true, coverUrl: true } } },
+      take: 50,
+    });
+  }
+
+  async createMemberRequest(code: string, input: { subject?: string; description?: string; wallpaperType?: string; orientation?: string }) {
+    const openid = await this.payment.openidForCode(code);
+    const access = await this.memberRequestStatus(openid);
+    if (!access.eligible) throw new BadRequestException("仅限已开通全部壁纸永久下载权益的用户提交求图");
+    if (access.hasActive) throw new BadRequestException("已有一个求图需求正在处理中，请等待处理完成");
+    if (access.remaining <= 0) throw new BadRequestException("本月免费求图次数已用完，下月可继续提交");
+    const subject = String(input.subject || "").trim();
+    const description = String(input.description || "").trim();
+    if (subject.length < 2 || subject.length > 60) throw new BadRequestException("作品、角色或主题请填写 2–60 个字");
+    if (description.length < 5 || description.length > 500) throw new BadRequestException("求图说明请填写 5–500 个字");
+    const wallpaperType = ["static", "live", "mobile", "desktop", "other"].includes(String(input.wallpaperType))
+      ? input.wallpaperType as WallpaperType : WallpaperType.static;
+    const orientation = ["portrait", "landscape", "square", "unknown"].includes(String(input.orientation))
+      ? input.orientation as WallpaperOrientation : WallpaperOrientation.portrait;
+    return this.prisma.wallpaperRequest.create({ data: { userId: openid, subject, description, wallpaperType, orientation } });
+  }
 
   async list(query: { page?: number; pageSize?: number; keyword?: string; tag?: string; type?: string; orientation?: string; sort?: string }, openid?: string) {
     const page = positiveInt(query.page, 1, "页码");

@@ -37,6 +37,20 @@ type TaskItem = {
   result?: { warnings?: string[] };
 };
 
+type MemberWallpaperRequest = {
+  id: string;
+  userId: string;
+  subject: string;
+  description: string;
+  wallpaperType: string;
+  orientation: string;
+  status: string;
+  adminNote?: string;
+  wallpaperId?: string;
+  wallpaper?: { id: string; title: string; coverUrl: string } | null;
+  createdAt: string;
+};
+
 type TaskSummary = {
   todayTotal: number;
   active: number;
@@ -129,6 +143,7 @@ type SystemSettings = {
     entitlementValue: number;
     enabled: boolean;
   }>;
+  memberRequestMonthlyLimit?: number;
 };
 
 type StorageSelectionForm = {
@@ -252,6 +267,7 @@ function App() {
               { key: "upload", icon: <UploadCloud size={18} />, label: "批量上传" },
               { key: "tasks", icon: <ListChecks size={18} />, label: "任务队列" },
               { key: "searchLogs", icon: <Search size={18} />, label: "搜索日志" },
+              { key: "memberRequests", icon: <Search size={18} />, label: "会员求图" },
               { key: "analytics", icon: <TrendingUp size={18} />, label: "运营分析" },
               { key: "import", icon: <CloudUpload size={18} />, label: "老封面迁移" },
               { key: "storageAccounts", icon: <HardDrive size={18} />, label: "网盘账号" },
@@ -267,6 +283,7 @@ function App() {
           {active === "upload" && <Uploader />}
           {active === "tasks" && <Tasks />}
           {active === "searchLogs" && <SearchLogs />}
+          {active === "memberRequests" && <MemberRequests />}
           {active === "analytics" && <Analytics />}
           {active === "import" && <OldImport />}
           {active === "storageAccounts" && <StorageAccounts />}
@@ -1550,6 +1567,68 @@ function TagCloud({ items, gap }: { items: Array<{ keyword: string; count: numbe
   );
 }
 
+function MemberRequests() {
+  const [items, setItems] = useState<MemberWallpaperRequest[]>([]);
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [editing, setEditing] = useState<MemberWallpaperRequest | null>(null);
+  const [form] = Form.useForm();
+  const load = async (nextStatus = status) => {
+    setLoading(true);
+    try {
+      setItems(await request<MemberWallpaperRequest[]>(`/api/admin/wallpaper-requests${nextStatus ? `?status=${nextStatus}` : ""}`));
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { void load(""); }, []);
+  const openEdit = (item: MemberWallpaperRequest) => {
+    setEditing(item);
+    form.setFieldsValue({ status: item.status, adminNote: item.adminNote || "", wallpaperId: item.wallpaperId || "" });
+  };
+  return (
+    <section>
+      <Header title="会员求图" subtitle="处理永久下载权益用户提交的免费求图需求；找到后关联已上架壁纸。" />
+      <Space className="toolbar">
+        <Select value={status} style={{ width: 150 }} onChange={(value) => { setStatus(value); void load(value); }} options={[
+          { value: "", label: "全部状态" }, { value: "pending", label: "待处理" }, { value: "searching", label: "查找中" },
+          { value: "fulfilled", label: "已收录" }, { value: "not_found", label: "暂未找到" }, { value: "closed", label: "已关闭" },
+        ]} />
+        <Button icon={<RefreshCw size={15} />} loading={loading} onClick={() => load()}>刷新</Button>
+      </Space>
+      <Table rowKey="id" loading={loading} dataSource={items} pagination={{ pageSize: 20 }} columns={[
+        { title: "提交时间", dataIndex: "createdAt", width: 170, render: (value: string) => new Date(value).toLocaleString("zh-CN") },
+        { title: "用户", dataIndex: "userId", width: 180, ellipsis: true },
+        { title: "主题", dataIndex: "subject", width: 180 },
+        { title: "需求", dataIndex: "description", ellipsis: true },
+        { title: "规格", width: 130, render: (_: unknown, item: MemberWallpaperRequest) => `${item.wallpaperType} / ${item.orientation}` },
+        { title: "状态", dataIndex: "status", width: 110, render: (value: string) => <Tag>{requestStatusLabel(value)}</Tag> },
+        { title: "关联壁纸", width: 160, render: (_: unknown, item: MemberWallpaperRequest) => item.wallpaper?.title || "-" },
+        { title: "操作", width: 90, render: (_: unknown, item: MemberWallpaperRequest) => <Button size="small" onClick={() => openEdit(item)}>处理</Button> },
+      ]} />
+      <Modal title="处理求图需求" open={Boolean(editing)} onCancel={() => setEditing(null)} onOk={() => form.submit()} destroyOnHidden>
+        <Form form={form} layout="vertical" onFinish={async (values) => {
+          if (!editing) return;
+          await request(`/api/admin/wallpaper-requests/${editing.id}`, { method: "PATCH", body: JSON.stringify(values) });
+          message.success("求图状态已更新");
+          setEditing(null);
+          await load();
+        }}>
+          <Form.Item label="处理状态" name="status" rules={[{ required: true }]}>
+            <Select options={[{ value: "pending", label: "待处理" }, { value: "searching", label: "查找中" }, { value: "fulfilled", label: "已收录" }, { value: "not_found", label: "暂未找到" }, { value: "closed", label: "已关闭" }]} />
+          </Form.Item>
+          <Form.Item label="关联壁纸 ID" name="wallpaperId" tooltip="标记已收录时必填，且壁纸必须已经上架"><Input /></Form.Item>
+          <Form.Item label="给用户的处理说明" name="adminNote"><Input.TextArea rows={4} maxLength={500} showCount /></Form.Item>
+        </Form>
+      </Modal>
+    </section>
+  );
+}
+
+function requestStatusLabel(status: string) {
+  return ({ pending: "待处理", searching: "查找中", fulfilled: "已收录", not_found: "暂未找到", closed: "已关闭" } as Record<string, string>)[status] || status;
+}
+
 function Settings() {
   const [form] = Form.useForm<SystemSettings>();
   const [loading, setLoading] = useState(false);
@@ -1600,6 +1679,9 @@ function Settings() {
             { value: "daily10", label: "当天 10 次" },
             { value: "unlimited", label: "无限次" },
           ]} />
+        </Form.Item>
+        <Form.Item label="永久会员每月免费求图次数" name="memberRequestMonthlyLimit" tooltip="填 0 可暂停新求图">
+          <InputNumber min={0} max={100} precision={0} style={{ width: "100%" }} />
         </Form.Item>
         <div className="form-field settings-wide-field">
           <div className="form-label">虚拟支付商品</div>

@@ -17,6 +17,14 @@
     <text>上传壁纸</text>
   </button>
 
+  <view wx:if="{{hasPermanentRequestAccess}}" class="member-request-entry" bindtap="goMemberRequest">
+    <view>
+      <text class="member-request-title">会员求图</text>
+      <text class="member-request-desc">永久权益附加服务 · 每月享免费求图</text>
+    </view>
+    <text class="member-request-arrow">›</text>
+  </view>
+
   <view class="section-title">
     <text>收藏</text>
     <text wx:if="{{favorites.length}}" class="muted" bindtap="clearFavorites">清空</text>

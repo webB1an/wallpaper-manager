@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const api_1 = require("../../utils/api");
 const reward_1 = require("../../utils/reward");
 const local_history_1 = require("../../utils/local-history");
+const payment_1 = require("../../utils/payment");
 const HISTORY_KEY = "wallpaper_download_history";
 Page({
     data: {
@@ -11,7 +12,8 @@ Page({
         favorites: [],
         quotaText: "",
         userOpenid: "",
-        isAdmin: false
+        isAdmin: false,
+        hasPermanentRequestAccess: false
     },
     onShow() {
         this.setData({
@@ -22,6 +24,19 @@ Page({
         void this.syncFromServer();
         void this.loadOpenid();
         void this.loadAdminStatus();
+        void this.loadMemberAccess();
+    },
+    async loadMemberAccess() {
+        try {
+            const catalog = await (0, payment_1.getPaymentCatalog)();
+            this.setData({ hasPermanentRequestAccess: Boolean(catalog.entitlement?.permanent) });
+        }
+        catch {
+            this.setData({ hasPermanentRequestAccess: false });
+        }
+    },
+    goMemberRequest() {
+        wx.navigateTo({ url: "/pages/request/request" });
     },
     async loadAdminStatus() {
         try {

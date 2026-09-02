@@ -7,6 +7,7 @@
     "pages/tags/tags",
     "pages/detail/detail",
     "pages/upload/upload",
+    "pages/request/request",
     "pages/mine/mine"
   ],
   "window": {

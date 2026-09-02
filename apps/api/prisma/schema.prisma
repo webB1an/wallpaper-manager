@@ -45,6 +45,14 @@ enum VirtualPaymentOrderStatus {
   failed
 }
 
+enum WallpaperRequestStatus {
+  pending
+  searching
+  fulfilled
+  not_found
+  closed
+}
+
 enum StorageProvider {
   quark
   baidu
@@ -88,6 +96,7 @@ model Wallpaper {
   downloadTokens  DownloadToken[]
   favorites       UserFavorite[]
   downloads       UserDownload[]
+  memberRequests  WallpaperRequest[]
   wallpaperSources WallpaperSource[]
   aiAnalysis      AiAnalysis?
   matchKey        String?         @db.VarChar(512)
@@ -167,6 +176,25 @@ model VirtualPaymentEntitlement {
   updatedAt     DateTime  @updatedAt
 
   @@index([openid, type, expiresAt])
+}
+
+model WallpaperRequest {
+  id            String                 @id @default(cuid())
+  userId        String
+  subject       String
+  description   String                 @db.Text
+  wallpaperType WallpaperType          @default(static)
+  orientation   WallpaperOrientation   @default(portrait)
+  status        WallpaperRequestStatus @default(pending)
+  adminNote     String?                @db.Text
+  wallpaperId   String?
+  wallpaper     Wallpaper?             @relation(fields: [wallpaperId], references: [id], onDelete: SetNull)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([wallpaperId])
 }
 
 model DownloadToken {
