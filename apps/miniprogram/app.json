@@ -37,8 +37,8 @@
       {
         "pagePath": "pages/buy/buy",
         "text": "购买",
-        "iconPath": "assets/icons/download.png",
-        "selectedIconPath": "assets/icons/download.png"
+        "iconPath": "assets/tabbar/buy.png",
+        "selectedIconPath": "assets/tabbar/buy-active.png"
       },
       {
         "pagePath": "pages/mine/mine",
