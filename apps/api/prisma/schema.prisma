@@ -89,6 +89,7 @@ model Wallpaper {
   downloadCount   Int             @default(0)
   autoPublish     Boolean         @default(false)
   manualTags      Json?
+  manualTitle     String?
   batchKey        String?
   batchPublishQueued Boolean      @default(false)
   createdAt       DateTime        @default(now())

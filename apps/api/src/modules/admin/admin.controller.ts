@@ -31,7 +31,7 @@ export class AdminController {
     limits: { fileSize: uploadMaxBytes() },
     fileFilter: uploadFileFilter(),
   }))
-  async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string; quarkAccountId?: string; baiduAccountId?: string; channelAccountId?: string; tags?: string }) {
+  async upload(@UploadedFiles() files: Express.Multer.File[], @Body() body: { autoProcess?: string; autoPublish?: string; quarkAccountId?: string; baiduAccountId?: string; channelAccountId?: string; tags?: string; title?: string }) {
     const autoProcess = body.autoProcess === undefined ? undefined : body.autoProcess === "true";
     const autoPublish = body.autoPublish === undefined ? undefined : body.autoPublish === "true";
     try {
@@ -41,6 +41,7 @@ export class AdminController {
         storageSelection: cleanStorageSelection(body),
         channelAccountId: body.channelAccountId?.trim() || undefined,
         tags: parseManualTags(body.tags),
+        title: body.title?.trim() || undefined,
         batchPublish: true,
       });
       return { code: 200, data };

@@ -6,6 +6,7 @@ Page({
     files: [] as Array<{ path: string; preview: string; type: "image" | "video" }>,
     manualTags: [] as string[],
     tagInput: "",
+    titleInput: "",
     autoPublish: false,
     uploading: false,
     isAdmin: true
@@ -69,6 +70,10 @@ Page({
     this.setData({ tagInput: event.detail.value });
   },
 
+  onTitleInput(event: WechatMiniprogram.Input) {
+    this.setData({ titleInput: event.detail.value });
+  },
+
   addTag() {
     const names = this.data.tagInput
       .split(/[,，\n]/)
@@ -99,6 +104,7 @@ Page({
           batchKey,
           batchTotal: String(batchTotal),
           tags: this.data.manualTags.join(","),
+          title: this.data.titleInput.trim(),
         },
         success: (res) => {
           if (res.statusCode >= 200 && res.statusCode < 300) {

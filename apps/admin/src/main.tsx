@@ -1094,6 +1094,7 @@ function Uploader() {
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [batchUploading, setBatchUploading] = useState(false);
   const [manualTags, setManualTags] = useState<string[]>([]);
+  const [manualTitle, setManualTitle] = useState("");
   useEffect(() => {
     Promise.all([
       request<SystemSettings>("/api/admin/settings"),
@@ -1121,6 +1122,7 @@ function Uploader() {
     autoProcess: String(autoProcess),
     autoPublish: String(autoPublish),
     tags: manualTags.join(","),
+    title: manualTitle.trim(),
     ...(autoPublish && channelAccountId ? { channelAccountId } : {}),
     ...(quarkAccountId ? { quarkAccountId } : {}),
     ...(baiduAccountId ? { baiduAccountId } : {}),
@@ -1218,6 +1220,17 @@ function Uploader() {
           maxTagCount={8}
           style={{ width: 320 }}
           allowClear
+        />
+      </div>
+      <div className="upload-options upload-tags-options">
+        <span>手动标题（可选，填写后跳过 AI 识别，直接同步网盘/发帖/上架）</span>
+        <Input
+          placeholder="例如：春日樱花少女"
+          value={manualTitle}
+          onChange={(event) => setManualTitle(event.target.value)}
+          allowClear
+          maxLength={40}
+          style={{ width: 320 }}
         />
       </div>
       <div className="upload-options">

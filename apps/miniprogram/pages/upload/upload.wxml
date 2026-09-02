@@ -28,6 +28,9 @@
     <input class="up-tag-input" placeholder="输入标签后回车，多个用逗号分隔" value="{{tagInput}}" bindinput="onTagInput" bindconfirm="addTag" confirm-type="done" />
     <view class="up-tag-add" bindtap="addTag">添加</view>
   </view>
+  <view class="up-title-row">
+    <input class="up-tag-input" placeholder="标题（可选，填写后跳过 AI 识别，直接同步网盘/发帖/上架）" value="{{titleInput}}" bindinput="onTitleInput" maxlength="40" />
+  </view>
   <view class="up-option">
     <text>上传后自动发帖到频道</text>
     <switch checked="{{autoPublish}}" bindchange="onAutoPublishChange" color="#c05621" />

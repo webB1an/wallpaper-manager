@@ -121,7 +121,7 @@ export class PublicController {
     fileFilter: uploadFileFilter(),
   }))
   @Post("wallpapers/upload")
-  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string; batchKey?: string; batchTotal?: string; tags?: string }) {
+  async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string; batchKey?: string; batchTotal?: string; tags?: string; title?: string }) {
     if (!(await this.service.isMiniAdmin(openid || ""))) throw new ForbiddenException("无上传权限");
     const autoPublish = body.autoPublish === "true";
     try {
@@ -133,6 +133,7 @@ export class PublicController {
           batchKey: body.batchKey?.trim() || undefined,
           batchTotal: Number(body.batchTotal || 0) > 0 ? Number(body.batchTotal) : undefined,
           tags: parseMiniTags(body.tags),
+          title: body.title?.trim() || undefined,
         }),
       };
     } catch (error) {

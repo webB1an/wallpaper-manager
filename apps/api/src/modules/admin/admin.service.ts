@@ -14,6 +14,7 @@ import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
 import { AiService } from "../ai/ai.service";
+import type { WallpaperAnalysis } from "../ai/ai.service";
 import { ChannelService } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaiduStorageService } from "../storage/baidu-storage.service";
@@ -385,12 +386,13 @@ export class AdminService implements OnModuleInit {
     return { token: this.jwt.sign({ sub: username, role: "admin" }) };
   }
 
-  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[]; batchPublish?: boolean; batchKey?: string; batchTotal?: number }) {
+  async createUpload(files: Express.Multer.File[], options?: { autoProcess?: boolean; autoPublish?: boolean; storageSelection?: StorageSelection; channelAccountId?: string; tags?: string[]; batchPublish?: boolean; batchKey?: string; batchTotal?: number; title?: string }) {
     if (!files.length) throw new BadRequestException("请选择要上传的壁纸文件");
     const settings = await this.getSettings();
     const autoProcess = options?.autoProcess ?? settings.defaultAutoProcess;
     const autoPublish = options?.autoPublish ?? settings.defaultAutoPublish;
     const batchKey = options?.batchKey?.trim() || undefined;
+    const manualTitle = options?.title?.trim() || undefined;
     const manualTags = unique((options?.tags || []).map((name) => name.trim()).filter(Boolean));
     const manualTagModels = await Promise.all(manualTags.map((name) => this.prisma.tag.upsert({
       where: { name },
@@ -417,19 +419,21 @@ export class AdminService implements OnModuleInit {
       let wallpaper;
       try {
         const orientation = await detectOrientation(cover.path).catch(() => "unknown" as WallpaperOrientation);
+        const type = detectType(saved.mimeType, saved.originalName);
         wallpaper = await this.prisma.wallpaper.create({
           data: {
-            title: saved.originalName.replace(/\.[^.]+$/, ""),
+            title: manualTitle || saved.originalName.replace(/\.[^.]+$/, ""),
             originalName: saved.originalName,
             mimeType: saved.mimeType,
             fileSize: BigInt(file.size),
             assetPath: saved.relativePath,
             coverPath: cover.relativePath,
             coverUrl: publicAssetUrl(this.config, cover.relativePath),
-            status: autoProcess ? WallpaperStatus.processing : WallpaperStatus.draft,
-            type: detectType(saved.mimeType, saved.originalName),
+            status: autoProcess ? (manualTitle ? WallpaperStatus.pending_review : WallpaperStatus.processing) : WallpaperStatus.draft,
+            type,
             orientation,
             autoPublish,
+            manualTitle,
             ...(batchKey ? { batchKey } : {}),
             manualTags: manualTags.length ? manualTags : undefined,
             ...(manualTags.length ? {
@@ -439,6 +443,29 @@ export class AdminService implements OnModuleInit {
             } : {}),
           },
         });
+        if (manualTitle) {
+          // 手动标题：直接写入 AI 通过记录，跳过 DeepSeek 调用。
+          await this.prisma.aiAnalysis.upsert({
+            where: { wallpaperId: wallpaper.id },
+            update: {
+              title: manualTitle,
+              type,
+              tags: manualTags,
+              sensitiveFlags: [],
+              safe: true,
+              summary: "用户手动填写，跳过 AI 识别",
+            },
+            create: {
+              wallpaperId: wallpaper.id,
+              title: manualTitle,
+              type,
+              tags: manualTags,
+              sensitiveFlags: [],
+              safe: true,
+              summary: "用户手动填写，跳过 AI 识别",
+            },
+          });
+        }
       } catch (error) {
         await Promise.all([
           this.removeUploadedFile(saved.path),
@@ -1093,19 +1120,32 @@ export class AdminService implements OnModuleInit {
     const warnings: string[] = [];
     const taskResult: Record<string, unknown> = {};
     try {
-      await this.tasks.update(taskId, { status: "running", progress: 10, message: "正在 AI 识别" });
-      const analysis = await this.analyzeNow(id);
-      taskResult.ai = { safe: analysis.safe, sensitiveFlags: analysis.sensitiveFlags, tags: analysis.tags };
-      if (!analysis.safe) {
-        await this.tasks.update(taskId, { status: "skipped", progress: 100, message: "AI 审核未通过，已禁止上架", result: taskResult });
-        return { skipped: true, reason: "AI 审核未通过" };
-      }
-
       const wallpaper = await this.prisma.wallpaper.findUnique({
         where: { id },
         include: { storageLinks: true, tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
       });
       if (!wallpaper) throw new Error("壁纸不存在");
+      let analysis: WallpaperAnalysis;
+      if (wallpaper.manualTitle) {
+        // 手动填写标题：跳过 AI 调用，直接使用手动标题与标签。
+        await this.tasks.update(taskId, { status: "running", progress: 10, message: "跳过 AI，使用手动标题与标签" });
+        analysis = {
+          title: wallpaper.title || wallpaper.manualTitle,
+          type: detectType(wallpaper.mimeType || "", wallpaper.originalName) as WallpaperAnalysis["type"],
+          tags: wallpaper.tags.map(({ tag }) => tag.name),
+          sensitiveFlags: [],
+          safe: true,
+          summary: "用户手动填写，跳过 AI 识别",
+        };
+      } else {
+        await this.tasks.update(taskId, { status: "running", progress: 10, message: "正在 AI 识别" });
+        analysis = await this.analyzeNow(id);
+      }
+      taskResult.ai = { safe: analysis.safe, sensitiveFlags: analysis.sensitiveFlags, tags: analysis.tags };
+      if (!analysis.safe) {
+        await this.tasks.update(taskId, { status: "skipped", progress: 100, message: "AI 审核未通过，已禁止上架", result: taskResult });
+        return { skipped: true, reason: "AI 审核未通过" };
+      }
 
       if (wallpaper.assetPath) {
         await this.tasks.update(taskId, { progress: 38, message: "正在同步夸克/百度网盘" });
