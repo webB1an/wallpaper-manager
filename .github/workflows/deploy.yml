@@ -49,6 +49,7 @@ jobs:
           npm audit --omit=dev
 
       - name: Prepare SSH
+        id: prepare_ssh
         run: |
           mkdir -p ~/.ssh
           install -m 600 /dev/null ~/.ssh/deploy_key
@@ -91,7 +92,7 @@ jobs:
             "cd '${DEPLOY_PATH}' && npm run smoke:production && npm run smoke:storage-accounts && npm run smoke:channel-accounts && npm run smoke:upload-routing"
 
       - name: Launch readiness report
-        if: always()
+        if: ${{ always() && steps.prepare_ssh.outcome == 'success' }}
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT || '22' }}" \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
