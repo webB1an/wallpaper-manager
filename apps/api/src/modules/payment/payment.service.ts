@@ -138,6 +138,7 @@ export class PaymentService implements OnModuleInit, OnModuleDestroy {
     const attach = JSON.stringify({
       openid: session.openid,
       productKey: product.key,
+      productName: product.name,
       entitlementType: product.entitlementType,
       entitlementValue: product.entitlementValue,
       source: "wallpaper-manager",

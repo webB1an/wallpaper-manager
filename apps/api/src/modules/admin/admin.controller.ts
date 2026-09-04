@@ -25,6 +25,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Get("payment-orders")
+  async paymentOrders(@Query() query: { page?: number; keyword?: string; status?: string }) {
+    return { code: 200, data: await this.admin.listPaymentOrders(query) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Post("uploads")
   @UseInterceptors(FilesInterceptor("files", 50, {
     storage: uploadDiskStorage(),

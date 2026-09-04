@@ -9,7 +9,7 @@ import { copyFile, mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import sharp from "sharp";
 import { nanoid } from "nanoid";
-import { Prisma, RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperRequestStatus, WallpaperStatus, WallpaperType } from "@prisma/client";
+import { Prisma, RewardDownloadType, StorageProvider, VirtualPaymentOrderStatus, WallpaperOrientation, WallpaperRequestStatus, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { runCli } from "../../common/cli";
 import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
@@ -544,6 +544,36 @@ export class AdminService implements OnModuleInit {
       }];
     }
     return settings;
+  }
+
+  async listPaymentOrders(query: { page?: number; keyword?: string; status?: string }) {
+    const page = positiveInt(query.page, 1, "页码", 10000);
+    const pageSize = 20;
+    const paidStatuses: VirtualPaymentOrderStatus[] = ["paid", "delivered", "refunded"];
+    if (query.status && !paidStatuses.includes(query.status as VirtualPaymentOrderStatus)) throw new BadRequestException("付费状态无效");
+    if (query.keyword !== undefined && typeof query.keyword !== "string") throw new BadRequestException("搜索内容无效");
+    const keyword = query.keyword?.trim();
+    const where: Prisma.VirtualPaymentOrderWhereInput = {
+      status: query.status ? query.status as VirtualPaymentOrderStatus : { in: paidStatuses },
+      ...(keyword ? { OR: [{ outTradeNo: { contains: keyword } }, { openid: { contains: keyword } }] } : {}),
+    };
+    const [orders, total, settings] = await Promise.all([
+      this.prisma.virtualPaymentOrder.findMany({
+        where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page - 1) * pageSize, take: pageSize,
+        select: { outTradeNo: true, openid: true, productKey: true, totalFee: true, buyQuantity: true, status: true, paidAt: true, deliveredAt: true, createdAt: true, attach: true },
+      }),
+      this.prisma.virtualPaymentOrder.count({ where }),
+      this.getSettings(),
+    ]);
+    const list = orders.map(({ attach, ...order }) => {
+      let productName = settings.virtualPaymentProducts?.find((item) => item.key === order.productKey)?.name || "历史购买商品";
+      try {
+        const snapshot = JSON.parse(attach);
+        if (typeof snapshot?.productName === "string" && snapshot.productName.trim()) productName = snapshot.productName;
+      } catch { /* 兼容没有商品名称快照的历史订单。 */ }
+      return { ...order, productName };
+    });
+    return { list, total, page, pageSize };
   }
 
   async updateSettings(input: Partial<SystemSettings>) {
@@ -1138,7 +1168,7 @@ export class AdminService implements OnModuleInit {
   async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection, channelAccountId?: string) {
     await this.assertStorageReady(storageSelection);
     const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) };
-    const delay = await this.idleWindowDelayMs();
+    const delay = await this.uploadProcessingDelayMs([id]);
     const task = await this.tasks.create(
       "upload_asset",
       payload,
@@ -1150,6 +1180,16 @@ export class AdminService implements OnModuleInit {
       { attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
     );
     return { queued: true, taskId: task.id };
+  }
+
+  /** 手动标题无需 AI，直接进入正常队列；混合批次仍按 AI 时段处理。 */
+  async uploadProcessingDelayMs(ids: string[]): Promise<number> {
+    const wallpapers = await this.prisma.wallpaper.findMany({
+      where: { id: { in: ids } },
+      select: { manualTitle: true },
+    });
+    if (wallpapers.length === new Set(ids).size && wallpapers.length > 0 && wallpapers.every((item) => item.manualTitle?.trim())) return 0;
+    return this.idleWindowDelayMs();
   }
 
   /** 当前处于空闲窗口返回 0；否则返回距离下一个空闲窗口开始的毫秒数。 */
@@ -1279,7 +1319,7 @@ export class AdminService implements OnModuleInit {
   async enqueueProcessWallpaperBatch(ids: string[], storageSelection?: StorageSelection, channelAccountId?: string) {
     if (!ids.length) throw new BadRequestException("请选择要处理的壁纸");
     await this.assertStorageReady(storageSelection);
-    const delay = await this.idleWindowDelayMs();
+    const delay = await this.uploadProcessingDelayMs(ids);
     const task = await this.tasks.create(
       "upload_asset",
       { wallpaperIds: ids, batch: true },
@@ -1415,7 +1455,7 @@ export class AdminService implements OnModuleInit {
     })));
 
     const tags = unique(wallpapers.flatMap((item) => item.tags.map(({ tag }) => tag.name))).slice(0, 8);
-    const content = buildChannelContent(wallpapers.length === 1 ? wallpapers[0].title : `${wallpapers[0].title} 等 ${wallpapers.length} 张壁纸`);
+    const content = buildChannelContent(wallpapers[0].title);
     const imagePaths = liveItems.length
       ? []
       : wallpapers

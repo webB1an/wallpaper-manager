@@ -64,13 +64,26 @@
     </view>
   </view>
 </view>
-<view wx:elif="{{error}}" class="empty detail-empty state-card">
+<view wx:elif="{{error}}" class="detail-empty">
   <view class="detail-topbar">
     <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back.png" /></view>
   </view>
-  <text>{{error}}</text>
-  <button wx:if="{{id}}" class="retry-button" bindtap="retry">重试</button>
-  <button wx:else class="retry-button" bindtap="goHome">回首页</button>
+  <view class="detail-empty-content">
+    <view class="detail-empty-visual" aria-hidden="true">
+      <view class="detail-empty-sheet detail-empty-sheet-back"></view>
+      <view class="detail-empty-sheet detail-empty-sheet-front">
+        <view class="detail-empty-sun"></view>
+        <view class="detail-empty-mountains"></view>
+      </view>
+      <view class="detail-empty-badge">?</view>
+    </view>
+    <text class="detail-empty-title">这张壁纸暂时看不到了</text>
+    <text class="detail-empty-message">{{error}}</text>
+    <view class="detail-empty-actions">
+      <button wx:if="{{id}}" class="detail-empty-primary" bindtap="retry">重新加载</button>
+      <button class="detail-empty-secondary" bindtap="goHome">返回首页</button>
+    </view>
+  </view>
 </view>
 <view wx:else class="detail-page detail-loading">
   <view class="detail-topbar">
