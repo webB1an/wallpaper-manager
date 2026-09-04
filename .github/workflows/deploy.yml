@@ -29,8 +29,17 @@ jobs:
           node-version: 22
           cache: npm
 
+      # npm 10 falls back to the retired quick-audit endpoint after a bulk timeout.
+      - name: Setup npm
+        run: npm install --global npm@11.12.1 --no-audit --no-fund --fetch-timeout=30000 --fetch-retries=1
+
+      # Run one explicit, blocking production audit below instead of auditing twice.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit production dependencies
+        timeout-minutes: 2
+        run: npm audit --omit=dev --fetch-timeout=30000 --fetch-retries=1
 
       - name: Validate
         env:
@@ -46,7 +55,6 @@ jobs:
           npm run smoke:short-code
           npm run smoke:query-values
           npm run verify:release
-          npm audit --omit=dev
 
       - name: Prepare SSH
         id: prepare_ssh
