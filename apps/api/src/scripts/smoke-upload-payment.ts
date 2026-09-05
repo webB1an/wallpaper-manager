@@ -1,7 +1,32 @@
 import assert from "node:assert/strict";
-import { AdminService } from "../modules/admin/admin.service";
+import { AdminService, shouldMergeUpload } from "../modules/admin/admin.service";
 
 async function main() {
+  assert.equal(shouldMergeUpload({ autoPublish: true, batchPublish: true, postMode: "merge", count: 3, allStatic: true }), true);
+  assert.equal(shouldMergeUpload({ autoPublish: true, batchPublish: true, postMode: "separate", count: 3, allStatic: true }), false);
+  assert.equal(shouldMergeUpload({ autoPublish: true, batchPublish: true, count: 3, allStatic: true }), true);
+  assert.equal(shouldMergeUpload({ autoPublish: true, batchPublish: true, postMode: "merge", count: 1, allStatic: true }), false);
+  assert.equal(shouldMergeUpload({ autoPublish: true, batchPublish: true, postMode: "merge", count: 3, allStatic: false }), false);
+
+  const miniCalls: string[] = [];
+  let miniMode: "merge" | "separate" = "separate";
+  const miniBatch = {
+    prisma: { wallpaper: {
+      updateMany: async () => ({ count: 2 }),
+      findMany: async () => [{ id: "one" }, { id: "two" }],
+    } },
+    getSettings: async () => ({ uploadMultiPostMode: miniMode }),
+    enqueueProcessWallpaper: async (id: string) => { miniCalls.push(`single:${id}`); return { queued: true, taskId: id }; },
+    enqueueProcessWallpaperBatch: async (ids: string[]) => { miniCalls.push(`batch:${ids.join(",")}`); return { queued: true, taskId: "batch" }; },
+  } as unknown as AdminService;
+  const separate = await AdminService.prototype.enqueueMiniBatchPublish.call(miniBatch, "mini-batch");
+  assert.deepEqual(miniCalls, ["single:one", "single:two"]);
+  assert.deepEqual(separate.taskIds, ["one", "two"]);
+  miniMode = "merge";
+  miniCalls.length = 0;
+  const merged = await AdminService.prototype.enqueueMiniBatchPublish.call(miniBatch, "mini-batch");
+  assert.deepEqual(miniCalls, ["batch:one,two"]);
+  assert.equal(merged.taskId, "batch");
   let idleCalls = 0;
   let titles: Array<{ manualTitle: string | null }> = [];
   const scheduling = {

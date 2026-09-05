@@ -129,6 +129,7 @@ type TencentChannelOption = {
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
+  uploadMultiPostMode?: "merge" | "separate";
   rewardDownloadType: string;
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
@@ -1745,6 +1746,16 @@ function Settings() {
           <Switch disabled={!defaultChannelReady} />
         </Form.Item>
         {!defaultChannelReady ? <span className="form-hint">未配置默认腾讯频道账号</span> : null}
+        <Form.Item
+          label="多图上传发帖方式"
+          name="uploadMultiPostMode"
+          tooltip="统一控制管理端和小程序的多图上传；资源库手动发帖不受影响"
+        >
+          <Select options={[
+            { value: "merge", label: "合并为一帖（每帖最多 18 张）" },
+            { value: "separate", label: "每张图片单独发帖" },
+          ]} />
+        </Form.Item>
         <Form.Item label="激励视频下载模式" name="rewardDownloadType">
           <Select options={[
             { value: "daily10", label: "当天 10 次" },

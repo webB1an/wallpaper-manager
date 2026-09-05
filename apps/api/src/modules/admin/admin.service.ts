@@ -29,6 +29,7 @@ import { WALLPAPER_QUEUE } from "./admin.queue";
 type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
+  uploadMultiPostMode?: "merge" | "separate";
   rewardDownloadType: RewardDownloadType;
   autoSourceEnabled?: Record<string, boolean>;
   miniAdminOpenids?: string[];
@@ -68,6 +69,7 @@ type StorageSelection = { quarkAccountId?: string; baiduAccountId?: string };
 const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
+  uploadMultiPostMode: "merge",
   rewardDownloadType: "daily10",
   processIdleEnabled: true,
   processIdleWindows: [
@@ -516,7 +518,7 @@ export class AdminService implements OnModuleInit {
       return created.map((item, index) => ({ ...item, queued: queued[index] }));
     }
     const allStatic = created.every((item) => item.type !== WallpaperType.live);
-    if (autoPublish && options?.batchPublish && ids.length > 1 && allStatic) {
+    if (shouldMergeUpload({ autoPublish, batchPublish: options?.batchPublish, postMode: settings.uploadMultiPostMode, count: ids.length, allStatic })) {
       const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, options?.channelAccountId);
       return created.map((item) => ({ ...item, queued: batch }));
     }
@@ -585,6 +587,9 @@ export class AdminService implements OnModuleInit {
       ...current,
       ...(typeof input.defaultAutoProcess === "boolean" ? { defaultAutoProcess: input.defaultAutoProcess } : {}),
       ...(typeof input.defaultAutoPublish === "boolean" ? { defaultAutoPublish: input.defaultAutoPublish } : {}),
+      ...(input.uploadMultiPostMode === "merge" || input.uploadMultiPostMode === "separate"
+        ? { uploadMultiPostMode: input.uploadMultiPostMode }
+        : {}),
       ...(input.rewardDownloadType === "daily10" || input.rewardDownloadType === "unlimited"
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
@@ -1343,6 +1348,12 @@ export class AdminService implements OnModuleInit {
     if (updated.count === 0) return { queued: false, count: 0 };
     const batch = await this.prisma.wallpaper.findMany({ where: { batchKey }, select: { id: true } });
     const ids = batch.map((item) => item.id);
+    const settings = await this.getSettings();
+    if (settings.uploadMultiPostMode === "separate") {
+      const queued = [];
+      for (const id of ids) queued.push(await this.enqueueProcessWallpaper(id));
+      return { queued: true, count: ids.length, taskIds: queued.map((item) => item.taskId) };
+    }
     const queued = await this.enqueueProcessWallpaperBatch(ids);
     return { queued: true, count: ids.length, taskId: queued.taskId };
   }
@@ -2064,6 +2075,10 @@ function clampAutoInterval(value: number | undefined): number {
 
 function buildChannelContent(title: string): string {
   return title.trim().slice(0, 1000);
+}
+
+export function shouldMergeUpload(input: { autoPublish: boolean; batchPublish?: boolean; postMode?: "merge" | "separate"; count: number; allStatic: boolean }): boolean {
+  return input.autoPublish && input.batchPublish === true && input.postMode !== "separate" && input.count > 1 && input.allStatic;
 }
 
 function assertChannelMediaReady(items: Array<{ title: string; isVideo: boolean; coverPath?: string; assetPath?: string }>) {

@@ -379,6 +379,9 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "getChannelAccoun
 requireContains("apps/api/src/modules/admin/wallpaper.processor.ts", "channelAccountId");
 requireContains("apps/admin/src/styles.css", ".upload-options .ant-select");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "updateSettings({ defaultAutoPublish: false })");
+requireContains("apps/api/src/modules/admin/admin.service.ts", 'uploadMultiPostMode: "merge"');
+requireContains("apps/api/src/modules/admin/admin.service.ts", 'input.postMode !== "separate"');
+requireContains("apps/admin/src/main.tsx", 'name="uploadMultiPostMode"');
 requireContains("apps/api/src/modules/admin/admin.service.ts", "where: { wallpaperId: link.wallpaperId }");
 requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
 requireContains("apps/admin/src/main.tsx", "row.command");

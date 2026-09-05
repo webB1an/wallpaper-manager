@@ -98,6 +98,7 @@ export class AdminController {
   async updateSettings(@Body() body: {
     defaultAutoProcess?: boolean;
     defaultAutoPublish?: boolean;
+    uploadMultiPostMode?: "merge" | "separate";
     rewardDownloadType?: RewardDownloadType;
     permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
     virtualPaymentProducts?: Array<{
