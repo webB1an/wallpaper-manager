@@ -23,7 +23,7 @@ import { StorageAccountService } from "../storage/storage-account.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
-import { autoSourceIds, autoSourceMeta, fetchAutoSource } from "./auto-publish-sources";
+import { autoSourceIds, autoSourceMeta, fetchAutoSource, normalizeAutoSources, pickNextAutoSource } from "./auto-publish-sources";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 
 type SystemSettings = {
@@ -157,7 +157,11 @@ export class AdminService implements OnModuleInit {
     if (this.autoDownloadRunning) return { ok: false, message: "自动发帖任务正在运行" };
     this.autoDownloadRunning = true;
     const boardLabel = `${board.guildName || board.guildId}/${board.channelName || board.channelId}`;
-    const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在从 ${board.source} 拉取壁纸发到 ${boardLabel}`);
+    const boardConfig = board.sourceConfig && typeof board.sourceConfig === "object" && !Array.isArray(board.sourceConfig)
+      ? board.sourceConfig as Record<string, unknown>
+      : {};
+    const configuredSources = normalizeAutoSources(board.source, boardConfig);
+    const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在选择数据源并发帖到 ${boardLabel}`);
     let persisted: { path: string; relativePath: string; mimeType: string; originalName: string } | undefined;
     let cover: { path: string; relativePath: string } | undefined;
     let record: { id: string; title: string; assetPath: string | null } | undefined;
@@ -166,17 +170,23 @@ export class AdminService implements OnModuleInit {
     let displayTitle = "";
     try {
       const settings = await this.getSettings();
-      if ((settings.autoSourceEnabled || {})[board.source] === false) {
-        const message = `数据源 ${board.source} 已停用，跳过发帖`;
+      const selectedSource = pickNextAutoSource(configuredSources, boardConfig.lastSource, settings.autoSourceEnabled || {});
+      if (!selectedSource) {
+        const message = `所选数据源均已停用，跳过发帖`;
         await this.tasks.update(task.id, { status: "skipped", progress: 100, message });
         await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
         return { ok: true, message };
       }
-      const exclude = (await this.prisma.wallpaperSource.findMany({ select: { sourceId: true } })).map((row) => row.sourceId);
-      await this.tasks.update(task.id, { status: "running", progress: 8, message: "正在从数据源拉取壁纸" });
-      const item = await fetchAutoSource(board.source, {
+      const nextConfig = { ...boardConfig, sources: configuredSources, lastSource: selectedSource };
+      await this.prisma.autoPublishBoard.update({
+        where: { id: board.id },
+        data: { sourceConfig: nextConfig as Prisma.InputJsonValue },
+      });
+      const exclude = (await this.prisma.wallpaperSource.findMany({ where: { source: selectedSource }, select: { sourceId: true } })).map((row) => row.sourceId);
+      await this.tasks.update(task.id, { status: "running", progress: 8, message: `正在从 ${selectedSource} 拉取壁纸` });
+      const item = await fetchAutoSource(selectedSource, {
         exclude,
-        config: (board.sourceConfig as Record<string, unknown>) || {},
+        config: nextConfig,
         configService: this.config,
       });
       await this.tasks.update(task.id, { progress: 30, message: "正在保存原图并生成封面" });
@@ -198,9 +208,9 @@ export class AdminService implements OnModuleInit {
         },
       });
       await this.prisma.wallpaperSource.upsert({
-        where: { source_sourceId: { source: board.source, sourceId: item.sourceId } },
+        where: { source_sourceId: { source: selectedSource, sourceId: item.sourceId } },
         update: {},
-        create: { source: board.source, sourceId: item.sourceId, wallpaperId: record.id },
+        create: { source: selectedSource, sourceId: item.sourceId, wallpaperId: record.id },
       });
 
       await this.tasks.update(task.id, { progress: 45, message: "正在 AI 识别分类" });
@@ -283,8 +293,9 @@ export class AdminService implements OnModuleInit {
     return { ok: true, message: "已触发，正在后台运行（稍后刷新查看结果）" };
   }
 
-  listAutoPublishBoards() {
-    return this.prisma.autoPublishBoard.findMany({ orderBy: { createdAt: "desc" } });
+  async listAutoPublishBoards() {
+    const boards = await this.prisma.autoPublishBoard.findMany({ orderBy: { createdAt: "desc" } });
+    return boards.map((board) => ({ ...board, sources: normalizeAutoSources(board.source, board.sourceConfig) }));
   }
 
   async listAutoPublishSources() {
@@ -307,12 +318,14 @@ export class AdminService implements OnModuleInit {
     channelId: string;
     channelName?: string;
     source?: string;
+    sources?: string[];
     sourceConfig?: Record<string, unknown>;
     enabled?: boolean;
     intervalHours?: number;
   }) {
-    const source = input.source || "wallpost";
-    if (!autoSourceIds().includes(source)) throw new BadRequestException(`未知数据来源：${source}`);
+    const sources = normalizeRequestedAutoSources(input.sources, input.source);
+    const source = sources[0];
+    const sourceConfig = { ...(input.sourceConfig || {}), sources };
     return this.prisma.autoPublishBoard.create({
       data: {
         guildId: input.guildId,
@@ -320,24 +333,36 @@ export class AdminService implements OnModuleInit {
         channelId: input.channelId,
         channelName: input.channelName,
         source,
-        sourceConfig: (input.sourceConfig ?? undefined) as Prisma.InputJsonValue | undefined,
+        sourceConfig: sourceConfig as Prisma.InputJsonValue,
         enabled: Boolean(input.enabled),
         intervalHours: clampAutoInterval(input.intervalHours),
       },
     });
   }
 
-  async updateAutoPublishBoard(id: string, data: { guildName?: string; channelName?: string; source?: string; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number }) {
+  async updateAutoPublishBoard(id: string, data: { guildName?: string; channelName?: string; source?: string; sources?: string[]; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number }) {
     const board = await this.prisma.autoPublishBoard.findUnique({ where: { id } });
     if (!board) throw new BadRequestException("自动发帖板块配置不存在");
-    if (data.source && !autoSourceIds().includes(data.source)) throw new BadRequestException(`未知数据来源：${data.source}`);
+    const existingConfig = board.sourceConfig && typeof board.sourceConfig === "object" && !Array.isArray(board.sourceConfig)
+      ? board.sourceConfig as Record<string, unknown>
+      : {};
+    const sources = data.sources !== undefined || data.source !== undefined
+      ? normalizeRequestedAutoSources(data.sources, data.source)
+      : normalizeAutoSources(board.source, existingConfig);
+    const sourceConfig = data.sourceConfig !== undefined
+      ? {
+          ...data.sourceConfig,
+          sources,
+          ...(typeof existingConfig.lastSource === "string" ? { lastSource: existingConfig.lastSource } : {}),
+        }
+      : { ...existingConfig, sources };
     return this.prisma.autoPublishBoard.update({
       where: { id },
       data: {
         ...(typeof data.guildName === "string" ? { guildName: data.guildName } : {}),
         ...(typeof data.channelName === "string" ? { channelName: data.channelName } : {}),
-        ...(typeof data.source === "string" ? { source: data.source } : {}),
-        ...(data.sourceConfig !== undefined ? { sourceConfig: data.sourceConfig as Prisma.InputJsonValue } : {}),
+        source: sources[0],
+        sourceConfig: sourceConfig as Prisma.InputJsonValue,
         ...(typeof data.enabled === "boolean" ? { enabled: data.enabled } : {}),
         ...(typeof data.intervalHours === "number" ? { intervalHours: clampAutoInterval(data.intervalHours) } : {}),
       },
@@ -2070,6 +2095,15 @@ function orientationFromDimensions(width: number, height: number): WallpaperOrie
 function clampAutoInterval(value: number | undefined): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 4;
   return Math.min(72, Math.max(1, Math.round(value)));
+}
+
+function normalizeRequestedAutoSources(sources: string[] | undefined, legacySource?: string): string[] {
+  const requested = sources !== undefined ? sources : [legacySource || "wallpost"];
+  const normalized = Array.from(new Set(requested.filter((source): source is string => typeof source === "string").map((source) => source.trim()).filter(Boolean)));
+  if (!normalized.length) throw new BadRequestException("请至少选择一个数据来源");
+  const unknown = normalized.filter((source) => !autoSourceIds().includes(source));
+  if (unknown.length) throw new BadRequestException(`未知数据来源：${unknown.join("、")}`);
+  return normalized;
 }
 
 

@@ -49,6 +49,23 @@ export function autoSourceIds(): string[] {
   return Object.keys(providers);
 }
 
+/** 兼容旧版单来源配置，并从 JSON 配置中读取新版多来源列表。 */
+export function normalizeAutoSources(source: string, config: unknown): string[] {
+  const configured = config && typeof config === "object" && Array.isArray((config as Record<string, unknown>).sources)
+    ? (config as Record<string, unknown>).sources as unknown[]
+    : [];
+  const valid = configured.filter((item): item is string => typeof item === "string" && Boolean(providers[item]));
+  return Array.from(new Set(valid.length ? valid : [source])).filter((item) => Boolean(providers[item]));
+}
+
+/** 从可用来源中轮询选择一个；上次使用的来源排到本次末尾。 */
+export function pickNextAutoSource(sources: string[], lastSource: unknown, enabledMap: Record<string, boolean> = {}): string | undefined {
+  const enabled = sources.filter((source) => Boolean(providers[source]) && enabledMap[source] !== false);
+  if (!enabled.length) return undefined;
+  const lastIndex = typeof lastSource === "string" ? enabled.indexOf(lastSource) : -1;
+  return enabled[(lastIndex + 1) % enabled.length];
+}
+
 /** 数据来源元信息（id / 名称 / 说明）与是否可用，供管理端展示与做开关。 */
 export function autoSourceMeta(enabledMap: Record<string, boolean> = {}): Array<AutoSourceMeta & { enabled: boolean }> {
   return Object.entries(providers).map(([id, entry]) => ({

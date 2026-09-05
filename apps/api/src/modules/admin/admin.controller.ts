@@ -133,7 +133,7 @@ export class AdminController {
   @Post("auto-publish-boards")
   async createAutoPublishBoard(@Body() body: {
     guildId: string; guildName?: string; channelId: string; channelName?: string;
-    source?: string; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number;
+    source?: string; sources?: string[]; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number;
   }) {
     return { code: 200, data: await this.admin.saveAutoPublishBoard(body) };
   }
@@ -141,7 +141,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Patch("auto-publish-boards/:id")
   async updateAutoPublishBoard(@Param("id") id: string, @Body() body: {
-    guildName?: string; channelName?: string; source?: string; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number;
+    guildName?: string; channelName?: string; source?: string; sources?: string[]; sourceConfig?: Record<string, unknown>; enabled?: boolean; intervalHours?: number;
   }) {
     return { code: 200, data: await this.admin.updateAutoPublishBoard(id, body) };
   }

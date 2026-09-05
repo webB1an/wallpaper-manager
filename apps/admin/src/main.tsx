@@ -2247,6 +2247,7 @@ type AutoPublishBoardRow = {
   channelId: string;
   channelName?: string;
   source: string;
+  sources?: string[];
   sourceConfig?: Record<string, unknown> | null;
   enabled: boolean;
   intervalHours: number;
@@ -2289,7 +2290,11 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
     guildName || accounts.find((account) => account.guildId === guildId)?.guildName || guildId;
   const channelLabel = (channelId: string, channelName?: string) =>
     channelName || accounts.find((account) => account.channelId === channelId)?.channelName || channelId;
+  const sourceLabel = (sourceId: string) => sources.find((source) => source.id === sourceId)?.label || sourceId;
   const openEdit = (row: AutoPublishBoardRow) => {
+    const visibleSourceConfig = row.sourceConfig
+      ? Object.fromEntries(Object.entries(row.sourceConfig).filter(([key]) => key !== "sources" && key !== "lastSource"))
+      : undefined;
     setEditingId(row.id);
     setOpen(true);
     form.setFieldsValue({
@@ -2297,10 +2302,10 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
       guildName: row.guildName,
       channelId: row.channelId,
       channelName: row.channelName,
-      source: row.source,
+      sources: row.sources?.length ? row.sources : [row.source],
       intervalHours: row.intervalHours,
       enabled: row.enabled,
-      sourceConfig: row.sourceConfig ? JSON.stringify(row.sourceConfig) : "",
+      sourceConfig: visibleSourceConfig && Object.keys(visibleSourceConfig).length ? JSON.stringify(visibleSourceConfig) : "",
     });
   };
 
@@ -2315,7 +2320,7 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
         type="info"
         showIcon
         message="数据源可用性"
-        description="每个数据源可独立开关；关闭后，使用该来源的板块会自动跳过发帖。"
+        description="每个板块可选择多个数据源，系统每次只从其中一个来源取图并轮换使用；已停用的来源会自动跳过。"
       />
       <div className="source-list">
         {sources.map((source) => (
@@ -2334,7 +2339,7 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
       </div>
       <Table rowKey="id" dataSource={boards} pagination={false} columns={[
         { title: "频道 / 版块", render: (_, row) => `${guildLabel(row.guildId, row.guildName)} / ${channelLabel(row.channelId, row.channelName)}` },
-        { title: "来源", dataIndex: "source" },
+        { title: "来源", render: (_, row) => (row.sources?.length ? row.sources : [row.source]).map(sourceLabel).join("、") },
         { title: "周期(小时)", dataIndex: "intervalHours" },
         { title: "启用", dataIndex: "enabled", render: (value, row) => (
           <Switch checked={Boolean(value)} size="small" onChange={async (checked) => {
@@ -2389,8 +2394,8 @@ function BoardManager({ accounts }: { accounts: ChannelAccount[] }) {
                 form.setFieldsValue({ channelName: account?.channelName });
               }} />
           </Form.Item>
-          <Form.Item label="数据来源" name="source" initialValue="wallpost" rules={[{ required: true }]}>
-            <Select options={sources.map((source) => ({ value: source.id, label: `${source.label}${source.enabled ? "" : "（已停用）"}` }))} />
+          <Form.Item label="数据来源（可多选）" name="sources" initialValue={["wallpost"]} rules={[{ required: true, message: "请至少选择一个数据来源" }]}>
+            <Select mode="multiple" placeholder="选择一个或多个数据来源" options={sources.map((source) => ({ value: source.id, label: `${source.label}${source.enabled ? "" : "（已停用）"}` }))} />
           </Form.Item>
           <Form.Item label="周期（小时）" name="intervalHours" initialValue={4} rules={[{ required: true }]}>
             <InputNumber min={1} max={72} style={{ width: "100%" }} />
