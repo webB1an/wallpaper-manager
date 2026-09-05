@@ -42,6 +42,21 @@ const providers: Record<string, AutoSourceProviderEntry> = {
     description: "从 WallPost 下载桥接拉取一张未收录的动态壁纸（WallpaperWaifu 视频）",
     fetch: fetchFromWallpostLive,
   },
+  waifu_im: {
+    label: "Waifu.im（二次元静态）",
+    description: "通过 WallPost 墙外桥接获取 Waifu.im 已审核的 SFW 静态二次元图片",
+    fetch: (ctx) => fetchFromWallpost(ctx, "static", "waifu_im"),
+  },
+  safebooru: {
+    label: "Safebooru（二次元静态）",
+    description: "通过 WallPost 墙外桥接获取 Safebooru 标记为 safe 的静态二次元图片",
+    fetch: (ctx) => fetchFromWallpost(ctx, "static", "safebooru"),
+  },
+  openverse: {
+    label: "Openverse（开放授权）",
+    description: "通过 WallPost 墙外桥接获取 Openverse 标记为非敏感的静态插画",
+    fetch: (ctx) => fetchFromWallpost(ctx, "static", "openverse"),
+  },
 };
 
 /** 已注册的数据来源 id。 */
@@ -84,7 +99,7 @@ export async function fetchAutoSource(sourceId: string, ctx: AutoSourceContext):
 }
 
 /** 从 WallPost 桥接服务拉取一张 Wallhaven 壁纸（下载即交付，随后删除墙外临时文件）。 */
-async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"): Promise<AutoSourceItem> {
+async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live", source?: string): Promise<AutoSourceItem> {
   const baseUrl = ctx.configService.get<string>("WALLPOST_BASE_URL")?.trim();
   const bridgeKey = ctx.configService.get<string>("WALLPOST_BRIDGE_KEY")?.trim();
   if (!baseUrl || !bridgeKey) throw new Error("未配置 WALLPOST_BASE_URL / WALLPOST_BRIDGE_KEY");
@@ -98,7 +113,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
   const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
-    body: JSON.stringify({ exclude: ctx.exclude, type }),
+    body: JSON.stringify({ exclude: ctx.exclude, type, ...(source ? { source } : {}) }),
     signal: AbortSignal.timeout(nextTimeoutMs),
   });
   if (!response.ok) {
