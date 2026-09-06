@@ -1,4 +1,5 @@
 import { ConfigService } from "@nestjs/config";
+import { downloadBridgeFile, TransferProgress } from "./bridge-transfer";
 
 export interface AutoSourceItem {
   /** 来源侧唯一 id，用于全站去重（source + sourceId 只发一次）。 */
@@ -15,6 +16,7 @@ export interface AutoSourceContext {
   exclude: string[];
   config: Record<string, unknown>;
   configService: ConfigService;
+  onTransferProgress?: (progress: TransferProgress) => Promise<void>;
 }
 
 export type AutoSourceProvider = (ctx: AutoSourceContext) => Promise<AutoSourceItem>;
@@ -134,17 +136,19 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
     throw new Error(body?.error || `桥接获取壁纸失败（${response.status}）`);
   }
   const payload = (await response.json()) as {
-    data?: { id: string; token: string; width: number; height: number; fileName: string; fileType: string; downloadUrl: string };
+    data?: { id: string; token: string; width: number; height: number; fileSize?: number; fileName: string; fileType: string; downloadUrl: string };
   };
   const item = payload.data;
   if (!item?.id || !item.downloadUrl) throw new Error("桥接未返回壁纸信息");
 
-  const imageResponse = await fetch(`${bridgeBase}${item.downloadUrl}`, {
+  const configuredMax = Number(ctx.configService.get("UPLOAD_MAX_FILE_MB") || 300);
+  const bytes = await downloadBridgeFile(`${bridgeBase}${item.downloadUrl}`, {
     headers: { "x-bridge-key": bridgeKey },
-    signal: AbortSignal.timeout(downloadTimeoutMs),
+    timeoutMs: downloadTimeoutMs,
+    maxBytes: (Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : 300) * 1048576,
+    expectedBytes: item.fileSize,
+    onProgress: ctx.onTransferProgress,
   });
-  if (!imageResponse.ok) throw new Error(`下载原图失败（${imageResponse.status}）`);
-  const bytes = Buffer.from(await imageResponse.arrayBuffer());
 
   await fetch(`${bridgeBase}/api/bridge/download/${item.token}/complete`, {
     method: "POST",

@@ -25,6 +25,7 @@ import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
 import { autoSourceIds, autoSourceMeta, fetchAutoSource, normalizeAutoSources, pickNextAutoSource } from "./auto-publish-sources";
 import { WALLPAPER_QUEUE } from "./admin.queue";
+import { transferTaskUpdate } from "./bridge-transfer";
 
 type SystemSettings = {
   defaultAutoProcess: boolean;
@@ -195,6 +196,7 @@ export class AdminService implements OnModuleInit {
         exclude,
         config: nextConfig,
         configService: this.config,
+        onTransferProgress: async (progress) => { await this.tasks.update(task.id, transferTaskUpdate(progress)); },
       });
       await this.tasks.update(task.id, { progress: 30, message: "正在保存原图并生成封面" });
       persisted = await this.persistWallpaperBytes(item.bytes, item.fileName, item.fileType);
