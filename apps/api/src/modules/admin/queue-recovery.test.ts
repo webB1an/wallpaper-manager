@@ -10,6 +10,32 @@ import { WallpaperProcessor } from "./wallpaper.processor";
 import { AdminService } from "./admin.service";
 import { PrismaService } from "../prisma/prisma.service";
 
+test("manual publish reports busy instead of falsely claiming a new task started", async () => {
+  let started = 0;
+  const service: AdminService = Object.assign(Object.create(AdminService.prototype), {
+    autoDownloadRunning: true,
+    autoDownloadStartedAt: Date.now() - 120_000,
+    autoDownloadBoardLabel: "测试板块",
+    prisma: { autoPublishBoard: { findUnique: async () => ({ id: "board" }) } },
+    runAutoPublishBoard: async () => { started++; },
+  });
+  const result = await service.runAutoPublishBoardById("board");
+  assert.equal(result.ok, false);
+  assert.match(result.message, /未启动.*测试板块/);
+  assert.equal(started, 0);
+});
+
+test("manual publish starts once when no other task holds the lock", async () => {
+  let started = 0;
+  const service: AdminService = Object.assign(Object.create(AdminService.prototype), {
+    autoDownloadRunning: false,
+    prisma: { autoPublishBoard: { findUnique: async () => ({ id: "board" }) } },
+    runAutoPublishBoard: async () => { started++; },
+  });
+  assert.equal((await service.runAutoPublishBoardById("board")).ok, true);
+  assert.equal(started, 1);
+});
+
 test("recover single tasks and complete batch payloads without losing selected accounts", () => {
   assert.equal(recoverUploadPayload("task", { wallpaperId: "image" })?.wallpaperId, "image");
   const result = recoverUploadPayload("task", { batch: true, queuePayloadVersion: 1, wallpaperIds: ["a", "b"], storageSelection: { quarkAccountId: "q" }, channelAccountId: "c" });

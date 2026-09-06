@@ -106,6 +106,8 @@ const LOGIN_LOCK_MS = 10 * 60_000;
 export class AdminService implements OnModuleInit {
   private readonly logger = new Logger(AdminService.name);
   private autoDownloadRunning = false;
+  private autoDownloadStartedAt = 0;
+  private autoDownloadBoardLabel = "";
   private autoScheduleTimer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -156,12 +158,17 @@ export class AdminService implements OnModuleInit {
   async runAutoPublishBoard(board: { id: string; source: string; sourceConfig: unknown; guildId: string; guildName?: string | null; channelId: string; channelName?: string | null }): Promise<{ ok: boolean; message: string }> {
     if (this.autoDownloadRunning) return { ok: false, message: "自动发帖任务正在运行" };
     this.autoDownloadRunning = true;
+    this.autoDownloadStartedAt = Date.now();
     const boardLabel = `${board.guildName || board.guildId}/${board.channelName || board.channelId}`;
+    this.autoDownloadBoardLabel = boardLabel;
     const boardConfig = board.sourceConfig && typeof board.sourceConfig === "object" && !Array.isArray(board.sourceConfig)
       ? board.sourceConfig as Record<string, unknown>
       : {};
     const configuredSources = normalizeAutoSources(board.source, boardConfig);
-    const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在选择数据源并发帖到 ${boardLabel}`);
+    const task = await this.tasks.create("auto_publish", { boardId: board.id }, `正在选择数据源并发帖到 ${boardLabel}`).catch((error) => {
+      this.autoDownloadRunning = false;
+      throw error;
+    });
     let persisted: { path: string; relativePath: string; mimeType: string; originalName: string } | undefined;
     let cover: { path: string; relativePath: string } | undefined;
     let record: { id: string; title: string; assetPath: string | null } | undefined;
@@ -288,6 +295,11 @@ export class AdminService implements OnModuleInit {
   async runAutoPublishBoardById(id: string) {
     const board = await this.prisma.autoPublishBoard.findUnique({ where: { id } });
     if (!board) throw new BadRequestException("自动发帖板块配置不存在");
+    // Check after the database await: the scheduler may have acquired the lock meanwhile.
+    if (this.autoDownloadRunning) {
+      const minutes = Math.max(1, Math.ceil((Date.now() - this.autoDownloadStartedAt) / 60_000));
+      return { ok: false, message: `未启动：${this.autoDownloadBoardLabel || "其他板块"}正在执行（已运行 ${minutes} 分钟），请到任务队列查看进度，完成后再试` };
+    }
     void this.runAutoPublishBoard(board)
       .catch((error) => this.logger.warn(`手动触发板块失败：${(error as Error).message}`));
     return { ok: true, message: "已触发，正在后台运行（稍后刷新查看结果）" };

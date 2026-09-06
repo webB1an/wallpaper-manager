@@ -116,10 +116,10 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
   const bridgeKey = ctx.configService.get<string>("WALLPOST_BRIDGE_KEY")?.trim();
   if (!baseUrl || !bridgeKey) throw new Error("未配置 WALLPOST_BASE_URL / WALLPOST_BRIDGE_KEY");
   const bridgeBase = baseUrl.replace(/\/$/, "");
-  // 动态壁纸需要墙外先下载视频再返回，耗时可能几分钟；单独放大超时，且大于墙外脚本超时（30 分钟）。
+  // 桥接动态拉取总预算 10 分钟，给响应及网络开销额外预留 2 分钟。
   const isLive = type === "live";
   // 静态桥接也需要先下载图片，给候选重试预留时间。
-  const nextTimeoutMs = isLive ? 35 * 60_000 : 180_000;
+  const nextTimeoutMs = isLive ? 12 * 60_000 : 180_000;
   // 下载视频超时低于墙外临时文件 TTL（30 分钟），避免下载途中被清理。
   const downloadTimeoutMs = isLive ? 25 * 60_000 : 300_000;
 
