@@ -26,6 +26,13 @@ interface PublishInput {
   imagePaths?: string[];
   videoPaths?: string[];
   topicNames?: string[];
+  onAccountSwitch?: (message: string) => Promise<void>;
+}
+
+export class ChannelPermissionDeniedError extends Error {}
+
+export function isPermissionDeniedResult(parsed: { success?: boolean; error?: { message?: string } } | null, stderr: string, commandFailed = false): boolean {
+  return (parsed?.success === false || (commandFailed && parsed?.success !== true)) && /暂无权限/.test(parsed?.error?.message || "") && !/timed?\s*out|timeout|超时/i.test(stderr);
 }
 
 export interface TencentGuildOption {
@@ -155,16 +162,40 @@ export class ChannelService {
   async publish(input: PublishInput) {
     const account = await this.prisma.channelAccount.findUnique({ where: { id: input.accountId } });
     if (!account) throw new NotFoundException("腾讯频道账号不存在");
-    const token = decryptSecret(account.tokenCipher, this.secret());
-    return this.runPublish({
-      token,
-      guildId: account.guildId,
-      channelId: account.channelId,
-      content: input.content,
-      imagePaths: input.imagePaths || [],
-      videoPaths: input.videoPaths || [],
-      topicNames: input.topicNames || [],
-    });
+    const candidates = [account];
+    let switchedAccounts = 0;
+    for (let index = 0; index < candidates.length; index++) {
+      const current = candidates[index];
+      let result: Awaited<ReturnType<ChannelService["runPublish"]>>;
+      try {
+        result = await this.runPublish({
+          token: decryptSecret(current.tokenCipher, this.secret()),
+          guildId: account.guildId,
+          channelId: account.channelId,
+          content: input.content,
+          imagePaths: input.imagePaths || [],
+          videoPaths: input.videoPaths || [],
+          topicNames: input.topicNames || [],
+        });
+      } catch (error) {
+        if (!(error instanceof ChannelPermissionDeniedError)) throw error;
+        if (index === 0) {
+          const alternatives = await this.prisma.channelAccount.findMany({
+            where: { id: { not: account.id }, autoPublish: true, guildId: account.guildId, channelId: account.channelId },
+            orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+          });
+          candidates.push(...alternatives);
+        }
+        const next = candidates[index + 1];
+        if (!next) throw new ChannelPermissionDeniedError(`同板块 ${candidates.length} 个候选账号均提示暂无权限，已停止发帖`);
+        switchedAccounts++;
+        await input.onAccountSwitch?.(`账号「${current.label}」暂无权限，切换到「${next.label}」发帖`);
+        continue;
+      }
+      // Once publishing succeeds, failures in later bookkeeping must never cause another publish.
+      return { ...result, accountId: current.id, switchedAccounts, message: switchedAccounts ? `腾讯频道发布成功（因暂无权限切换 ${switchedAccounts} 次账号）` : result.message };
+    }
+    throw new Error("没有可用的发帖账号");
   }
 
   private async runAuthenticatedQuery(token: string, args: string[]) {
@@ -234,9 +265,13 @@ export class ChannelService {
           TMP: workDir,
         },
       });
-      if (!result.ok) throw new Error(scrub(result.stderr || result.stdout, input.token));
-      const parsed = parseLastJson(result.stdout);
-      if (parsed?.success === false) throw new Error(scrub(parsed.error?.message || "腾讯频道发布失败", input.token));
+      const parsed = (!result.ok ? parseLastJson(result.stderr) : null) || parseLastJson(result.stdout);
+      if (!result.ok || parsed?.success === false) {
+        const message = scrub(parsed?.error?.message || result.stderr || result.stdout || "腾讯频道发布失败", input.token);
+        // Only a definite platform rejection is safe to retry; timeouts may already have posted.
+        if (isPermissionDeniedResult(parsed, result.stderr, !result.ok)) throw new ChannelPermissionDeniedError(message);
+        throw new Error(message);
+      }
       return { message: "腾讯频道发布成功", raw: parsed?.data || parsed };
     } finally {
       await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
@@ -293,8 +328,9 @@ function quoteForCmd(value: string): string {
   return value;
 }
 
-function scrub(value: string, secret: string, path = ""): string {
-  return value.split(secret).join("<redacted-token>").split(path).join("<redacted-dotenv>").slice(0, 1000);
+export function scrub(value: string, secret: string, path = ""): string {
+  const safe = secret ? value.split(secret).join("<redacted-token>") : value;
+  return (path ? safe.split(path).join("<redacted-dotenv>") : safe).slice(0, 1000);
 }
 
 function normalizeGuilds(value: unknown): TencentGuildOption[] {

@@ -252,20 +252,21 @@ export class AdminService implements OnModuleInit {
       const isVideo = type === WallpaperType.live;
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { title: displayTitle, type, status: WallpaperStatus.pending_review } });
       await this.tasks.update(task.id, { progress: 82, message: "正在发布到腾讯频道" });
-      await this.channel.publish({
+      const publication = await this.channel.publish({
         accountId: account.id,
         content: displayTitle,
         imagePaths: !isVideo && existsSync(localAsset) ? [localAsset] : [],
         videoPaths: isVideo && existsSync(localAsset) ? [localAsset] : [],
         topicNames: analysis.tags.slice(0, 6),
+        onAccountSwitch: async (message) => { await this.tasks.update(task.id, { progress: 82, message }); },
       });
-      await this.prisma.channelAccount.update({ where: { id: account.id }, data: { lastAutoPublishAt: new Date() } });
+      await this.prisma.channelAccount.update({ where: { id: publication.accountId }, data: { lastAutoPublishAt: new Date() } });
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { status: WallpaperStatus.published } });
       // 成功后只保留缩略图：删除本地原图（网盘已有原件），后续下载走网盘回源。
       await this.removeUploadedFile(persisted.path);
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { assetPath: null } });
-      const message = `已发布「${displayTitle}」到 ${boardLabel}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
-      await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true } });
+      const message = `已发布「${displayTitle}」到 ${boardLabel}${publication.switchedAccounts ? `（暂无权限，已切换 ${publication.switchedAccounts} 次账号）` : ""}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
+      await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true, accountId: publication.accountId, switchedAccounts: publication.switchedAccounts } });
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
       return { ok: true, message };
     } catch (error) {
@@ -1474,7 +1475,7 @@ export class AdminService implements OnModuleInit {
       videoPaths: isVideo && absoluteAsset ? [absoluteAsset] : [],
       topicNames: wallpaper.tags.map(({ tag }) => tag.name).slice(0, 6),
     });
-    await this.markAccountPublishUsed(account.id);
+    await this.markAccountPublishUsed(result.accountId);
     return result;
   }
 
@@ -1523,7 +1524,7 @@ export class AdminService implements OnModuleInit {
       videoPaths,
       topicNames: tags,
     });
-    await this.markAccountPublishUsed(account.id);
+    await this.markAccountPublishUsed(result.accountId);
     return result;
   }
 

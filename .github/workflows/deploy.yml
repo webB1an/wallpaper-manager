@@ -56,6 +56,7 @@ jobs:
           npm run smoke:query-values
           npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/admin/queue-recovery.test.ts
           npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/admin/bridge-transfer.test.ts
+          npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/channel/channel-fallback.test.ts
           npm run verify:release
 
       - name: Prepare SSH
