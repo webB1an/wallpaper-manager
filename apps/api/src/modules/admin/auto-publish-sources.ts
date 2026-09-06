@@ -122,8 +122,8 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
   const isLive = type === "live";
   // 静态桥接也需要先下载图片，给候选重试预留时间。
   const nextTimeoutMs = isLive ? 12 * 60_000 : 180_000;
-  // 下载视频超时低于墙外临时文件 TTL（30 分钟），避免下载途中被清理。
-  const downloadTimeoutMs = isLive ? 25 * 60_000 : 300_000;
+  // 连续有数据时允许慢速传输；60 分钟为含所有续传的最终上限，桥接保留 2 小时。
+  const downloadTimeoutMs = isLive ? 60 * 60_000 : 300_000;
 
   const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
     method: "POST",
@@ -142,19 +142,26 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
   if (!item?.id || !item.downloadUrl) throw new Error("桥接未返回壁纸信息");
 
   const configuredMax = Number(ctx.configService.get("UPLOAD_MAX_FILE_MB") || 300);
-  const bytes = await downloadBridgeFile(`${bridgeBase}${item.downloadUrl}`, {
+  let bytes: Buffer;
+  try {
+  bytes = await downloadBridgeFile(`${bridgeBase}${item.downloadUrl}`, {
     headers: { "x-bridge-key": bridgeKey },
     timeoutMs: downloadTimeoutMs,
     maxBytes: (Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : 300) * 1048576,
     expectedBytes: item.fileSize,
     onProgress: ctx.onTransferProgress,
+    maxRetries: 3,
   });
-
+  } finally {
+  // 只在整个传输成功或最终失败后清理，单次断线重试期间保留远端文件。
   await fetch(`${bridgeBase}/api/bridge/download/${item.token}/complete`, {
     method: "POST",
     headers: { "x-bridge-key": bridgeKey },
     signal: AbortSignal.timeout(15_000),
-  }).catch(() => undefined);
+  }).then((result) => {
+    if (!result.ok) console.warn("桥接临时文件清理未成功，将由桥接过期清理兜底");
+  }).catch(() => console.warn("桥接临时文件清理请求失败，将由桥接过期清理兜底"));
+  }
 
   return {
     sourceId: item.id,
