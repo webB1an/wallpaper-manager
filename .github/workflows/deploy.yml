@@ -54,6 +54,7 @@ jobs:
           npm run smoke:auth-code
           npm run smoke:short-code
           npm run smoke:query-values
+          npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/admin/queue-recovery.test.ts
           npm run verify:release
 
       - name: Prepare SSH

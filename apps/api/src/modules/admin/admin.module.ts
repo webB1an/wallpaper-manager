@@ -10,6 +10,7 @@ import { AdminController } from "./admin.controller";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { AdminService } from "./admin.service";
 import { WallpaperProcessor } from "./wallpaper.processor";
+import { QueueRecoveryService } from "./queue-recovery.service";
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { WallpaperProcessor } from "./wallpaper.processor";
     TasksModule,
   ],
   controllers: [AdminController],
-  providers: [AdminService, WallpaperProcessor],
+  providers: [AdminService, WallpaperProcessor, QueueRecoveryService],
   exports: [AdminService],
 })
 export class AdminModule {}

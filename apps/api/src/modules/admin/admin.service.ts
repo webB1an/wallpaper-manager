@@ -1197,7 +1197,7 @@ export class AdminService implements OnModuleInit {
 
   async enqueueProcessWallpaper(id: string, storageSelection?: StorageSelection, channelAccountId?: string) {
     await this.assertStorageReady(storageSelection);
-    const payload = { wallpaperId: id, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) };
+    const payload = { queuePayloadVersion: 1, wallpaperId: id, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) };
     const delay = await this.uploadProcessingDelayMs([id]);
     const task = await this.tasks.create(
       "upload_asset",
@@ -1207,7 +1207,7 @@ export class AdminService implements OnModuleInit {
     await this.wallpaperQueue.add(
       "process-wallpaper",
       { wallpaperId: id, taskId: task.id, storageSelection, channelAccountId },
-      { attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
+      { jobId: task.id, attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
     );
     return { queued: true, taskId: task.id };
   }
@@ -1352,13 +1352,13 @@ export class AdminService implements OnModuleInit {
     const delay = await this.uploadProcessingDelayMs(ids);
     const task = await this.tasks.create(
       "upload_asset",
-      { wallpaperIds: ids, batch: true },
+      { wallpaperIds: ids, batch: true, queuePayloadVersion: 1, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) },
       delay > 0 ? "已进入队列，等待空闲时段批量处理" : `批量处理 ${ids.length} 张壁纸`,
     );
     await this.wallpaperQueue.add(
       "process-wallpaper-batch",
       { wallpaperIds: ids, taskId: task.id, storageSelection, channelAccountId },
-      { attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
+      { jobId: task.id, attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
     );
     return { queued: true, taskId: task.id, count: ids.length };
   }
@@ -1794,7 +1794,19 @@ export class AdminService implements OnModuleInit {
     try {
       await redis.connect();
       const pong = await redis.ping();
-      return pong === "PONG" ? ok("redis", "Redis 队列", "Redis 连接正常") : warn("redis", "Redis 队列", `Redis 返回异常：${pong}`);
+      if (pong !== "PONG") return warn("redis", "Redis 队列", `Redis 返回异常：${pong}`);
+      const queued = await this.prisma.task.count({ where: { type: "upload_asset", status: "queued" } });
+      const counts = await this.wallpaperQueue.getJobCounts("waiting", "active", "delayed", "paused", "prioritized", "waiting-children");
+      if (queued > 0 && Object.values(counts).every((count) => count === 0)) {
+        return warn("redis", "Redis 队列", `有 ${queued} 条上传任务记录，但执行队列为空；系统每分钟检查恢复，无法安全恢复的任务会标记失败并说明原因`);
+      }
+      // Restricted Redis users may forbid CONFIG; lack of permission is not a connectivity failure.
+      const binding = await redis.config("GET", "bind").catch(() => null) as string[] | null;
+      const protection = await redis.config("GET", "protected-mode").catch(() => null) as string[] | null;
+      if (binding && protection?.[1] === "no" && (!binding[1] || /(^|\s)(0\.0\.0\.0|\*|::)(\s|$)/.test(binding[1]))) {
+        return warn("redis", "Redis 队列", "Redis 监听所有网卡且保护模式关闭，请限制网络访问与清库权限，避免队列被清空");
+      }
+      return ok("redis", "Redis 队列", "Redis 连接正常");
     } catch (error) {
       return fail("redis", "Redis 队列", `Redis 连接失败：${shortError(error)}`);
     } finally {
