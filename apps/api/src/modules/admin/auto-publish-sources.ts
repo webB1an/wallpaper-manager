@@ -32,6 +32,18 @@ interface AutoSourceProviderEntry {
 }
 
 const providers: Record<string, AutoSourceProviderEntry> = {
+  ...Object.fromEntries([
+    ["nekos_best", "Nekos.best"],
+    ["nekos_moe", "Nekos.moe"],
+    ["nekos_api", "Nekos API"],
+    ["nekos_life", "Nekos.life"],
+    ["nekosia", "Nekosia"],
+    ["pic_re", "Pic.re"],
+  ].map(([id, label]) => [id, {
+    label: `${label}（二次元静态）`,
+    description: `通过 WallPost 墙外桥接获取 ${label} 的 SFW 静态图片`,
+    fetch: (ctx: AutoSourceContext) => fetchFromWallpost(ctx, "static", id),
+  }])),
   wallpost: {
     label: "WallPost（Wallhaven）",
     description: "从 WallPost 下载桥接拉取一张未收录的 Wallhaven 静态壁纸",
@@ -106,7 +118,8 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
   const bridgeBase = baseUrl.replace(/\/$/, "");
   // 动态壁纸需要墙外先下载视频再返回，耗时可能几分钟；单独放大超时，且大于墙外脚本超时（30 分钟）。
   const isLive = type === "live";
-  const nextTimeoutMs = isLive ? 35 * 60_000 : 90_000;
+  // 静态桥接也需要先下载图片，给候选重试预留时间。
+  const nextTimeoutMs = isLive ? 35 * 60_000 : 180_000;
   // 下载视频超时低于墙外临时文件 TTL（30 分钟），避免下载途中被清理。
   const downloadTimeoutMs = isLive ? 25 * 60_000 : 300_000;
 
