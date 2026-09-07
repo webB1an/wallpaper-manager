@@ -300,16 +300,6 @@ Page({
         }
         if (!(0, payment_1.checkIosVersion)())
             return;
-        const permission = await this.ensureSavePermission();
-        if (permission === "privacy") {
-            this.showNotice("请先同意《用户隐私保护指引》再保存");
-            return;
-        }
-        if (permission === "album") {
-            this.showNotice("需要相册权限，请点击“去开启权限”");
-            this.setData({ showAlbumGuide: true });
-            return;
-        }
         this.setData({ paying: true, payGuideText: "正在拉起微信支付…" });
         try {
             await ensureOpenid();
@@ -317,25 +307,20 @@ Page({
             this.setData({ payGuideText: "支付成功，正在确认订单…" });
             const delivered = await (0, payment_1.waitForPaymentDelivery)(order.outTradeNo, 20000);
             if (!delivered) {
-                this.showNotice("订单确认超时，请稍后在“我的”页面查看或重新下载");
+                this.showNotice("订单仍在确认，请稍后在“我的”页面查看权益，请勿重复支付");
                 return;
             }
-            this.setData({ downloading: true, downloadMessage: this.downloadMessageFor() });
-            await this.downloadPaid();
+            await this.loadPaymentCatalog();
+            this.setData({ payGuideText: "权益已开通，请复制壁纸短链前往网盘下载" });
+            this.showNotice("权益已开通，请复制壁纸短链前往网盘下载");
         }
         catch (error) {
             (0, logger_1.logDownloadError)("paidDownload", error);
             this.showNotice(downloadErrorText(error));
         }
         finally {
-            this.setData({ paying: false, downloading: false });
+            this.setData({ paying: false });
         }
-    },
-    async downloadPaid() {
-        if (!this.data.item)
-            return;
-        const result = await this.requestDownloadToken(this.data.item.id);
-        await this.downloadToAlbum(result.token);
     },
     async playRewardAd() {
         if (!ads_1.AD_UNITS.rewarded) {

@@ -1,6 +1,5 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, Post, Query, Redirect, Res, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, GoneException, Headers, Param, Post, Query, Redirect, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
-import type { Response } from "express";
 import { removeUploadedTempFiles, uploadDiskStorage, uploadFileFilter, uploadMaxBytes } from "../../common/upload";
 import { AdminService } from "../admin/admin.service";
 import { PublicService } from "./public.service";
@@ -65,15 +64,14 @@ export class PublicController {
   }
 
   @Post("wallpapers/:id/download")
-  async download(@Headers("x-openid") openid: string, @Param("id") id: string) {
-    return { code: 200, data: await this.service.createDownload(openid || "", id) };
+  download() {
+    // Keep a clear response for older clients, but never create a token or a fetch task.
+    throw new GoneException("小程序直下载已停用，请复制壁纸短链前往网盘下载");
   }
 
   @Get("downloads/file/:token")
-  async downloadFile(@Param("token") token: string, @Res() response: Response) {
-    const wallpaper = await this.service.resolveDownloadToken(token);
-    response.setHeader("Content-Type", wallpaper.mimeType);
-    return response.sendFile(wallpaper.filePath);
+  downloadFile() {
+    throw new GoneException("小程序直下载已停用，请复制壁纸短链前往网盘下载");
   }
 
   @Post("downloads/file/:token/complete")

@@ -12,9 +12,60 @@ import { AdminService } from "../modules/admin/admin.service";
 import { MiniUploadGuard } from "../modules/public/mini-upload.guard";
 import { removeUploadedTempFiles } from "./upload";
 import { activeTempFiles, cleanExpiredTempFiles, TEMP_TTL_MS } from "./temp-cleanup.service";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 @Module({})
 class UploadTestModule {}
+
+test("retired direct-download endpoints return 410 without invoking download services", async () => {
+  Reflect.defineMetadata("design:paramtypes", [PublicService, AdminService], PublicController);
+  Reflect.defineMetadata("design:paramtypes", [PublicService], MiniUploadGuard);
+  let invoked = 0;
+  const rejectCall = () => { invoked++; throw new Error("direct download must not run"); };
+  const app = await NestFactory.create({ module: UploadTestModule, controllers: [PublicController], providers: [
+    { provide: PublicService, useValue: { createDownload: rejectCall, resolveDownloadToken: rejectCall } },
+    { provide: AdminService, useValue: {} }, MiniUploadGuard,
+  ] }, { logger: false });
+  try {
+    await app.listen(0, "127.0.0.1");
+    for (const [path, method] of [["/wallpapers/fixture/download", "POST"], ["/downloads/file/old-token", "GET"]]) {
+      const response = await fetch(`${await app.getUrl()}${path}`, { method });
+      assert.equal(response.status, 410);
+      assert.match((await response.json()).message, /复制.*短链.*网盘/);
+    }
+    assert.equal(invoked, 0);
+  } finally { await app.close(); }
+});
+
+test("mini payment success opens entitlement without album permissions or direct download", async () => {
+  const repo = resolve(__dirname, "../../../..");
+  let page: any;
+  let paid = 0;
+  let notice = "";
+  const forbidden = () => { throw new Error("payment must not request direct download or album access"); };
+  runInNewContext(readFileSync(join(repo, "apps/miniprogram/pages/detail/detail.js"), "utf8"), {
+    exports: {}, Page: (value: unknown) => { page = value; },
+    wx: { getStorageSync: () => "fixture-openid" },
+    require: (name: string) => name.endsWith("/payment") ? {
+      canUseVirtualPayment: () => true, checkIosVersion: () => true,
+      payProduct: async () => { paid++; return { outTradeNo: "fixture" }; },
+      waitForPaymentDelivery: async () => true,
+    } : name.endsWith("/ads") ? { AD_UNITS: {} } : name.endsWith("/logger") ? { logDownloadError: (where: string, error: Error) => { throw error; } } : { post: forbidden },
+  });
+  page.data = { item: { id: "fixture" }, paymentProducts: [{ key: "fixture" }], paying: false, downloading: false };
+  page.setData = (data: object) => Object.assign(page.data, data);
+  page.ensureSavePermission = forbidden;
+  page.requestDownloadToken = forbidden;
+  page.downloadToAlbum = forbidden;
+  page.loadPaymentCatalog = async () => undefined;
+  page.showNotice = (value: string) => { notice = value; };
+  await page.onPaidDownload();
+  assert.equal(paid, 1);
+  assert.equal(page.data.paying, false);
+  assert.equal(page.data.downloading, false);
+  assert.match(notice, /权益已开通.*网盘下载/);
+});
 
 test("HTTP upload authorization precedes disk writes; downstream failures clean files", async () => {
   // tsx does not emit TypeScript design metadata; supply the same metadata as the production build.
