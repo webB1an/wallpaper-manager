@@ -1,5 +1,10 @@
 import { ConfigService } from "@nestjs/config";
-import { downloadBridgeFile, TransferProgress } from "./bridge-transfer";
+import { downloadBridgeFileToDisk, TransferProgress } from "./bridge-transfer";
+
+/** Total transfer budget includes retries; idle detection remains independent. */
+export function bridgeTransferTimeoutMs(type: "static" | "live") {
+  return (type === "live" ? 60 : 15) * 60_000;
+}
 
 export interface AutoSourceItem {
   /** 来源侧唯一 id，用于全站去重（source + sourceId 只发一次）。 */
@@ -9,7 +14,12 @@ export interface AutoSourceItem {
   fileName: string;
   fileType: string;
   type: "static" | "live";
-  bytes: Buffer;
+  filePath: string;
+}
+
+export interface BridgeItem {
+  id: string; token: string; width: number; height: number; fileSize?: number;
+  fileName: string; fileType: string; downloadUrl: string;
 }
 
 export interface AutoSourceContext {
@@ -17,6 +27,9 @@ export interface AutoSourceContext {
   config: Record<string, unknown>;
   configService: ConfigService;
   onTransferProgress?: (progress: TransferProgress) => Promise<void>;
+  transferKey?: string;
+  resumeBridge?: BridgeItem;
+  onBridgeReady?: (item: BridgeItem) => Promise<void>;
 }
 
 export type AutoSourceProvider = (ctx: AutoSourceContext) => Promise<AutoSourceItem>;
@@ -123,44 +136,54 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
   // 静态桥接也需要先下载图片，给候选重试预留时间。
   const nextTimeoutMs = isLive ? 12 * 60_000 : 180_000;
   // 连续有数据时允许慢速传输；60 分钟为含所有续传的最终上限，桥接保留 2 小时。
-  const downloadTimeoutMs = isLive ? 60 * 60_000 : 300_000;
+  const downloadTimeoutMs = bridgeTransferTimeoutMs(type);
 
-  const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
-    body: JSON.stringify({ exclude: ctx.exclude, type, ...(source ? { source } : {}) }),
-    signal: AbortSignal.timeout(nextTimeoutMs),
-  });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error || `桥接获取壁纸失败（${response.status}）`);
+  let item = ctx.resumeBridge;
+  if (!item) {
+    const response = await fetch(`${bridgeBase}/api/bridge/next-wallpaper`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-bridge-key": bridgeKey },
+      body: JSON.stringify({ exclude: ctx.exclude, type, ...(source ? { source } : {}) }),
+      signal: AbortSignal.timeout(nextTimeoutMs),
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(body?.error || `桥接获取壁纸失败（${response.status}）`);
+    }
+    const payload = (await response.json()) as {
+      data?: BridgeItem;
+    };
+    item = payload.data;
+    if (!item?.id || !item.downloadUrl) throw new Error("桥接未返回壁纸信息");
+    await ctx.onBridgeReady?.(item);
   }
-  const payload = (await response.json()) as {
-    data?: { id: string; token: string; width: number; height: number; fileSize?: number; fileName: string; fileType: string; downloadUrl: string };
-  };
-  const item = payload.data;
-  if (!item?.id || !item.downloadUrl) throw new Error("桥接未返回壁纸信息");
 
   const configuredMax = Number(ctx.configService.get("UPLOAD_MAX_FILE_MB") || 300);
-  let bytes: Buffer;
+  let filePath: string;
+  let completed = false;
   try {
-  bytes = await downloadBridgeFile(`${bridgeBase}${item.downloadUrl}`, {
-    headers: { "x-bridge-key": bridgeKey },
-    timeoutMs: downloadTimeoutMs,
-    maxBytes: (Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : 300) * 1048576,
-    expectedBytes: item.fileSize,
-    onProgress: ctx.onTransferProgress,
-    maxRetries: 3,
-  });
+    filePath = await downloadBridgeFileToDisk(`${bridgeBase}${item.downloadUrl}`, {
+      headers: { "x-bridge-key": bridgeKey },
+      timeoutMs: downloadTimeoutMs,
+      maxBytes: (Number.isFinite(configuredMax) && configuredMax > 0 ? configuredMax : 300) * 1048576,
+      expectedBytes: item.fileSize,
+      onProgress: ctx.onTransferProgress,
+      maxRetries: 3,
+      transferKey: ctx.transferKey,
+      retainPartial: Boolean(ctx.transferKey),
+    });
+    completed = true;
   } finally {
-  // 只在整个传输成功或最终失败后清理，单次断线重试期间保留远端文件。
-  await fetch(`${bridgeBase}/api/bridge/download/${item.token}/complete`, {
-    method: "POST",
-    headers: { "x-bridge-key": bridgeKey },
-    signal: AbortSignal.timeout(15_000),
-  }).then((result) => {
-    if (!result.ok) console.warn("桥接临时文件清理未成功，将由桥接过期清理兜底");
-  }).catch(() => console.warn("桥接临时文件清理请求失败，将由桥接过期清理兜底"));
+    // Persistent tasks retain the remote file on failure for safe retry (bridge TTL is the hard limit).
+    if (completed || !ctx.transferKey) {
+      await fetch(`${bridgeBase}/api/bridge/download/${item.token}/complete`, {
+        method: "POST",
+        headers: { "x-bridge-key": bridgeKey },
+        signal: AbortSignal.timeout(15_000),
+      }).then((result) => {
+        if (!result.ok) console.warn("桥接临时文件清理未成功，将由桥接过期清理兜底");
+      }).catch(() => console.warn("桥接临时文件清理请求失败，将由桥接过期清理兜底"));
+    }
   }
 
   return {
@@ -170,7 +193,7 @@ async function fetchFromWallpost(ctx: AutoSourceContext, type: "static" | "live"
     fileName: item.fileName,
     fileType: item.fileType,
     type,
-    bytes,
+    filePath,
   };
 }
 

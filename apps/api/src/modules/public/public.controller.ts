@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query, Redirect, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Headers, Param, Post, Query, Redirect, Res, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { removeUploadedTempFiles, uploadDiskStorage, uploadFileFilter, uploadMaxBytes } from "../../common/upload";
 import { AdminService } from "../admin/admin.service";
 import { PublicService } from "./public.service";
+import { MiniUploadGuard } from "./mini-upload.guard";
 
 @Controller()
 export class PublicController {
@@ -148,6 +149,7 @@ export class PublicController {
     return { code: 200, data: await this.service.offlineWallpaper(openid || "", id) };
   }
 
+  @UseGuards(MiniUploadGuard)
   @UseInterceptors(FilesInterceptor("file", 1, {
     storage: uploadDiskStorage(),
     limits: { fileSize: uploadMaxBytes() },
@@ -155,7 +157,6 @@ export class PublicController {
   }))
   @Post("wallpapers/upload")
   async uploadFromMini(@UploadedFiles() files: Express.Multer.File[], @Headers("x-openid") openid: string, @Body() body: { autoPublish?: string; batchKey?: string; batchTotal?: string; tags?: string; title?: string }) {
-    if (!(await this.service.isMiniAdmin(openid || ""))) throw new ForbiddenException("无上传权限");
     const autoPublish = body.autoPublish === "true";
     try {
       return {
@@ -176,6 +177,7 @@ export class PublicController {
   }
 
   @Post("wallpapers/upload/batch/complete")
+  @UseGuards(MiniUploadGuard)
   async completeMiniBatch(@Body() body: { batchKey?: string }) {
     return { code: 200, data: await this.admin.enqueueMiniBatchPublish((body.batchKey || "").trim()) };
   }

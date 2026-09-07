@@ -7,6 +7,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AdminService } from "./admin.service";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { recoverUploadPayload, recoveryResourceError } from "./queue-recovery";
+import { canResumeAutoPublish } from "./auto-publish-checkpoint";
 
 /** MySQL is the durable task ledger; Redis is only its dispatch queue. Single API instance. */
 @Injectable()
@@ -15,6 +16,8 @@ export class QueueRecoveryService implements OnModuleInit, OnModuleDestroy {
   private readonly startedAt = new Date();
   private timer?: NodeJS.Timeout;
   private busy = false;
+  private cursor?: string;
+  private expiryCursor?: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -34,16 +37,28 @@ export class QueueRecoveryService implements OnModuleInit, OnModuleDestroy {
     this.busy = true;
     try {
       // Queue access must succeed before changing any task status. Include legacy numeric job ids.
-      const jobs = await this.queue.getJobs(["active", "wait", "delayed", "paused", "prioritized", "waiting-children"], 0, -1);
-      const liveTasks = new Set(jobs.map((job) => job.data.taskId));
       const cutoff = new Date(Date.now() - 2 * 60_000);
       const tasks = await this.prisma.task.findMany({
-        where: { type: { in: ["upload_asset", "auto_publish"] }, status: { in: ["queued", "running"] }, updatedAt: { lt: cutoff } },
-        orderBy: { createdAt: "asc" },
+        where: { type: { in: ["upload_asset", "auto_publish"] }, status: { in: ["queued", "running"] }, updatedAt: { lt: cutoff }, ...(this.cursor ? { id: { gt: this.cursor } } : {}) },
+        orderBy: { id: "asc" }, take: 100,
       });
+      const candidates = new Set(tasks.map((task) => task.id));
+      const liveTasks = new Set<string>();
+      for (let start = 0; ; start += 100) {
+        const jobs = await this.queue.getJobs(["active", "wait", "delayed", "paused", "prioritized", "waiting-children"], start, start + 99);
+        for (const job of jobs) if (candidates.has(job.data.taskId)) liveTasks.add(job.data.taskId);
+        if (jobs.length < 100) break;
+      }
+      this.cursor = tasks.length === 100 ? tasks.at(-1)!.id : undefined;
       for (const task of tasks) {
         if (task.status !== "queued" && task.status !== "running") continue;
         if (liveTasks.has(task.id)) continue;
+        const checkpoint = (task.payload as { checkpoint?: unknown } | null)?.checkpoint;
+        if (task.type === "auto_publish" && task.createdAt < this.startedAt && canResumeAutoPublish(checkpoint)) {
+          try { await this.admin.resumeAutoPublishTask(task.id, true); }
+          catch (error) { await this.fail(task.id, task.status, `恢复未启动：${(error as Error).message}`); }
+          continue;
+        }
         // Running tasks may already have sent a post. Do not replay interrupted external effects.
         if (task.status === "running" || task.type === "auto_publish") {
           if (task.createdAt < this.startedAt) await this.fail(task.id, task.status, "服务重启后发现中断任务，需核对处理结果，未自动重复发帖");
@@ -76,6 +91,15 @@ export class QueueRecoveryService implements OnModuleInit, OnModuleDestroy {
           jobId: task.id, delay, attempts: 1, removeOnComplete: 200, removeOnFail: 500,
         });
         this.logger.log(`已恢复上传任务 ${task.id}`);
+      }
+      const expired = await this.prisma.task.findMany({
+        where: { type: "auto_publish", status: "failed", OR: [{ updatedAt: { lt: new Date(Date.now() - 24 * 60 * 60_000) } }, { result: { path: "$.cleanupPending", equals: true } }], ...(this.expiryCursor ? { id: { gt: this.expiryCursor } } : {}) },
+        orderBy: { id: "asc" }, take: 100, select: { id: true },
+      });
+      this.expiryCursor = expired.length === 100 ? expired.at(-1)!.id : undefined;
+      for (const task of expired) {
+        try { await this.admin.expireAutoPublishTask(task.id); }
+        catch (error) { this.logger.warn(`过期恢复文件清理失败，将重试：${(error as Error).message}`); }
       }
     } finally { this.busy = false; }
   }

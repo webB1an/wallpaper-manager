@@ -1,10 +1,48 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { downloadBridgeFile, transferTaskUpdate, TransferProgress } from "./bridge-transfer";
-import { fetchAutoSource } from "./auto-publish-sources";
+import { bridgeTransferPath, downloadBridgeFile, downloadBridgeFileToDisk, removeBridgeTransfer, transferTaskUpdate, TransferProgress } from "./bridge-transfer";
+import { bridgeTransferTimeoutMs, fetchAutoSource } from "./auto-publish-sources";
 import type { ConfigService } from "@nestjs/config";
+import { readFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 
 const base = { headers: {}, timeoutMs: 2000, maxBytes: 100 };
+
+test("static transfers allow 15 minutes while live transfers retain their 60 minute budget", () => {
+  assert.equal(bridgeTransferTimeoutMs("static"), 900_000);
+  assert.equal(bridgeTransferTimeoutMs("live"), 3_600_000);
+});
+
+test("a fresh transfer invocation resumes a persisted partial file and reuses completed files", async () => {
+  const transferKey = randomUUID();
+  try {
+    await assert.rejects(downloadBridgeFileToDisk("http://fixture/persistent", { ...base, transferKey, retainPartial: true,
+      fetcher: async () => new Response("ab", { headers: { "content-length": "5", etag: '"stable"' } }),
+    }), /不完整/);
+    assert.equal(await readFile(bridgeTransferPath(transferKey), "utf8"), "ab");
+    const path = await downloadBridgeFileToDisk("http://fixture/persistent", { ...base, transferKey, expectedBytes: 5,
+      fetcher: async (_url, init) => {
+        assert.equal(new Headers(init?.headers).get("range"), "bytes=2-");
+        return new Response("cde", { status: 206, headers: { "content-length": "3", "content-range": "bytes 2-4/5", etag: '"stable"' } });
+      },
+    });
+    assert.equal(await readFile(path, "utf8"), "abcde");
+    const reused = await downloadBridgeFileToDisk("http://fixture/persistent", { ...base, transferKey, fetcher: async () => { throw new Error("must not fetch completed file"); } });
+    assert.equal(reused, path);
+  } finally { await removeBridgeTransfer(transferKey); }
+});
+
+test("fatal range mismatch deletes both partial file and metadata even with retention enabled", async () => {
+  const transferKey = randomUUID();
+  try {
+    await assert.rejects(downloadBridgeFileToDisk("http://fixture", { ...base, transferKey, retainPartial: true, maxRetries: 1,
+      fetcher: async () => new Response("ab", { headers: { "content-length": "5", etag: '"stable"' } }),
+    }), /续传范围/);
+    assert.equal(existsSync(bridgeTransferPath(transferKey)), false);
+    assert.equal(existsSync(`${bridgeTransferPath(transferKey)}.json`), false);
+  } finally { await removeBridgeTransfer(transferKey); }
+});
 test("streamed transfer reports bytes and validates complete file", async () => {
   const updates: TransferProgress[] = [];
   const data = await downloadBridgeFile("http://fixture", { ...base, expectedBytes: 5, progressIntervalMs: 0,
@@ -102,7 +140,12 @@ test("remote cleanup is requested after success and after final transfer failure
       };
       const configService = { get: (key: string) => key === "WALLPOST_BASE_URL" ? "http://fixture" : key === "WALLPOST_BRIDGE_KEY" ? "fixture-key" : undefined } as unknown as ConfigService;
       const run = fetchAutoSource("wallpost", { exclude: [], config: {}, configService });
-      if (succeed) assert.equal((await run).bytes.toString(), "abc");
+      if (succeed) {
+        const item = await run;
+        assert.equal(await readFile(item.filePath, "utf8"), "abc");
+        await unlink(item.filePath);
+        await unlink(`${item.filePath}.json`);
+      }
       else await assert.rejects(run, /传输不完整/);
       assert.equal(cleaned, 1);
     }

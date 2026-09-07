@@ -13,6 +13,12 @@ type AiReviewQuery = "unreviewed" | "safe" | "blocked";
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
 
+  @UseGuards(AdminAuthGuard)
+  @Post("tasks/:id/resume")
+  async resumeTask(@Param("id") id: string) {
+    return { code: 200, data: await this.admin.resumeAutoPublishTask(id) };
+  }
+
   @Post("auth/login")
   login(@Body() body: { username: string; password: string }, @Ip() ip: string) {
     return { code: 200, data: this.admin.login(body.username, body.password, ip) };

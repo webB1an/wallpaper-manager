@@ -15,6 +15,7 @@ import { PublicModule } from "./modules/public/public.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { WdbzkModule } from "./modules/wdbzk/wdbzk.module";
+import { TempCleanupService } from "./common/temp-cleanup.service";
 
 @Module({
   imports: [
@@ -45,5 +46,6 @@ import { WdbzkModule } from "./modules/wdbzk/wdbzk.module";
     ImportModule,
   ],
   controllers: [HealthController],
+  providers: [TempCleanupService],
 })
 export class AppModule {}

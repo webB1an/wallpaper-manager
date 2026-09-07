@@ -330,6 +330,9 @@ model Task {
   error       String?    @db.Text
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+
+  @@index([status, type, updatedAt])
+  @@index([createdAt])
 }
 
 model ChannelAccount {

@@ -100,7 +100,7 @@ function recoveryHarness(options: { live?: boolean; unavailable?: boolean; statu
     createdAt: new Date(options.current ? Date.now() + 60_000 : 0), updatedAt: new Date(0),
     payload: options.payload || { wallpaperId: "a" } };
   const prisma = {
-    task: { findMany: async () => [task], updateMany: async (update: typeof updates[number]) => { updates.push(update); return { count: 1 }; } },
+    task: { findMany: async (query: { where: { status: unknown } }) => query.where.status === "failed" ? [] : [task], updateMany: async (update: typeof updates[number]) => { updates.push(update); return { count: 1 }; } },
     wallpaper: { findMany: async () => [{ id: "a", status: options.published ? "published" : "draft", assetPath: options.assetPath || "missing.jpg", aiAnalysis: null, _count: { storageLinks: 0 } }] },
   };
   const queue = {
@@ -157,5 +157,22 @@ test("lost untouched upload is requeued with same task id and idle delay", async
   } finally {
     assert.ok(resolve(temp).startsWith(root + sep));
     await rm(temp, { recursive: true });
+  }
+});
+
+test("new checkpoints resume after restart, while an in-flight publication is never replayed", async () => {
+  for (const stage of ["download", "publish_inflight"] as const) {
+    let resumed = 0;
+    let failed = 0;
+    const task = { id: "t", type: "auto_publish", status: "running", createdAt: new Date(0), updatedAt: new Date(0), payload: { checkpoint: { version: 1, stage, source: "wallpost" } } };
+    const prisma = { task: {
+      findMany: async (query: { where: { status: unknown }; take: number }) => { assert.equal(query.take, 100); return query.where.status === "failed" ? [] : [task]; },
+      updateMany: async () => { failed++; return { count: 1 }; },
+    } };
+    const admin = { resumeAutoPublishTask: async (id: string, interrupted: boolean) => { assert.equal(id, "t"); assert.equal(interrupted, true); resumed++; return { ok: true }; } };
+    const queue = { getJobs: async (_states: string[], start: number, end: number) => { assert.equal(start, 0); assert.equal(end, 99); return []; } };
+    await new QueueRecoveryService(prisma as unknown as PrismaService, admin as unknown as AdminService, queue as unknown as Queue).reconcile();
+    assert.equal(resumed, stage === "download" ? 1 : 0);
+    assert.equal(failed, stage === "publish_inflight" ? 1 : 0);
   }
 });

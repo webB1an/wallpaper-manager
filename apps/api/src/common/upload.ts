@@ -1,8 +1,9 @@
 import { BadRequestException } from "@nestjs/common";
 import { diskStorage } from "multer";
-import { mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { nanoid } from "nanoid";
+import { activeTempFiles } from "./temp-cleanup.service";
 
 export const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/jpeg",
@@ -29,27 +30,9 @@ export function uploadFileFilter() {
   };
 }
 
-let cleanedOnce = false;
-
 function tempUploadDir() {
   const dir = join(process.cwd(), "storage", "tmp-uploads");
   mkdirSync(dir, { recursive: true });
-  if (!cleanedOnce) {
-    cleanedOnce = true;
-    try {
-      const now = Date.now();
-      for (const name of readdirSync(dir)) {
-        const full = join(dir, name);
-        try {
-          if (statSync(full).mtimeMs < now - 24 * 60 * 60 * 1000) rmSync(full, { force: true });
-        } catch {
-          // 单个文件清理失败忽略
-        }
-      }
-    } catch {
-      // 清理失败不影响上传
-    }
-  }
   return dir;
 }
 
@@ -57,9 +40,13 @@ function tempUploadDir() {
 export function uploadDiskStorage() {
   return diskStorage({
     destination: (_request, _file, callback) => callback(null, tempUploadDir()),
-    filename: (_request, file, callback) => {
+    filename: (request, file, callback) => {
       const match = /\.([^.]+)$/.exec(file.originalname || "");
-      callback(null, `${Date.now()}-${nanoid(10)}${match ? `.${match[1]}` : ""}`);
+      const name = `${Date.now()}-${nanoid(10)}${match ? `.${match[1]}` : ""}`;
+      const path = join(tempUploadDir(), name);
+      activeTempFiles.add(path);
+      request.once("close", () => activeTempFiles.delete(path));
+      callback(null, name);
     },
   });
 }
