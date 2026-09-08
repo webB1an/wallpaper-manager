@@ -30,6 +30,13 @@
       </view>
     </view>
     <text class="delivery-note">网盘资源如有更新，将继续在本页面提供最新地址。</text>
+    <button class="member-request-button" bindtap="goMemberRequest" hover-class="member-request-pressed">
+      <view class="member-request-copy">
+        <text class="member-request-title">会员求图</text>
+        <text class="member-request-subtitle">提交需求 · 查看处理进度</text>
+      </view>
+      <text class="member-request-arrow">›</text>
+    </button>
   </view>
 
   <view wx:for="{{products}}" wx:key="key" wx:if="{{!loading && !error}}" class="purchase-card">

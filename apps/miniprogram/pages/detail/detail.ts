@@ -18,6 +18,8 @@ Page({
     typeText: "",
     orientationText: "",
     loading: true,
+    playingPreview: false,
+    previewFailed: false,
     error: "",
     id: "",
     capsuleTop: 48,
@@ -59,6 +61,7 @@ Page({
   },
 
   onUnload() {
+    requestToken += 1;
     wx.setNavigationBarTitle({ title: "壁纸详情" });
   },
 
@@ -66,7 +69,7 @@ Page({
     const targetId = id || this.data.id;
     if (!targetId) return;
     const token = ++requestToken;
-    this.setData({ loading: true, error: "" });
+    this.setData({ loading: true, error: "", playingPreview: false, previewFailed: false });
     try {
       const item = await request<WallpaperDetail>(`/wallpapers/${targetId}`);
       if (token !== requestToken) return;
@@ -92,6 +95,20 @@ Page({
     } finally {
       if (token === requestToken) this.setData({ loading: false });
     }
+  },
+
+  previewImage() {
+    const url = this.data.item?.coverUrl;
+    if (url) wx.previewImage({ current: url, urls: [url] });
+  },
+
+  playPreview() {
+    if (this.data.item?.previewVideoUrl) this.setData({ playingPreview: true });
+  },
+
+  onPreviewError() {
+    this.setData({ playingPreview: false, previewFailed: true });
+    wx.showToast({ title: "预览暂不可用，仍可复制网盘链接", icon: "none" });
   },
 
   retry() {
@@ -198,6 +215,7 @@ Page({
   },
 
   copyShortLink(url: string, label: string, passcode?: string) {
+    const item = this.data.item;
     if (!url) {
       wx.showToast({ title: "暂无短链", icon: "none" });
       return;
@@ -205,8 +223,8 @@ Page({
     wx.setClipboardData({
       data: url,
       success: () => {
-        saveHistory(this.data.item, url, label, passcode);
-        recordDownloadClick(this.data.item?.id);
+        saveHistory(item, url, label, passcode);
+        recordDownloadClick(item?.id);
         wx.showToast({ title: "短链已复制", icon: "success" });
       }
     });

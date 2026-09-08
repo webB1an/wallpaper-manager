@@ -148,6 +148,42 @@
   margin-top: 22rpx;
 }
 
+.delivery-card .member-request-button {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 24rpx 0 0;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid #e6d6c2;
+  border-radius: 16rpx;
+  background: #fbf7f0;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.5;
+}
+.member-request-button::after { border: 0; }
+.member-request-copy { flex: 1; min-width: 0; }
+.member-request-title {
+  display: block;
+  color: #844121;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+.member-request-subtitle {
+  display: block;
+  margin-top: 4rpx;
+  color: #8a7668;
+  font-size: 23rpx;
+  font-weight: 400;
+}
+.member-request-arrow { flex-shrink: 0; color: #a88060; font-size: 38rpx; }
+.delivery-card .member-request-pressed { background: #f1e5d7; }
+
 .purchase-head {
   display: flex;
   justify-content: space-between;

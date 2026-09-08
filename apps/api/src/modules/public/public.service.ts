@@ -259,6 +259,8 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
       type: item.type,
       orientation: item.orientation,
       coverUrl: publicCoverUrl(item.coverUrl),
+      previewVideoUrl: item.type === "live" && item.coverPath && /^covers\/[\w-]+\.jpg$/.test(item.coverPath) && existsSync(join(process.cwd(), "storage", "public", `${item.coverPath}.preview.mp4`))
+        ? publicAssetUrl(this.config, `${item.coverPath}.preview.mp4`) : null,
       tags: tagNames,
       viewCount: item.viewCount + 1,
       downloadCount: item.downloadCount,
@@ -324,11 +326,10 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
       select: { id: true },
     });
     if (!item) throw new NotFoundException("壁纸不存在或未上架");
-    await this.prisma.wallpaper.update({
+    await this.prisma.$transaction([this.prisma.wallpaper.update({
       where: { id },
       data: { downloadCount: { increment: 1 } },
-    });
-    await this.prisma.wallpaperClick.create({ data: { wallpaperId: id } });
+    }), this.prisma.wallpaperClick.create({ data: { wallpaperId: id } })]);
   }
 
   async loginWechat(code: string) {
@@ -672,7 +673,6 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     }
     await this.prisma.$transaction([
       this.prisma.shortLink.update({ where: { id: link.id }, data: { clickCount: { increment: 1 } } }),
-      this.prisma.wallpaper.update({ where: { id: link.wallpaperId }, data: { downloadCount: { increment: 1 } } }),
     ]);
     const url = link.storageLink.passcode && link.storageLink.provider === StorageProvider.baidu && !link.storageLink.url.includes("pwd=")
       ? `${link.storageLink.url}${link.storageLink.url.includes("?") ? "&" : "?"}pwd=${link.storageLink.passcode}`
@@ -681,20 +681,33 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async relatedWallpapers(id: string, type: string, tags: string[]) {
-    const related = await this.prisma.wallpaper.findMany({
+    // 分标签取候选，避免高热度的宽泛标签挤掉小众角色的内容。
+    const groups = await Promise.all(tags.slice(0, 8).map((name) => this.prisma.wallpaper.findMany({
       where: {
         id: { not: id },
         status: WallpaperStatus.published,
-        OR: [
-          ...(tags.length ? [{ tags: { some: { tag: { name: { in: tags } } } } }] : []),
-          { type: type as never },
-        ],
+        tags: { some: { tag: { name } } },
       },
       include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
       orderBy: [{ downloadCount: "desc" }, { sortOrder: "desc" }, { createdAt: "desc" }],
-      take: 6,
-    });
-    return related.map(wallpaperCard);
+      take: 30,
+    })));
+    const related = [...new Map(groups.flat().map((item) => [item.id, item])).values()];
+    const score = (item: typeof related[number]) => item.tags.reduce((sum, { tag }) => {
+      const index = tags.indexOf(tag.name);
+      return sum + (index < 0 ? 0 : tags.length - index);
+    }, 0);
+    related.sort((a, b) => score(b) - score(a) || Number(b.type === type) - Number(a.type === type) || b.downloadCount - a.downloadCount);
+    const picks = related.slice(0, 6);
+    if (picks.length < 6) {
+      picks.push(...await this.prisma.wallpaper.findMany({
+        where: { id: { notIn: [id, ...picks.map((item) => item.id)] }, status: WallpaperStatus.published, type: type as WallpaperType },
+        include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
+        orderBy: [{ downloadCount: "desc" }, { createdAt: "desc" }, { id: "asc" }],
+        take: 6 - picks.length,
+      }));
+    }
+    return picks.map(wallpaperCard);
   }
 
   private async tagCoverMap(tagIds: string[]) {

@@ -49,13 +49,16 @@ Page({
     }
   },
 
+  goMemberRequest() {
+    if (this.data.purchased) wx.navigateTo({ url: "/pages/request/request" });
+  },
+
   copyResource(event: WechatMiniprogram.TouchEvent) {
     const index = Number(event.currentTarget.dataset.index);
     const resource = this.data.resources[index];
     if (!resource) return;
-    const text = resource.passcode ? `${resource.url}\n提取码：${resource.passcode}` : resource.url;
     wx.setClipboardData({
-      data: text,
+      data: resource.url,
       success: () => wx.showToast({ title: "资源链接已复制", icon: "success" })
     });
   },

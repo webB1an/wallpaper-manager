@@ -284,14 +284,22 @@
   margin-top: 10rpx;
 }
 
-.count {
-  display: inline-block;
-  max-width: 170rpx;
-  margin-top: 0;
-  margin-left: 0;
+.poster-media {
+  position: relative;
+}
+
+.heat-badge {
+  position: absolute;
+  right: 12rpx;
+  bottom: 12rpx;
+  max-width: calc(100% - 48rpx);
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(30, 25, 22, 0.58);
   overflow: hidden;
-  color: #8a7668;
-  font-size: 21rpx;
+  color: #ffffff;
+  font-size: 20rpx;
+  line-height: 28rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

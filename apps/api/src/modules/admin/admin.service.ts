@@ -442,6 +442,7 @@ export class AdminService implements OnModuleInit {
       const bridge = payload!.checkpoint!.bridge;
       if (bridge) await cleanupOriginal(join("originals", `auto-${id}${safeExtension(bridge.fileName)}`));
       await cleanupOriginal(join("covers", `auto-${id}.jpg`));
+      await cleanupOriginal(join("covers", `auto-${id}.jpg.preview.mp4`));
     } else {
       const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId } });
       if (wallpaper && wallpaper.status !== WallpaperStatus.published) {
@@ -1887,7 +1888,21 @@ export class AdminService implements OnModuleInit {
         await sharp(filePath).resize({ width: 900, withoutEnlargement: true }).jpeg({ quality: 82 }).toFile(output);
       }
     } else if (mimeType.startsWith("video/") && existsSync(filePath) && await this.createVideoCover(filePath, output)) {
-      // ffmpeg extracted the first frame into output.
+      // 预览独立保存；失败降级为封面，不阻断上传或重新回源。
+      const preview = `${output}.preview.mp4`;
+      const temporary = `${output}.preview.tmp.mp4`;
+      try {
+        const result = await runCli(this.config.get<string>("FFMPEG_PATH")?.trim() || "ffmpeg", [
+          "-y", "-i", filePath, "-map", "0:v:0", "-t", "8", "-an", "-vf", "scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=15",
+          "-c:v", "libx264", "-threads", "1", "-preset", "veryfast", "-crf", "28", "-maxrate", "800k", "-bufsize", "1600k", "-pix_fmt", "yuv420p", "-movflags", "+faststart", temporary,
+        ], { timeoutMs: 30_000 });
+        if (result.ok && existsSync(temporary)) await rename(temporary, preview);
+        else this.logger.warn("动态预览生成失败，已保留封面继续处理");
+      } catch {
+        this.logger.warn("动态预览生成失败，已保留封面继续处理");
+      } finally {
+        await unlink(temporary).catch(() => undefined);
+      }
     } else {
       await sharp({
         create: {
@@ -1904,6 +1919,7 @@ export class AdminService implements OnModuleInit {
   private async removeUploadedFile(filePath?: string) {
     if (!filePath) return;
     await unlink(filePath).catch(() => undefined);
+    if (filePath.endsWith(".jpg")) await unlink(`${filePath}.preview.mp4`).catch(() => undefined);
   }
 
   private async createVideoCover(filePath: string, output: string): Promise<boolean> {

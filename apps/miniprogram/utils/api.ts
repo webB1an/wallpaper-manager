@@ -64,6 +64,7 @@ export interface WallpaperCard {
 }
 
 export interface WallpaperDetail extends WallpaperCard {
+  previewVideoUrl?: string | null;
   fileSize: number;
   shortLinks: Array<{ provider: string; label: string; url: string; passcode?: string }>;
   related: WallpaperCard[];

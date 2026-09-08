@@ -1,3 +1,20 @@
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16rpx;
+  padding: 0 0 24rpx;
+  color: #78685a;
+  font-size: 24rpx;
+}
+.preview-actions button {
+  margin: 0;
+  padding: 0 24rpx;
+  font-size: 24rpx;
+  color: #844121;
+  background: #f1e5d7;
+}
+.detail-preview { position: relative; z-index: 2; }
 .detail-page {
   position: relative;
   min-height: 100vh;
@@ -191,6 +208,7 @@
 }
 
 .detail-visual::after {
+  pointer-events: none;
   position: absolute;
   right: 0;
   bottom: 0;
@@ -245,6 +263,13 @@
   margin-top: 18rpx;
   color: #8a7668;
   font-size: 24rpx;
+}
+
+.detail-meta .detail-heat {
+  margin-left: auto;
+  color: #94877b;
+  font-size: 22rpx;
+  white-space: nowrap;
 }
 
 .tag-row {
