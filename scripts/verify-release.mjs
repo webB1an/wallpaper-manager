@@ -203,7 +203,9 @@ requireContains("apps/miniprogram/pages/detail/detail.wxml", "primary-download")
 requireContains("apps/miniprogram/pages/detail/detail.wxml", "primaryPasscode");
 requireNotContains("apps/miniprogram/pages/detail/detail.wxml", "download-list");
 requireNotContains("apps/miniprogram/pages/detail/detail.wxml", "短链清单");
-requireContains("apps/miniprogram/pages/detail/detail.ts", "formatClipboardText");
+// 详情短链和购买资源均只复制完整 URL，不再拼接提取码文案。
+requireContains("apps/miniprogram/pages/detail/detail.ts", "data: url,");
+requireContains("apps/miniprogram/pages/buy/buy.ts", "data: resource.url,");
 requireContains("apps/miniprogram/pages/detail/detail.ts", "recordDownloadClick");
 requireContains("apps/miniprogram/pages/detail/detail.ts", "/click");
 requireContains("apps/miniprogram/pages/detail/detail.wxss", "primary-passcode");
