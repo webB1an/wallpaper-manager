@@ -7,6 +7,7 @@ module.exports = {
       script: "apps/api/dist/main.js",
       instances: 1,
       exec_mode: "fork",
+      kill_timeout: 15000,
       env: {
         NODE_ENV: "production",
         PORT: "4000"

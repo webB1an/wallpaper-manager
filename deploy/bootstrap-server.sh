@@ -83,6 +83,8 @@ for NGINX_CONF in \
 done
 
 if command -v pm2 >/dev/null 2>&1; then
+  trap 'node scripts/drain-upload-tasks.cjs --release' EXIT
+  node scripts/drain-upload-tasks.cjs
   pm2 startOrReload ecosystem.config.cjs --update-env
   pm2 save
 else

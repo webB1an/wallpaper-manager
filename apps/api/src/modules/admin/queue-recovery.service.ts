@@ -8,6 +8,8 @@ import { AdminService } from "./admin.service";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { recoverUploadPayload, recoveryResourceError } from "./queue-recovery";
 import { canResumeAutoPublish } from "./auto-publish-checkpoint";
+import { uploadResumeState } from "./upload-checkpoint";
+import { deploymentDraining } from "../../common/deployment-drain";
 
 /** MySQL is the durable task ledger; Redis is only its dispatch queue. Single API instance. */
 @Injectable()
@@ -33,7 +35,7 @@ export class QueueRecoveryService implements OnModuleInit, OnModuleDestroy {
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
   async reconcile() {
-    if (this.busy) return;
+    if (this.busy || deploymentDraining()) return;
     this.busy = true;
     try {
       // Queue access must succeed before changing any task status. Include legacy numeric job ids.
@@ -53,6 +55,11 @@ export class QueueRecoveryService implements OnModuleInit, OnModuleDestroy {
       for (const task of tasks) {
         if (task.status !== "queued" && task.status !== "running") continue;
         if (liveTasks.has(task.id)) continue;
+        if (task.type === "upload_asset" && uploadResumeState(task.payload).resumable && (task.status === "queued" || task.createdAt < this.startedAt)) {
+          try { await this.admin.resumeUploadTask(task.id, true); }
+          catch (error) { await this.fail(task.id, task.status, `上传恢复未启动：${(error as Error).message}`); }
+          continue;
+        }
         const checkpoint = (task.payload as { checkpoint?: unknown } | null)?.checkpoint;
         if (task.type === "auto_publish" && task.createdAt < this.startedAt && canResumeAutoPublish(checkpoint)) {
           try { await this.admin.resumeAutoPublishTask(task.id, true); }
@@ -61,7 +68,7 @@ export class QueueRecoveryService implements OnModuleInit, OnModuleDestroy {
         }
         // Running tasks may already have sent a post. Do not replay interrupted external effects.
         if (task.status === "running" || task.type === "auto_publish") {
-          if (task.createdAt < this.startedAt) await this.fail(task.id, task.status, "服务重启后发现中断任务，需核对处理结果，未自动重复发帖");
+          if (task.createdAt < this.startedAt) await this.fail(task.id, task.status, task.type === "upload_asset" && task.progress === 38 ? "网盘同步因重启中断，请核对是否已上传分享，再继续处理" : "服务重启后发现中断任务，需核对处理结果，未自动重复发帖");
           continue;
         }
         if (task.progress !== 0) { await this.fail(task.id, "queued", "任务已有执行进度，需人工确认，未自动重试"); continue; }

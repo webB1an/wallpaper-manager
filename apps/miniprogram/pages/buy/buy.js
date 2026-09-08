@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const reward_1 = require("../../utils/reward");
 const payment_1 = require("../../utils/payment");
 Page({
+    loadRequestId: 0,
     data: {
         products: [],
         entitlementText: "尚未购买",
@@ -13,17 +14,20 @@ Page({
         loading: true,
         error: ""
     },
-    onLoad() {
-        void this.loadProduct();
-    },
     onShow() {
-        void this.loadProduct();
+        return this.loadProduct();
+    },
+    onUnload() {
+        this.loadRequestId += 1;
     },
     async loadProduct() {
+        const requestId = ++this.loadRequestId;
         this.setData({ loading: true, error: "" });
         try {
             await (0, reward_1.ensureOpenid)();
             const [catalog, delivery] = await Promise.all([(0, payment_1.getPaymentCatalog)(), (0, payment_1.getPaymentDelivery)()]);
+            if (requestId !== this.loadRequestId)
+                return;
             let entitlementText = "尚未购买";
             if (catalog.entitlement?.hasPaidDownload) {
                 if (catalog.entitlement.permanent) {
@@ -41,10 +45,13 @@ Page({
             this.setData({ products: catalog.products || [], entitlementText, purchased: delivery.purchased, resources: delivery.resources || [] });
         }
         catch (error) {
+            if (requestId !== this.loadRequestId)
+                return;
             this.setData({ error: error instanceof Error ? error.message : "商品信息加载失败" });
         }
         finally {
-            this.setData({ loading: false });
+            if (requestId === this.loadRequestId)
+                this.setData({ loading: false });
         }
     },
     copyResource(event) {

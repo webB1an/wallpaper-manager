@@ -204,11 +204,11 @@ Page({
             return;
         }
         wx.setClipboardData({
-            data: formatClipboardText(url, passcode),
+            data: url,
             success: () => {
                 saveHistory(this.data.item, url, label, passcode);
                 recordDownloadClick(this.data.item?.id);
-                wx.showToast({ title: passcode ? "短链和提取码已复制" : "短链已复制", icon: "success" });
+                wx.showToast({ title: "短链已复制", icon: "success" });
             }
         });
     },
@@ -310,9 +310,12 @@ Page({
                 this.showNotice("订单仍在确认，请稍后在“我的”页面查看权益，请勿重复支付");
                 return;
             }
-            await this.loadPaymentCatalog();
-            this.setData({ payGuideText: "权益已开通，请复制壁纸短链前往网盘下载" });
-            this.showNotice("权益已开通，请复制壁纸短链前往网盘下载");
+            this.setData({ payGuideText: "权益已开通，正在前往购买页查看资源" });
+            // switchTab triggers the purchase page's onShow, which reloads delivery resources.
+            wx.switchTab({
+                url: "/pages/buy/buy",
+                fail: () => this.showNotice("权益已开通，请点击底部“购买”查看资源链接，无需重复支付")
+            });
         }
         catch (error) {
             (0, logger_1.logDownloadError)("paidDownload", error);
@@ -614,9 +617,6 @@ function saveHistory(item, url, label, passcode) {
 function readHistory() {
     const value = wx.getStorageSync(HISTORY_KEY);
     return Array.isArray(value) ? value : [];
-}
-function formatClipboardText(url, passcode) {
-    return passcode ? `链接：${url}\n提取码：${passcode}` : url;
 }
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));

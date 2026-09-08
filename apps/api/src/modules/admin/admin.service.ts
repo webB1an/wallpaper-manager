@@ -27,6 +27,9 @@ import { autoSourceIds, autoSourceMeta, fetchAutoSource, normalizeAutoSources, p
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { removeBridgeTransfer, transferTaskUpdate } from "./bridge-transfer";
 import { AutoPublishCheckpoint, canResumeAutoPublish, isAutoPublishCheckpoint } from "./auto-publish-checkpoint";
+import { canResumeUpload, UploadCheckpoint, uploadResumeState } from "./upload-checkpoint";
+import { recoverUploadPayload } from "./queue-recovery";
+import { deploymentDraining } from "../../common/deployment-drain";
 
 type SystemSettings = {
   defaultAutoProcess: boolean;
@@ -159,6 +162,7 @@ export class AdminService implements OnModuleInit {
 
   /** 运行一个板块的自动发帖：按来源拉图 → 入库 → AI 分类 → 上传网盘 → 发到该板块账号 → 全局去重。 */
   async runAutoPublishBoard(board: { id: string; source: string; sourceConfig: unknown; guildId: string; guildName?: string | null; channelId: string; channelName?: string | null }, resume?: { id: string; checkpoint: AutoPublishCheckpoint }): Promise<{ ok: boolean; message: string }> {
+    if (deploymentDraining()) return { ok: false, message: "部署维护中，新任务稍后执行" };
     if (this.autoDownloadRunning || (this.autoResumePending && !resume)) return { ok: false, message: "自动发帖任务正在运行" };
     this.autoDownloadRunning = true;
     this.autoDownloadStartedAt = Date.now();
@@ -374,6 +378,46 @@ export class AdminService implements OnModuleInit {
       void this.runAutoPublishBoard(board, { id, checkpoint: payload.checkpoint }).catch((error) => this.logger.warn(`恢复任务失败：${(error as Error).message}`));
       return { ok: true, message: "已从已保存阶段继续，不会重新下载已完成文件或重复发帖" };
     } finally { this.autoResumePending = false; }
+  }
+
+  async resumeTask(id: string, confirmMissingUploads = false) {
+    if (deploymentDraining()) throw new BadRequestException("部署维护中，请稍后继续");
+    const task = await this.prisma.task.findUnique({ where: { id }, select: { type: true } });
+    return task?.type === "upload_asset" ? this.resumeUploadTask(id, false, confirmMissingUploads) : this.resumeAutoPublishTask(id);
+  }
+
+  async resumeUploadTask(id: string, interrupted = false, confirmMissingUploads = false) {
+    const task = await this.prisma.task.findUnique({ where: { id } });
+    if (!task || task.type !== "upload_asset" || !(interrupted ? ["failed", "running", "queued"] : ["failed"]).includes(task.status)) throw new BadRequestException("上传任务状态已变化，请刷新");
+    const data = recoverUploadPayload(id, task.payload);
+    if (!data) throw new BadRequestException("原任务缺少账号或批次参数，不能猜测恢复");
+    const payload = (task.payload || {}) as Record<string, any>;
+    if (!uploadResumeState(payload).resumable) {
+      // Legacy single uploads stalled at storage can only be migrated after explicit operator verification.
+      if (!confirmMissingUploads || interrupted || !data.wallpaperId || task.progress !== 38 || payload.uploadCheckpoints) throw new BadRequestException("没有安全检查点；请核对网盘和发布结果，不能自动重跑");
+      const w = await this.prisma.wallpaper.findUnique({ where: { id: data.wallpaperId }, include: { aiAnalysis: true } });
+      if (!w?.aiAnalysis?.safe || w.status === "published" || w.status === "archived" || w.status === "rejected") throw new BadRequestException("资源状态不允许恢复");
+      if (await this.prisma.storageLink.count({ where: { wallpaperId: w.id } })) throw new BadRequestException("资源已存在网盘记录，不能按未上传重跑");
+      const analysis = { title: w.title, type: w.type, tags: w.aiAnalysis.tags, sensitiveFlags: w.aiAnalysis.sensitiveFlags, safe: true, summary: w.aiAnalysis.summary || "" };
+      payload.uploadCheckpoints = { [w.id]: { version: 1, stage: "storage", analysis, drives: {} } };
+    }
+    const ids = data.wallpaperIds || [data.wallpaperId!];
+    for (const wallpaperId of ids) {
+      const cp = payload.uploadCheckpoints?.[wallpaperId] as UploadCheckpoint | undefined;
+      const w = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId } });
+      if (!w || w.status === "archived" || (w.status === "rejected" && cp?.stage !== "skipped")) throw new BadRequestException("部分资源已删除或下架，不能继续");
+      if (cp?.stage !== "done" && cp?.stage !== "skipped" && (!w.assetPath || !existsSync(join(process.cwd(), "storage", "public", w.assetPath)))) throw new BadRequestException("恢复所需的原文件不存在");
+      if (confirmMissingUploads && cp) {
+        for (const drive of Object.values(cp.drives)) if (drive?.phase === "uploading") drive.phase = "pending";
+      }
+    }
+    const claimed = await this.prisma.task.updateMany({ where: { id, status: task.status, updatedAt: task.updatedAt }, data: {
+      status: "queued", progress: 0, error: null, message: "已排队，从上传检查点继续", payload: payload as Prisma.InputJsonValue, result: { resumable: false },
+    } });
+    if (!claimed.count) return { ok: false, message: "任务已由其他请求处理，请刷新" };
+    // Use a new dispatch id, retaining the durable task id. Never delete an old active job.
+    await this.wallpaperQueue.add(data.wallpaperIds ? "process-wallpaper-batch" : "process-wallpaper", data, { jobId: `${id}-resume-${nanoid(8)}`, attempts: 1, removeOnComplete: 200, removeOnFail: 500 });
+    return { ok: true, message: "已排队继续处理，已完成的步骤不会重跑" };
   }
 
   async expireAutoPublishTask(id: string) {
@@ -1380,6 +1424,7 @@ export class AdminService implements OnModuleInit {
   }
 
   async processWallpaper(id: string) {
+    if (deploymentDraining()) throw new BadRequestException("部署维护中，请稍后处理");
     const task = await this.tasks.create("upload_asset", { wallpaperId: id }, "开始处理壁纸");
     return this.runProcessWallpaper(id, task.id);
   }
@@ -1389,14 +1434,33 @@ export class AdminService implements OnModuleInit {
     const finalizeTask = options?.finalizeTask !== false;
     const warnings: string[] = [];
     const taskResult: Record<string, unknown> = {};
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    const savedPayload = (task?.payload || {}) as Record<string, any>;
+    const cp: UploadCheckpoint = savedPayload.uploadCheckpoints?.[id] || { version: 1, stage: "analysis", drives: {} };
+    const save = async () => {
+      const current = await this.prisma.task.findUnique({ where: { id: taskId }, select: { payload: true } });
+      const payload = (current?.payload || {}) as Record<string, any>;
+      await this.prisma.task.update({ where: { id: taskId }, data: { payload: { ...payload, uploadCheckpoints: { ...payload.uploadCheckpoints, [id]: cp } } as unknown as Prisma.InputJsonValue } });
+    };
     try {
+      if (!canResumeUpload(cp)) throw new Error(`任务停在 ${cp.stage}，外部结果不明确，需人工核对`);
+      if (cp.stage === "skipped") return { skipped: true, reason: "AI 审核未通过" };
+      if (cp.stage === "done") {
+        if (!skipPublish) await this.finalizeUploadedWallpaper(id);
+        if (finalizeTask) await this.tasks.update(taskId, { status: "success", progress: 100, message: "已补齐处理结果，未重复发布" });
+        return { ok: true, warnings: [] };
+      }
+      await save();
       const wallpaper = await this.prisma.wallpaper.findUnique({
         where: { id },
         include: { storageLinks: true, tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
       });
       if (!wallpaper) throw new Error("壁纸不存在");
+      if (wallpaper.status === WallpaperStatus.archived || wallpaper.status === WallpaperStatus.rejected) throw new Error("壁纸已下架或被拒绝，未继续处理");
       let analysis: WallpaperAnalysis;
-      if (wallpaper.manualTitle) {
+      if (cp.analysis) {
+        analysis = cp.analysis;
+      } else if (wallpaper.manualTitle) {
         // 手动填写标题：跳过 AI 调用，直接使用手动标题与标签。
         await this.tasks.update(taskId, { status: "running", progress: 10, message: "跳过 AI，使用手动标题与标签" });
         analysis = {
@@ -1413,51 +1477,57 @@ export class AdminService implements OnModuleInit {
       }
       taskResult.ai = { safe: analysis.safe, sensitiveFlags: analysis.sensitiveFlags, tags: analysis.tags };
       if (!analysis.safe) {
+        cp.analysis = analysis; cp.stage = "skipped"; await save();
         await this.tasks.update(taskId, { status: "skipped", progress: 100, message: "AI 审核未通过，已禁止上架", result: taskResult });
         return { skipped: true, reason: "AI 审核未通过" };
       }
 
-      if (wallpaper.assetPath) {
+      if (cp.stage === "analysis") { cp.analysis = analysis; cp.stage = "storage"; await save(); }
+
+      if (cp.stage === "storage") {
+        if (!wallpaper.assetPath || !existsSync(join(process.cwd(), "storage", "public", wallpaper.assetPath))) throw new Error("原文件不存在，无法继续网盘同步");
         await this.tasks.update(taskId, { progress: 38, message: "正在同步夸克/百度网盘" });
-        const storageResults = await this.storage.syncWallpaper(id, join(process.cwd(), "storage", "public", wallpaper.assetPath), wallpaper.title, wallpaper.type, analysis.tags, storageSelection);
+        const storageResults = await this.storage.syncWallpaperResumable(id, join(process.cwd(), "storage", "public", wallpaper.assetPath), wallpaper.title, wallpaper.type, analysis.tags, storageSelection, cp.drives, save);
         taskResult.storage = storageResults;
         warnings.push(...storageResults
           .filter((item) => !item.ok)
           .map((item) => `${item.provider} 同步失败：${item.error || "未知错误"}`));
+        cp.stage = "resources"; await save();
       }
 
+      if (cp.stage === "resources") {
       await this.tasks.update(taskId, { progress: 68, message: "正在同步 wdbzk 资源库" });
       const links = await this.prisma.storageLink.findMany({ where: { wallpaperId: id, isActive: true } });
       for (const link of links.filter((item) => !item.wdbzkResourceId)) {
         const fullLink = link.passcode && link.provider === "baidu" && !link.url.includes("pwd=")
           ? `${link.url}${link.url.includes("?") ? "&" : "?"}pwd=${link.passcode}`
           : link.url;
+        cp.stage = "resource_inflight"; await save();
         const result = await this.wdbzk.createResource(wallpaper.title, fullLink, analysis.summary || "");
         if (result.id) {
           await this.prisma.storageLink.update({ where: { id: link.id }, data: { wdbzkResourceId: result.id } });
         }
+        cp.stage = "resources"; await save();
       }
       taskResult.wdbzk = { synced: links.filter((item) => !item.wdbzkResourceId).length };
+      cp.stage = "channel"; await save();
+      }
 
       await this.assertWallpapersCanPublish([id]);
 
       if (wallpaper.autoPublish && !skipPublish) {
         await this.tasks.update(taskId, { progress: 84, message: "正在发布到腾讯频道" });
         try {
+          cp.stage = "channel_inflight"; await save();
           taskResult.channel = await this.publishWallpaperToChannel(id, channelAccountId);
         } catch (error) {
-          const message = `腾讯频道发帖失败：${shortError(error)}`;
-          warnings.push(message);
-          taskResult.channel = { ok: false, error: message };
+          if (error instanceof ChannelPermissionDeniedError) { cp.stage = "channel"; await save(); }
+          throw error;
         }
       }
 
-      await this.prisma.wallpaper.update({ where: { id }, data: { status: WallpaperStatus.published } });
-      // 成功后只留缩略图：删除本地原图（网盘已存原件），后续下载走网盘回源。
-      if (wallpaper.assetPath) {
-        await this.removeUploadedFile(join(process.cwd(), "storage", "public", wallpaper.assetPath));
-        await this.prisma.wallpaper.update({ where: { id }, data: { assetPath: null } });
-      }
+      cp.stage = "done"; await save();
+      if (!skipPublish) await this.finalizeUploadedWallpaper(id);
       taskResult.warnings = warnings;
       if (finalizeTask) {
         await this.tasks.update(taskId, {
@@ -1469,8 +1539,18 @@ export class AdminService implements OnModuleInit {
       }
       return { ok: true, warnings };
     } catch (error) {
-      await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: "处理失败" });
+      await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: canResumeUpload(cp) ? "上传处理失败，可从已保存阶段继续" : "外部处理结果不明确，需人工核对", result: { resumable: canResumeUpload(cp), stage: cp.stage, needsUploadConfirmation: Object.values(cp.drives).some((drive) => drive?.phase === "uploading") } });
       throw error;
+    }
+  }
+
+  private async finalizeUploadedWallpaper(id: string) {
+    const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id } });
+    if (!wallpaper || wallpaper.status === "archived" || wallpaper.status === "rejected") throw new Error("壁纸已删除或下架，未覆盖状态");
+    await this.prisma.wallpaper.update({ where: { id }, data: { status: WallpaperStatus.published } });
+    if (wallpaper.assetPath) {
+      await this.removeUploadedFile(join(process.cwd(), "storage", "public", wallpaper.assetPath));
+      await this.prisma.wallpaper.update({ where: { id }, data: { assetPath: null } });
     }
   }
 
@@ -1524,7 +1604,7 @@ export class AdminService implements OnModuleInit {
           if (result.ok && result.skipped !== true) processedIds.push(ids[i]);
           else warnings.push(`第 ${i + 1} 张：AI 审核未通过，已跳过`);
         } catch (error) {
-          warnings.push(`第 ${i + 1} 张处理失败：${shortError(error)}`);
+          throw new Error(`第 ${i + 1} 张处理失败：${shortError(error)}`);
         }
       }
 
@@ -1538,8 +1618,27 @@ export class AdminService implements OnModuleInit {
         for (const liveId of lives) groups.push([liveId]);
         await this.tasks.update(taskId, { progress: 88, message: "正在合并发帖到腾讯频道" });
         for (const group of groups) {
-          published.push(await this.publishWallpapersToChannel(group, channelAccountId));
+          const current = await this.prisma.task.findUnique({ where: { id: taskId }, select: { payload: true } });
+          const payload = (current?.payload || {}) as Record<string, any>;
+          const key = group.join("|");
+          const previous = payload.uploadGroups?.[key];
+          if (previous?.status === "done") { published.push(previous.result); continue; }
+          if (previous?.status === "inflight") throw new Error("批次发帖结果不明确，需人工核对，未自动重发");
+          const saveGroup = async (status: string, result?: unknown) => {
+            payload.uploadGroups = { ...payload.uploadGroups, [key]: { status, ...(result ? { result } : {}) } };
+            await this.prisma.task.update({ where: { id: taskId }, data: { payload: payload as Prisma.InputJsonValue } });
+          };
+          await saveGroup("inflight");
+          try {
+            const result = await this.publishWallpapersToChannel(group, channelAccountId);
+            await saveGroup("done", result);
+            published.push(result);
+          } catch (error) {
+            if (error instanceof ChannelPermissionDeniedError) await saveGroup("pending");
+            throw error;
+          }
         }
+        for (const id of processedIds) await this.finalizeUploadedWallpaper(id);
       } else {
         warnings.push("没有可发布的壁纸");
       }
@@ -1557,7 +1656,8 @@ export class AdminService implements OnModuleInit {
       });
       return { ok: true, count: processedIds.length, posts: published.length, warnings };
     } catch (error) {
-      await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: "批量处理失败" });
+      const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { payload: true } });
+      await this.tasks.update(taskId, { status: "failed", error: (error as Error).message, message: "批量处理暂停，已保留各项处理进度", result: uploadResumeState(task?.payload) });
       throw error;
     }
   }

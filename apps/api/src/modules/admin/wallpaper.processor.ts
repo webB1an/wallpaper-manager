@@ -3,6 +3,7 @@ import { DelayedError, Job } from "bullmq";
 import { AdminService } from "./admin.service";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { PrismaService } from "../prisma/prisma.service";
+import { deploymentDraining } from "../../common/deployment-drain";
 
 @Processor(WALLPAPER_QUEUE, { concurrency: 2 })
 export class WallpaperProcessor extends WorkerHost {
@@ -15,7 +16,7 @@ export class WallpaperProcessor extends WorkerHost {
     const task = await this.prisma.task.findUnique({ where: { id: job.data.taskId }, select: { status: true, progress: true } });
     if (!task || task.status !== "queued" || task.progress !== 0) return { skipped: true, reason: "任务已执行或已结束" };
     const ids = job.data.wallpaperIds || (job.data.wallpaperId ? [job.data.wallpaperId] : []);
-    const delay = await this.admin.uploadProcessingDelayMs(ids);
+    const delay = deploymentDraining() ? 30_000 : await this.admin.uploadProcessingDelayMs(ids);
     if (delay > 0) {
       await this.prisma.task.updateMany({ where: { id: job.data.taskId, status: "queued" }, data: { message: "等待空闲时段处理" } });
       await job.moveToDelayed(Date.now() + delay, token);

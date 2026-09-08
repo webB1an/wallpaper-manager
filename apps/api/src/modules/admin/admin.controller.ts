@@ -15,8 +15,8 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("tasks/:id/resume")
-  async resumeTask(@Param("id") id: string) {
-    return { code: 200, data: await this.admin.resumeAutoPublishTask(id) };
+  async resumeTask(@Param("id") id: string, @Body() body: { confirmMissingUploads?: boolean }) {
+    return { code: 200, data: await this.admin.resumeTask(id, body?.confirmMissingUploads === true) };
   }
 
   @Post("auth/login")

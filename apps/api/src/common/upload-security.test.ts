@@ -38,15 +38,16 @@ test("retired direct-download endpoints return 410 without invoking download ser
   } finally { await app.close(); }
 });
 
-test("mini payment success opens entitlement without album permissions or direct download", async () => {
+test("mini payment success switches to purchase tab without album permissions or direct download", async () => {
   const repo = resolve(__dirname, "../../../..");
   let page: any;
   let paid = 0;
   let notice = "";
+  let destination = "";
   const forbidden = () => { throw new Error("payment must not request direct download or album access"); };
   runInNewContext(readFileSync(join(repo, "apps/miniprogram/pages/detail/detail.js"), "utf8"), {
     exports: {}, Page: (value: unknown) => { page = value; },
-    wx: { getStorageSync: () => "fixture-openid" },
+    wx: { getStorageSync: () => "fixture-openid", switchTab: (options: { url: string }) => { destination = options.url; } },
     require: (name: string) => name.endsWith("/payment") ? {
       canUseVirtualPayment: () => true, checkIosVersion: () => true,
       payProduct: async () => { paid++; return { outTradeNo: "fixture" }; },
@@ -64,7 +65,56 @@ test("mini payment success opens entitlement without album permissions or direct
   assert.equal(paid, 1);
   assert.equal(page.data.paying, false);
   assert.equal(page.data.downloading, false);
-  assert.match(notice, /权益已开通.*网盘下载/);
+  assert.equal(destination, "/pages/buy/buy");
+  assert.equal(notice, "");
+});
+
+test("purchase tab refreshes resource links on show and ignores stale pre-payment responses", async () => {
+  const repo = resolve(__dirname, "../../../..");
+  let page: any;
+  const deliveries: Array<(value: unknown) => void> = [];
+  runInNewContext(readFileSync(join(repo, "apps/miniprogram/pages/buy/buy.js"), "utf8"), {
+    exports: {}, Page: (value: unknown) => { page = value; },
+    require: (name: string) => name.endsWith("/reward") ? { ensureOpenid: async () => undefined } : {
+      getPaymentCatalog: async () => ({ products: [], entitlement: { permanent: true, hasPaidDownload: true } }),
+      getPaymentDelivery: () => new Promise((resolve) => { deliveries.push(resolve); }),
+    },
+  });
+  page.setData = (data: object) => Object.assign(page.data, data);
+  const previous = page.onShow();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const current = page.onShow();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(deliveries.length, 2);
+  deliveries[1]({ purchased: true, resources: [{ key: "fixture", url: "https://example.com/resource" }] });
+  await current;
+  assert.equal(page.data.purchased, true);
+  assert.equal(page.data.resources[0].url, "https://example.com/resource");
+  deliveries[0]({ purchased: false, resources: [] });
+  await previous;
+  assert.equal(page.data.purchased, true);
+  assert.equal(page.data.resources.length, 1);
+  assert.equal(page.data.loading, false);
+});
+
+test("detail clipboard contains only the short URL even when a passcode exists", () => {
+  const repo = resolve(__dirname, "../../../..");
+  let page: any;
+  let clipboard = "";
+  let toast = "";
+  runInNewContext(readFileSync(join(repo, "apps/miniprogram/pages/detail/detail.js"), "utf8"), {
+    exports: {}, Page: (value: unknown) => { page = value; },
+    wx: {
+      setClipboardData: (options: { data: string; success: () => void }) => { clipboard = options.data; options.success(); },
+      getStorageSync: () => [], setStorageSync: () => undefined,
+      showToast: (options: { title: string }) => { toast = options.title; },
+    },
+    require: (name: string) => name.endsWith("/ads") ? { AD_UNITS: {} } : { post: async () => ({ ok: true }) },
+  });
+  page.data.item = { id: "fixture", title: "fixture" };
+  page.copyShortLink("https://r.wdbzk.com/xWBRanDD", "百度", "jx8g");
+  assert.equal(clipboard, "https://r.wdbzk.com/xWBRanDD");
+  assert.equal(toast, "短链已复制");
 });
 
 test("HTTP upload authorization precedes disk writes; downstream failures clean files", async () => {

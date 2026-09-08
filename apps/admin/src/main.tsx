@@ -34,7 +34,7 @@ type TaskItem = {
   progress: number;
   message?: string;
   error?: string;
-  result?: { warnings?: string[]; resumable?: boolean; stage?: string; expired?: boolean };
+  result?: { warnings?: string[]; resumable?: boolean; stage?: string; expired?: boolean; needsUploadConfirmation?: boolean; legacyConfirmation?: boolean };
 };
 
 type MemberWallpaperRequest = {
@@ -2064,6 +2064,15 @@ function diagnosticAction(row: DiagnosticItem, onNavigate: (key: string) => void
 
 function Tasks() {
   const [resuming, setResuming] = useState<string>();
+  const resumeTask = async (id: string, confirmMissingUploads = false) => {
+    setResuming(id);
+    try {
+      const result = await request<{ ok: boolean; message: string }>(`/api/admin/tasks/${id}/resume`, { method: "POST", body: JSON.stringify({ confirmMissingUploads }) });
+      if (result.ok) message.success(result.message); else message.warning(result.message);
+      await load();
+    } catch (error) { message.error(error instanceof Error ? error.message : "恢复失败"); }
+    finally { setResuming(undefined); }
+  };
   const [data, setData] = useState<{ list: TaskItem[]; total: number }>({ list: [], total: 0 });
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -2142,16 +2151,15 @@ function Tasks() {
         { title: "消息", dataIndex: "message" },
         { title: "提醒", render: (_, row) => row.result?.warnings?.length ? row.result.warnings.map((item) => <Tag key={item} color="gold">{item}</Tag>) : "-" },
         { title: "错误", dataIndex: "error" },
-        { title: "操作", render: (_, row) => row.status === "failed" && row.result?.resumable ? (
-          <Popconfirm title="从已保存阶段继续？" description="已完成阶段不会重跑；外部结果不明确的任务不支持此操作。" onConfirm={async () => {
-            setResuming(row.id);
-            try {
-              const result = await request<{ ok: boolean; message: string }>(`/api/admin/tasks/${row.id}/resume`, { method: "POST" });
-              if (result.ok) message.success(result.message); else message.warning(result.message);
-              await load();
-            } catch (error) { message.error(error instanceof Error ? error.message : "恢复失败"); }
-            finally { setResuming(undefined); }
-          }}><Button size="small" loading={resuming === row.id} disabled={Boolean(resuming)}>从失败阶段继续</Button></Popconfirm>
+        { title: "操作", render: (_, row) => row.status === "failed" && (row.result?.resumable || row.result?.legacyConfirmation) ? (
+          <Space direction="vertical">
+            {row.result.resumable && <Popconfirm title="从已保存阶段继续？" description="已完成阶段不会重跑；外部结果不明确的任务不支持此操作。" onConfirm={() => resumeTask(row.id)}>
+              <Button size="small" loading={resuming === row.id} disabled={Boolean(resuming)}>从失败阶段继续</Button>
+            </Popconfirm>}
+            {(row.result.legacyConfirmation || row.result.needsUploadConfirmation) && <Popconfirm title="确认失败的网盘中没有上传成功的文件？" description="使用服务器原文件重新上传，跳过已完成的步骤，随后按原任务配置处理和发帖。若文件已上传，请使用继续处理或先人工核对。" onConfirm={() => resumeTask(row.id, true)}>
+              <Button size="small" loading={resuming === row.id} disabled={Boolean(resuming)}>确认未上传，重新上传</Button>
+            </Popconfirm>}
+          </Space>
         ) : row.result?.expired ? "恢复文件已过期" : "-" },
       ]} />
     </section>

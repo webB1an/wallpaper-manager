@@ -23,17 +23,22 @@ export class BaiduStorageService {
   }
 
   async upload(filePath: string, account?: ManagedStorageAccount, remoteDir?: string): Promise<string> {
-    const remoteBase = this.config.get<string>("BAIDU_REMOTE_BASE") || "/apps/bdpan/wallpapers";
-    const base = remoteBase.replace(/\/$/, "");
-    const remotePath = [base, remoteDir, sanitizeRemoteName(basename(filePath))]
-      .filter(Boolean)
-      .join("/");
+    const remotePath = this.uploadPath(filePath, remoteDir);
     const size = statSync(filePath).size;
     const timeoutMs = Math.max(3_600_000, Math.ceil(size / 40_000) * 1500);
     const parentRemote = remotePath.slice(0, Math.max(0, remotePath.lastIndexOf("/")));
     await this.ensureRemoteDir(account, parentRemote);
     const result = await runCli(this.bdpan(), [...baiduArgs(account), "upload", filePath, remotePath], { timeoutMs });
     if (!result.ok) throw new Error(result.stderr || result.stdout || "百度网盘上传失败");
+    return remotePath;
+  }
+
+  uploadPath(filePath: string, remoteDir?: string) {
+    const remoteBase = this.config.get<string>("BAIDU_REMOTE_BASE") || "/apps/bdpan/wallpapers";
+    const base = remoteBase.replace(/\/$/, "");
+    const remotePath = [base, remoteDir, sanitizeRemoteName(basename(filePath))]
+      .filter(Boolean)
+      .join("/");
     return remotePath;
   }
 

@@ -58,6 +58,7 @@ jobs:
           npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/admin/bridge-transfer.test.ts
           npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/channel/channel-fallback.test.ts
           npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/common/upload-security.test.ts apps/api/src/modules/admin/auto-publish-checkpoint.test.ts
+          npx tsx --tsconfig apps/api/tsconfig.json --test apps/api/src/modules/admin/upload-checkpoint.test.ts
           npm run verify:release
 
       - name: Prepare SSH

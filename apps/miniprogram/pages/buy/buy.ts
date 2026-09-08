@@ -2,6 +2,7 @@ import { ensureOpenid } from "../../utils/reward";
 import { canUseVirtualPayment, checkIosVersion, getPaymentCatalog, getPaymentDelivery, payProduct, PaymentDeliveryResource, PaymentProduct, waitForPaymentDelivery } from "../../utils/payment";
 
 Page({
+  loadRequestId: 0,
   data: {
     products: [] as PaymentProduct[],
     entitlementText: "尚未购买",
@@ -13,19 +14,21 @@ Page({
     error: ""
   },
 
-  onLoad() {
-    void this.loadProduct();
+  onShow() {
+    return this.loadProduct();
   },
 
-  onShow() {
-    void this.loadProduct();
+  onUnload() {
+    this.loadRequestId += 1;
   },
 
   async loadProduct() {
+    const requestId = ++this.loadRequestId;
     this.setData({ loading: true, error: "" });
     try {
       await ensureOpenid();
       const [catalog, delivery] = await Promise.all([getPaymentCatalog(), getPaymentDelivery()]);
+      if (requestId !== this.loadRequestId) return;
       let entitlementText = "尚未购买";
       if (catalog.entitlement?.hasPaidDownload) {
         if (catalog.entitlement.permanent) {
@@ -39,9 +42,10 @@ Page({
       if (delivery.purchased) entitlementText = "已永久解锁，以下资源可永久使用";
       this.setData({ products: catalog.products || [], entitlementText, purchased: delivery.purchased, resources: delivery.resources || [] });
     } catch (error) {
+      if (requestId !== this.loadRequestId) return;
       this.setData({ error: error instanceof Error ? error.message : "商品信息加载失败" });
     } finally {
-      this.setData({ loading: false });
+      if (requestId === this.loadRequestId) this.setData({ loading: false });
     }
   },
 

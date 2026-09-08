@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { Prisma, TaskStatus, TaskType } from "@prisma/client";
 import { positiveInt } from "../../common/query-values";
 import { PrismaService } from "../prisma/prisma.service";
+import { uploadResumeState } from "../admin/upload-checkpoint";
 
 type TaskListFilters = {
   status?: TaskStatus;
@@ -51,7 +52,13 @@ export class TasksService {
       }),
       this.prisma.task.count({ where }),
     ]);
-    return { list, total, page: safePage, pageSize: safePageSize };
+    const decorated = list.map((task) => {
+      if (task.type !== "upload_asset" || task.status !== "failed") return task;
+      const payload = (task.payload || {}) as Record<string, any>;
+      const legacyConfirmation = !payload.batch && !!payload.wallpaperId && !payload.uploadCheckpoints && task.progress === 38;
+      return { ...task, result: { ...(task.result as object || {}), ...uploadResumeState(payload), legacyConfirmation } };
+    });
+    return { list: decorated, total, page: safePage, pageSize: safePageSize };
   }
 
   async summary() {

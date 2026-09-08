@@ -115,7 +115,7 @@ export class QuarkStorageService {
   }
 
   /** 在自己网盘里按文件名搜索，返回精确匹配的 fid（转存后找回文件用）。 */
-  async searchFileFid(fileName: string, account?: ManagedStorageAccount): Promise<string> {
+  async searchFileFid(fileName: string, account?: ManagedStorageAccount, expectedSize?: number): Promise<string> {
     const skillDir = this.requireSkillDir();
     const cliPath = join(skillDir, "scripts", "quark-drive.cjs");
     const result = await runCli(process.execPath, [
@@ -131,7 +131,9 @@ export class QuarkStorageService {
       .map((line) => line.trim())
       .filter(Boolean)
       .map((line) => JSON.parse(line) as Record<string, unknown>);
-    const matched = entries.find((entry) => String(entry.file_name ?? entry.filename ?? "") === fileName);
+    const matches = entries.filter((entry) => String(entry.file_name ?? entry.filename ?? "") === fileName && (expectedSize === undefined || Number(entry.size ?? entry.file_size) === expectedSize));
+    if (expectedSize !== undefined && matches.length !== 1) throw new Error("无法唯一确认已上传文件，请核对网盘后再重试");
+    const matched = matches[0];
     const fid = String(matched?.fid || "");
     if (!fid) throw new Error(`夸克网盘中未找到转存文件：${fileName}`);
     return fid;
