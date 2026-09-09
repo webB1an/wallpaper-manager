@@ -74,6 +74,7 @@ test("purchase tab refreshes resource links on show and ignores stale pre-paymen
   let page: any;
   const deliveries: Array<(value: unknown) => void> = [];
   runInNewContext(readFileSync(join(repo, "apps/miniprogram/pages/buy/buy.js"), "utf8"), {
+    wx: { getStorageSync: () => "", removeStorageSync: () => undefined },
     exports: {}, Page: (value: unknown) => { page = value; },
     require: (name: string) => name.endsWith("/reward") ? { ensureOpenid: async () => undefined } : {
       getPaymentCatalog: async () => ({ products: [], entitlement: { permanent: true, hasPaidDownload: true } }),

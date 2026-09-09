@@ -22,6 +22,10 @@ export interface TransferProgress {
   retry?: number;
 }
 
+export class BridgeFileExpiredError extends Error {
+  constructor(message: string) { super(message); this.name = "BridgeFileExpiredError"; }
+}
+
 type TransferOptions = {
   headers: Record<string, string>;
   timeoutMs: number;
@@ -112,6 +116,10 @@ export async function downloadBridgeFileToDisk(url: string, options: TransferOpt
         resetIdle();
         const offset = received;
         const response: Response = await (options.fetcher ?? fetch)(url, { headers: { ...options.headers, "Accept-Encoding": "identity", ...(offset ? { Range: `bytes=${offset}-`, "If-Range": etag! } : {}) }, signal: controller.signal });
+        if (response.status === 404 || response.status === 410) {
+          fatal = true;
+          throw new BridgeFileExpiredError(`桥接文件已失效（HTTP ${response.status}），无法继续传输原文件`);
+        }
         if (response.status >= 400 && response.status < 500) invalid(`桥接文件不可续传（HTTP ${response.status}）`);
         if (!response.ok) throw new Error(`桥接文件下载失败（HTTP ${response.status}）`);
         if (!response.body) throw new Error("桥接没有返回文件内容");
@@ -167,7 +175,8 @@ export async function downloadBridgeFileToDisk(url: string, options: TransferOpt
       }
     }
   } catch (error) {
-    throw new Error(`${reason || (error as Error).message}（已接收 ${(received / 1048576).toFixed(1)} MB${total ? ` / ${(total / 1048576).toFixed(1)} MB` : ""}，耗时 ${Math.round((Date.now() - started) / 1000)} 秒）`);
+    const message = `${reason || (error as Error).message}（已接收 ${(received / 1048576).toFixed(1)} MB${total ? ` / ${(total / 1048576).toFixed(1)} MB` : ""}，耗时 ${Math.round((Date.now() - started) / 1000)} 秒）`;
+    throw error instanceof BridgeFileExpiredError ? new BridgeFileExpiredError(message) : new Error(message);
   } finally {
     clearTimeout(deadline);
     clearTimeout(idle!);

@@ -1,5 +1,5 @@
 import { ensureOpenid } from "../../utils/reward";
-import { canUseVirtualPayment, checkIosVersion, getPaymentCatalog, getPaymentDelivery, payProduct, PaymentDeliveryResource, PaymentProduct, waitForPaymentDelivery } from "../../utils/payment";
+import { canUseVirtualPayment, checkIosVersion, getPaymentCatalog, getPaymentDelivery, getPaymentOrderStatus, payProduct, PaymentDeliveryResource, PaymentProduct, waitForPaymentDelivery } from "../../utils/payment";
 
 Page({
   loadRequestId: 0,
@@ -10,6 +10,8 @@ Page({
     resources: [] as PaymentDeliveryResource[],
     paying: false,
     payingKey: "",
+    pendingOrder: "",
+    checkingOrder: false,
     loading: true,
     error: ""
   },
@@ -27,6 +29,9 @@ Page({
     this.setData({ loading: true, error: "" });
     try {
       await ensureOpenid();
+      const pendingOrder = wx.getStorageSync(pendingOrderKey());
+      if (requestId !== this.loadRequestId) return;
+      if (typeof pendingOrder === "string") this.setData({ pendingOrder });
       const [catalog, delivery] = await Promise.all([getPaymentCatalog(), getPaymentDelivery()]);
       if (requestId !== this.loadRequestId) return;
       let entitlementText = "尚未购买";
@@ -40,12 +45,42 @@ Page({
         }
       }
       if (delivery.purchased) entitlementText = "已永久解锁，以下资源可永久使用";
+      if (delivery.purchased) this.clearPendingOrder();
       this.setData({ products: catalog.products || [], entitlementText, purchased: delivery.purchased, resources: delivery.resources || [] });
     } catch (error) {
       if (requestId !== this.loadRequestId) return;
       this.setData({ error: error instanceof Error ? error.message : "商品信息加载失败" });
     } finally {
       if (requestId === this.loadRequestId) this.setData({ loading: false });
+    }
+  },
+
+  clearPendingOrder() {
+    this.setData({ pendingOrder: "" });
+    wx.removeStorageSync(pendingOrderKey());
+  },
+
+  async checkPendingOrder() {
+    if (!this.data.pendingOrder || this.data.checkingOrder || this.data.paying) return;
+    this.setData({ checkingOrder: true });
+    try {
+      await ensureOpenid();
+      const status = await getPaymentOrderStatus(this.data.pendingOrder);
+      if (status.delivered) {
+        this.clearPendingOrder();
+        await this.loadProduct();
+        wx.showToast({ title: "权益已到账", icon: "success" });
+      } else if (["closed", "failed", "refunded"].includes(status.status)) {
+        this.clearPendingOrder();
+        await this.loadProduct();
+        wx.showToast({ title: status.status === "refunded" ? "订单已退款" : "订单已关闭或支付失败", icon: "none" });
+      } else {
+        wx.showToast({ title: "订单确认中，请勿重复支付", icon: "none" });
+      }
+    } catch {
+      wx.showToast({ title: "查询暂未完成，请勿重复支付", icon: "none" });
+    } finally {
+      this.setData({ checkingOrder: false });
     }
   },
 
@@ -68,6 +103,10 @@ Page({
   },
 
   async buyAll(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.pendingOrder) {
+      wx.showToast({ title: "订单确认中，请勿重复支付", icon: "none" });
+      return;
+    }
     const productKey = String(event.currentTarget.dataset.key || "");
     const product = this.data.products.find((item) => item.key === productKey);
     if (!product || this.data.paying) return;
@@ -80,18 +119,21 @@ Page({
     try {
       await ensureOpenid();
       const order = await payProduct(product.key);
+      this.setData({ pendingOrder: order.outTradeNo });
+      wx.setStorageSync(pendingOrderKey(), order.outTradeNo);
       wx.showLoading({ title: "正在确认订单" });
       const delivered = await waitForPaymentDelivery(order.outTradeNo, 20_000);
       wx.hideLoading();
       if (!delivered) {
-        wx.showToast({ title: "订单确认超时，请稍后重试", icon: "none" });
+        wx.showToast({ title: "订单确认中，请勿重复支付", icon: "none" });
         return;
       }
       wx.showToast({ title: "购买成功", icon: "success" });
+      this.clearPendingOrder();
       await this.loadProduct();
     } catch (error) {
       wx.hideLoading();
-      wx.showToast({ title: error instanceof Error ? error.message : "购买失败", icon: "none" });
+      wx.showToast({ title: this.data.pendingOrder ? "订单确认中，请勿重复支付" : error instanceof Error ? error.message : "购买失败", icon: "none" });
     } finally {
       this.setData({ paying: false, payingKey: "" });
     }
@@ -104,6 +146,10 @@ Page({
     };
   }
 });
+
+function pendingOrderKey() {
+  return `pending_payment_order:${wx.getStorageSync("openid") || ""}`;
+}
 
 function formatDate(value: string | number) {
   const date = new Date(value);

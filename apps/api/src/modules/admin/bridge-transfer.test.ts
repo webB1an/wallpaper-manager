@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bridgeTransferPath, downloadBridgeFile, downloadBridgeFileToDisk, removeBridgeTransfer, transferTaskUpdate, TransferProgress } from "./bridge-transfer";
+import { BridgeFileExpiredError, bridgeTransferPath, downloadBridgeFile, downloadBridgeFileToDisk, removeBridgeTransfer, transferTaskUpdate, TransferProgress } from "./bridge-transfer";
 import { bridgeTransferTimeoutMs, fetchAutoSource } from "./auto-publish-sources";
 import type { ConfigService } from "@nestjs/config";
 import { readFile, unlink } from "node:fs/promises";
@@ -8,6 +8,17 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 
 const base = { headers: {}, timeoutMs: 2000, maxBytes: 100 };
+
+test("expired bridge files return a typed error and remove unusable local partial data", async () => {
+  const key = randomUUID();
+  let calls = 0;
+  await assert.rejects(downloadBridgeFileToDisk("https://example.com/expired", {
+    ...base, transferKey: key, retainPartial: true, maxRetries: 3,
+    fetcher: async () => { calls++; return new Response(null, { status: 404 }); },
+  }), (error: unknown) => error instanceof BridgeFileExpiredError && error.message.includes("404"));
+  assert.equal(calls, 1);
+  assert.equal(existsSync(bridgeTransferPath(key)), false);
+});
 
 test("static transfers allow 15 minutes while live transfers retain their 60 minute budget", () => {
   assert.equal(bridgeTransferTimeoutMs("static"), 900_000);

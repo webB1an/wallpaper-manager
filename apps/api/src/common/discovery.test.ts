@@ -69,11 +69,11 @@ test("legacy live detail exposes no preview and never fetches the original", asy
   assert.equal((await service.detail("legacy")).previewVideoUrl, null);
 });
 
-function miniPage(name: string, wx: object) {
+function miniPage(name: string, wx: object, dependencies: object = {}) {
   let page: any;
   runInNewContext(readFileSync(join(resolve(__dirname, "../../../.."), `apps/miniprogram/pages/${name}/${name}.js`), "utf8"), {
     exports: {}, Page: (value: unknown) => { page = value; }, wx,
-    require: (name: string) => name.endsWith("/ads") ? { AD_UNITS: {} } : {},
+    require: (name: string) => name.endsWith("/ads") ? { AD_UNITS: {} } : dependencies,
   });
   page.setData = (data: object) => Object.assign(page.data, data);
   return page;
@@ -106,6 +106,87 @@ test("purchase clipboard preserves the full URL and query without appending a pa
   page.copyResource({ currentTarget: { dataset: { index: 0 } } });
   assert.equal(clipboard, url);
   assert.ok(!clipboard.includes("提取码"));
+});
+
+for (const name of ["index", "list"]) {
+  test(`${name} retries the failed page without clearing items or skipping pages`, async () => {
+    const pages: number[] = [];
+    let fail = true;
+    const page = miniPage(name, { showToast: () => undefined }, {
+      request: async (_url: string, query: any) => {
+        pages.push(query.page);
+        if (fail) throw new Error("offline");
+        return { list: [card("next", [])], total: 40 };
+      },
+    });
+    page.data.items = [card("first", [])];
+    page.data.total = 40;
+    await page.load(true);
+    assert.equal(page.data.page, 1);
+    assert.equal(page.data.items[0].id, "first");
+    page.onReachBottom();
+    assert.equal(pages.length, 1);
+    fail = false;
+    await page.retry();
+    assert.deepEqual(pages, [2, 2]);
+    assert.equal(page.data.page, 2);
+    assert.equal(page.data.items.length, 2);
+    assert.equal(page.data.error, "");
+  });
+}
+
+test("home nested tag consumes taps rather than bubbling to the detail card", () => {
+  const markup = readFileSync(join(resolve(__dirname, "../../../.."), "apps/miniprogram/pages/index/index.wxml"), "utf8");
+  assert.match(markup, /catchtap="openTag" data-tag="\{\{tagName\}\}"/);
+});
+
+test("detail hiding or unloading pauses and unmounts preview without autoplay on return", () => {
+  let pauses = 0;
+  const page = miniPage("detail", {
+    createVideoContext: (id: string) => { assert.equal(id, "wallpaper-preview"); return { pause: () => pauses++ }; },
+    setNavigationBarTitle: () => undefined,
+  });
+  page.data.playingPreview = true;
+  page.onHide();
+  assert.equal(pauses, 1);
+  assert.equal(page.data.playingPreview, false);
+  page.onUnload();
+  assert.equal(pauses, 1);
+});
+
+test("pending payment blocks repurchase, survives refresh, and query only refreshes entitlement", async () => {
+  const storage = new Map<string, string>([["openid", "fixture"]]);
+  let payments = 0;
+  let delivered = false;
+  const page = miniPage("buy", {
+    getStorageSync: (key: string) => storage.get(key) || "",
+    setStorageSync: (key: string, value: string) => storage.set(key, value),
+    removeStorageSync: (key: string) => storage.delete(key),
+    showToast: () => undefined, showLoading: () => undefined, hideLoading: () => undefined,
+  }, {
+    ensureOpenid: async () => "fixture", canUseVirtualPayment: () => true, checkIosVersion: () => true,
+    payProduct: async () => { payments++; return { outTradeNo: "order" }; },
+    waitForPaymentDelivery: async () => false,
+    getPaymentOrderStatus: async () => ({ delivered, status: delivered ? "delivered" : "paid" }),
+    getPaymentCatalog: async () => ({ products: [], entitlement: {} }),
+    getPaymentDelivery: async () => ({ purchased: delivered, resources: [] }),
+  });
+  page.data.products = [{ key: "permanent" }];
+  const event = { currentTarget: { dataset: { key: "permanent" } } };
+  await page.buyAll(event);
+  assert.equal(page.data.pendingOrder, "order");
+  await page.buyAll(event);
+  assert.equal(payments, 1);
+  page.data.pendingOrder = "";
+  await page.onShow();
+  assert.equal(page.data.pendingOrder, "order");
+  await page.checkPendingOrder();
+  assert.equal(page.data.pendingOrder, "order");
+  delivered = true;
+  await page.checkPendingOrder();
+  assert.equal(page.data.pendingOrder, "");
+  assert.equal(page.data.purchased, true);
+  assert.equal(payments, 1);
 });
 
 test("purchase resource page offers member requests only after purchase", () => {

@@ -67,8 +67,7 @@ Page({
         Promise.all([this.loadHero(), this.load()]).finally(() => wx.stopPullDownRefresh());
     },
     onReachBottom() {
-        if (!this.data.loading && this.data.items.length < this.data.total) {
-            this.setData({ page: this.data.page + 1 });
+        if (!this.data.loading && !this.data.error && this.data.items.length < this.data.total) {
             this.load(true);
         }
     },
@@ -85,11 +84,14 @@ Page({
         this.load();
     },
     async load(append = false) {
+        if (append && this.data.loading)
+            return;
+        const page = append ? this.data.page + 1 : 1;
         const token = ++requestToken;
         this.setData({ loading: true, error: "" });
         try {
             const data = await (0, api_1.request)("/wallpapers", {
-                page: this.data.page,
+                page,
                 pageSize: 20,
                 keyword: this.data.keyword,
                 tag: this.data.tag,
@@ -101,6 +103,7 @@ Page({
             const nextItems = append ? [...this.data.items, ...list] : list;
             this.setData({
                 items: nextItems,
+                page,
                 total: data.total,
                 ...splitMasonry(nextItems)
             });
@@ -136,8 +139,9 @@ Page({
         }
     },
     retry() {
-        this.setData({ page: 1, items: [], leftItems: [], rightItems: [] });
-        this.load();
+        if (this.data.loading)
+            return;
+        return this.load(this.data.items.length > 0);
     },
     openDetail(event) {
         wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });

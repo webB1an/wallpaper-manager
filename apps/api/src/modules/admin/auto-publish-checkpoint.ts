@@ -4,6 +4,7 @@ export type AutoPublishStage = "download" | "asset" | "analyze" | "storage" | "s
 export interface AutoPublishCheckpoint {
   version: 1;
   expired?: boolean;
+  failures?: Array<{ at: string; stage: AutoPublishStage; error: string }>;
   stage: AutoPublishStage;
   source: string;
   target?: { guildId: string; channelId: string };

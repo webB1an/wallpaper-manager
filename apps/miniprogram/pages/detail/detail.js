@@ -57,8 +57,18 @@ Page({
         this.loadDetail(options.id);
     },
     onUnload() {
+        this.pausePreview();
         requestToken += 1;
         wx.setNavigationBarTitle({ title: "壁纸详情" });
+    },
+    onHide() {
+        this.pausePreview();
+    },
+    pausePreview() {
+        if (!this.data.playingPreview)
+            return;
+        wx.createVideoContext("wallpaper-preview", this).pause();
+        this.setData({ playingPreview: false });
     },
     async loadDetail(id) {
         const targetId = id || this.data.id;

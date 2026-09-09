@@ -25,7 +25,7 @@ import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
 import { autoSourceIds, autoSourceMeta, fetchAutoSource, normalizeAutoSources, pickNextAutoSource } from "./auto-publish-sources";
 import { WALLPAPER_QUEUE } from "./admin.queue";
-import { removeBridgeTransfer, transferTaskUpdate } from "./bridge-transfer";
+import { BridgeFileExpiredError, removeBridgeTransfer, transferTaskUpdate } from "./bridge-transfer";
 import { AutoPublishCheckpoint, canResumeAutoPublish, isAutoPublishCheckpoint } from "./auto-publish-checkpoint";
 import { canResumeUpload, UploadCheckpoint, uploadResumeState } from "./upload-checkpoint";
 import { recoverUploadPayload } from "./queue-recovery";
@@ -328,6 +328,21 @@ export class AdminService implements OnModuleInit {
     } catch (error) {
       const message = (error as Error).message || "自动发帖失败";
       const cleanTitle = displayTitle || "自动下载壁纸";
+      let bridgeExpired = false;
+      if (checkpoint) {
+        const failure = { at: new Date().toISOString(), stage: checkpoint.stage, error: message.slice(0, 2000) };
+        const history = checkpoint.failures || [];
+        const next = { ...checkpoint, failures: history.length < 10 ? [...history, failure] : [history[0], ...history.slice(-8), failure] };
+        if (error instanceof BridgeFileExpiredError && checkpoint.stage === "download" && !checkpoint.wallpaperId) {
+          delete next.bridge;
+          bridgeExpired = true;
+        }
+        await saveCheckpoint(next).catch((persistError) => {
+          bridgeExpired = false;
+          this.logger.error(`任务 ${task.id} 保存失败记录异常：${(persistError as Error).message}`);
+        });
+        this.logger.warn(`任务 ${task.id} 阶段 ${failure.stage} 失败：${failure.error}`);
+      }
       if (error instanceof ChannelPermissionDeniedError && checkpoint?.stage === "publish_inflight") {
         await saveCheckpoint({ ...checkpoint, stage: "publish" }).catch(() => undefined);
       }
@@ -350,7 +365,7 @@ export class AdminService implements OnModuleInit {
         }
       }
       if (!resumable) await removeBridgeTransfer(task.id).catch(() => undefined);
-      await this.tasks.update(task.id, { status: "failed", error: message, message: resumable ? "处理失败，可在 24 小时内从失败阶段继续（桥接未传完文件受远端有效期限制）" : "处理失败，外部结果需人工核对，未自动重试", result: { resumable, stage: checkpoint?.stage } }).catch(() => undefined);
+      await this.tasks.update(task.id, { status: "failed", error: message, message: bridgeExpired ? "桥接临时文件已失效，继续时将重新获取壁纸（可能更换素材），不会续传旧地址" : resumable ? "处理失败，可在 24 小时内从失败阶段继续（桥接未传完文件受远端有效期限制）" : "处理失败，外部结果需人工核对，未自动重试", result: { resumable, stage: checkpoint?.stage, bridgeExpired, failures: checkpoint?.failures || [] } }).catch(() => undefined);
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastMessage: message } }).catch(() => undefined);
       return { ok: false, message };
     } finally {

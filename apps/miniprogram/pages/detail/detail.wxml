@@ -3,13 +3,13 @@
     <view class="detail-back" catchtap="goBack" style="top:{{capsuleTop}}px;width:{{capsuleHeight}}px;height:{{capsuleHeight}}px;"><image class="detail-back-icon" src="/assets/icons/back.png" /></view>
   </view>
   <view class="detail-visual">
-    <video wx:if="{{playingPreview && item.previewVideoUrl}}" class="detail-cover detail-preview" src="{{item.previewVideoUrl}}" poster="{{item.coverUrl}}" object-fit="contain" autoplay controls loop muted binderror="onPreviewError" />
+    <video id="wallpaper-preview" wx:if="{{playingPreview && item.previewVideoUrl}}" class="detail-cover detail-preview" src="{{item.previewVideoUrl}}" poster="{{item.coverUrl}}" object-fit="contain" autoplay controls loop muted binderror="onPreviewError" />
     <image wx:else class="detail-cover" src="{{item.coverUrl}}" mode="aspectFill" bindtap="previewImage" />
+    <button wx:if="{{item.previewVideoUrl && !previewFailed && !playingPreview}}" class="preview-play" catchtap="playPreview" aria-label="播放动态预览" hover-class="preview-play-pressed">
+      <view class="preview-play-icon"></view>
+    </button>
   </view>
   <view class="detail-panel">
-  <view class="preview-actions" wx:if="{{item.previewVideoUrl && !previewFailed && !playingPreview}}">
-    <button wx:if="{{item.previewVideoUrl && !previewFailed && !playingPreview}}" bindtap="playPreview">播放动态预览</button>
-  </view>
     <view class="detail-title-row">
       <text class="detail-title">{{item.title}}</text>
       <view class="fav-button" bindtap="toggleFav">

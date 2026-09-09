@@ -39,7 +39,12 @@
     </button>
   </view>
 
-  <view wx:for="{{products}}" wx:key="key" wx:if="{{!loading && !error}}" class="purchase-card">
+  <view wx:if="{{pendingOrder && !purchased}}" class="state-card">
+    <text>订单确认中，请勿重复支付</text>
+    <text>可查询处理结果，确认到账后自动刷新资源链接。</text>
+    <button class="retry-button" bindtap="checkPendingOrder" loading="{{checkingOrder}}" disabled="{{checkingOrder || paying}}">查询结果</button>
+  </view>
+  <view wx:for="{{products}}" wx:key="key" wx:if="{{!loading && !error && !pendingOrder}}" class="purchase-card">
     <view class="purchase-head">
       <text class="purchase-title">{{item.name}}</text>
       <text class="purchase-price">{{item.priceText}}</text>

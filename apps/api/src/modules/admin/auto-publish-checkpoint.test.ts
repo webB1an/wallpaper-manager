@@ -94,11 +94,12 @@ test("publish timeout is not resumable; an explicit permission denial is", async
   const timeout = await runFixture("publish", new Error("timeout"));
   assert.equal(timeout.result.ok, false);
   assert.equal((timeout.updates.at(-1)?.result as { resumable: boolean }).resumable, false);
-  assert.deepEqual(timeout.stages, ["publish_inflight"]);
+  assert.deepEqual(timeout.stages, ["publish_inflight", "publish_inflight"]);
+  assert.equal((timeout.updates.at(-1)?.result as { failures: Array<{ error: string }> }).failures[0].error, "timeout");
   const denied = await runFixture("publish", new ChannelPermissionDeniedError("暂无权限"));
   assert.equal(denied.result.ok, false);
   assert.equal((denied.updates.at(-1)?.result as { resumable: boolean }).resumable, true);
-  assert.deepEqual(denied.stages, ["publish_inflight", "publish"]);
+  assert.deepEqual(denied.stages, ["publish_inflight", "publish_inflight", "publish"]);
 });
 
 test("concurrent resume requests are reserved before asynchronous database reads", async () => {
