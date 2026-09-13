@@ -22,7 +22,7 @@ async function bootstrap() {
   const adminOrigin = config.get<string>("ADMIN_ORIGIN") || "http://127.0.0.1:5173";
 
   app.enableCors({
-    origin: [adminOrigin],
+    origin: [adminOrigin, "tauri://localhost", "http://tauri.localhost", "https://tauri.localhost", "http://127.0.0.1:1420", "http://localhost:1420"],
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

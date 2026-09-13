@@ -20,7 +20,30 @@ export type WallpaperAnalysis = z.infer<typeof analysisSchema>;
 export class AiService {
   constructor(private readonly config: ConfigService) {}
 
-  async analyzeImage(imagePath: string, originalName: string): Promise<WallpaperAnalysis> {
+  isConfigured() { return Boolean(this.config.get<string>("DEEPSEEK_API_KEY")?.trim()); }
+
+  /** Shared transport for article planning/copy; scheduling is enforced by the caller's WallMuse AI wrapper. */
+  async generateJson(system: string, input: unknown, maxTokens = 2400): Promise<unknown> {
+    const apiKey = this.config.get<string>("DEEPSEEK_API_KEY")?.trim();
+    if (!apiKey) throw new Error("未配置 DeepSeek，无法生成文章");
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: this.config.get<string>("DEEPSEEK_TEXT_MODEL") || this.config.get<string>("DEEPSEEK_MODEL") || "deepseek-v4-flash-vision-exp",
+        messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify(input) }],
+        response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.6, max_tokens: maxTokens,
+      }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    if (!response.ok) throw new Error(`DeepSeek 文案生成失败 (${response.status})`);
+    const body = await response.json() as { choices?: Array<{ message?: { content?: string | null } }> };
+    const content = body.choices?.[0]?.message?.content;
+    if (!content) throw new Error("DeepSeek 未返回文案");
+    return JSON.parse(content);
+  }
+
+  async analyzeImage(imagePath: string, originalName: string, beforeRequest?: () => Promise<void>): Promise<WallpaperAnalysis> {
     const apiKey = this.config.get<string>("DEEPSEEK_API_KEY")?.trim();
     if (!apiKey) {
       return fallbackAnalysis(originalName);
@@ -38,6 +61,7 @@ export class AiService {
       imageBytes = await readFile(imagePath);
     }
     const base64 = imageBytes.toString("base64");
+    await beforeRequest?.();
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
@@ -132,7 +156,7 @@ function normalizeAnalysisPayload(value: unknown, originalName: string) {
     type: types.has(String(record.type)) ? String(record.type) : "other",
     tags: tags.length ? tags : ["待整理"],
     sensitiveFlags,
-    safe: typeof record.safe === "boolean" ? record.safe : sensitiveFlags.length === 0,
+    safe: record.safe === true,
     summary: typeof record.summary === "string" ? record.summary.trim().slice(0, 160) : undefined,
   };
 }

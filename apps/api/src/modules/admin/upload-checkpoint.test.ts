@@ -17,6 +17,7 @@ function driveHarness() {
     shortLink: { findFirst: async () => short, create: async () => { calls.short++; short = { id: "short" }; return short; } },
   };
   const service = Object.assign(Object.create(StorageCoordinatorService.prototype), {
+    leases: { run: async (_key: string, work: any) => work({ assert: async () => undefined }) },
     prisma: { $transaction: async (run: any) => run(tx) },
     accounts: { getAccountForProvider: async (provider: string) => provider === "baidu" ? { id: "account" } : null },
     baidu: { uploadPath: () => "/apps/bdpan/fixture.mp4", upload: async () => { calls.upload++; return "/apps/bdpan/fixture.mp4"; },
@@ -70,7 +71,7 @@ test("uploads resume at storage without repeating AI or an already completed cha
     const w: any = { id: "w", title: "fixture", originalName: "fixture.mp4", mimeType: "video/mp4", assetPath: relative(root, file), status: "pending_review", autoPublish: true, type: "live", tags: [] };
     const service = Object.assign(Object.create(AdminService.prototype), {
       prisma: { task: { findUnique: async () => task, update: async ({ data }: any) => Object.assign(task, data) },
-        wallpaper: { findUnique: async () => w, update: async ({ data }: any) => Object.assign(w, data) }, storageLink: { findMany: async () => [] } },
+        wallpaper: { findUnique: async () => w, update: async ({ data }: any) => Object.assign(w, data) }, storageLink: { findMany: async () => [] }, wallMuseAsset: { count: async () => 0 } },
       tasks: { update: async (_id: string, data: object) => Object.assign(task, data) },
       analyzeNow: async () => { calls.ai++; return { title: "fixture", type: "live", tags: [], sensitiveFlags: [], safe: true }; },
       storage: { syncWallpaperResumable: async () => { if (++calls.storage === 1) throw new Error("fixture upload failed"); return [{ ok: true }]; } },

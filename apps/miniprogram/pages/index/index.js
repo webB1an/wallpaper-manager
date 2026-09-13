@@ -23,7 +23,7 @@ Page({
         loading: false,
         error: "",
         backTopVisible: false,
-        adUnit: ads_1.AD_UNITS.homeBanner
+        adUnit: ads_1.AD_UNITS.homeBanner,
     },
     onAdError() {
         // 广告加载失败时静默隐藏，不影响正常浏览。
@@ -145,6 +145,9 @@ Page({
     },
     openDetail(event) {
         wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
+    },
+    openCollections() {
+        wx.navigateTo({ url: "/pages/collections/collections" });
     },
     openTag(event) {
         const tag = String(event.currentTarget.dataset.tag || "").trim();

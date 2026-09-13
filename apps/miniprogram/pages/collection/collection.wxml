@@ -1,0 +1,12 @@
+<view class="collection-page">
+  <view wx:if="{{loading}}" class="state">正在打开本期合集…</view>
+  <view wx:elif="{{error}}" class="state"><text>{{error}}</text><button bindtap="retry">重试</button></view>
+  <block wx:else>
+    <view class="article-heading"><text class="eyebrow">{{dateLabel}} · {{items.length}} 张壁纸</text><text class="article-title">{{title}}</text><text class="article-intro" user-select>{{intro}}</text></view>
+    <view wx:for="{{items}}" wx:key="id" class="wallpaper-card">
+      <image src="{{item.coverUrl}}" mode="widthFix" lazy-load bindtap="openDetail" data-id="{{item.id}}" />
+      <view class="wallpaper-info"><view><text class="number">{{item.number}}</text><text class="wallpaper-title">{{item.title}}</text></view><button bindtap="openDetail" data-id="{{item.id}}">查看与获取原图 ›</button></view>
+    </view>
+    <view class="state small">本期壁纸已全部展示</view>
+  </block>
+</view>

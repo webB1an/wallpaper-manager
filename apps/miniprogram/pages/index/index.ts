@@ -23,7 +23,7 @@ Page({
     loading: false,
     error: "",
     backTopVisible: false,
-    adUnit: AD_UNITS.homeBanner
+    adUnit: AD_UNITS.homeBanner,
   },
 
   onAdError() {
@@ -150,6 +150,10 @@ Page({
 
   openDetail(event: WechatMiniprogram.TouchEvent) {
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
+  },
+
+  openCollections() {
+    wx.navigateTo({ url: "/pages/collections/collections" });
   },
 
   openTag(event: WechatMiniprogram.TouchEvent) {

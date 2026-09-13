@@ -16,6 +16,7 @@ import { StorageModule } from "./modules/storage/storage.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { WdbzkModule } from "./modules/wdbzk/wdbzk.module";
 import { TempCleanupService } from "./common/temp-cleanup.service";
+import { WallMuseModule } from "./modules/wallmuse/wallmuse.module";
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TempCleanupService } from "./common/temp-cleanup.service";
     PublicModule,
     AdminModule,
     ImportModule,
+    WallMuseModule,
   ],
   controllers: [HealthController],
   providers: [TempCleanupService],

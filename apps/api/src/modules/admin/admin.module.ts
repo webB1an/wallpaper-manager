@@ -11,9 +11,11 @@ import { WALLPAPER_QUEUE } from "./admin.queue";
 import { AdminService } from "./admin.service";
 import { WallpaperProcessor } from "./wallpaper.processor";
 import { QueueRecoveryService } from "./queue-recovery.service";
+import { SourcesModule } from "../sources/sources.module";
 
 @Module({
   imports: [
+    SourcesModule,
     BullModule.registerQueue({ name: WALLPAPER_QUEUE }),
     AuthModule,
     AiModule,

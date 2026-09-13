@@ -9,6 +9,7 @@ import { StorageAccountService } from "./storage-account.service";
 import { basename } from "node:path";
 import { stat } from "node:fs/promises";
 import type { DriveCheckpoint } from "../admin/upload-checkpoint";
+import { WorkLeaseService, type WorkFence } from "../sources/work-lease.service";
 
 @Injectable()
 export class StorageCoordinatorService {
@@ -17,15 +18,22 @@ export class StorageCoordinatorService {
     private readonly quark: QuarkStorageService,
     private readonly baidu: BaiduStorageService,
     private readonly accounts: StorageAccountService,
+    private readonly leases: WorkLeaseService,
   ) {}
 
   /** Persist upload and share independently, before moving to another provider. */
   async syncWallpaperResumable(wallpaperId: string, filePath: string, title: string, type: string, tags: string[],
     selection: { quarkAccountId?: string; baiduAccountId?: string } | undefined,
-    drives: Partial<Record<"baidu" | "quark", DriveCheckpoint>>, save: () => Promise<void>) {
+    drives: Partial<Record<"baidu" | "quark", DriveCheckpoint>>, save: () => Promise<void>, requiredProviders?: StorageProvider[]) {
+    return this.leases.run("storage-transfers", (fence) => this.performResumable(wallpaperId, filePath, title, type, tags, selection, drives, async () => { await fence.assert(); await save(); }, requiredProviders));
+  }
+
+  private async performResumable(wallpaperId: string, filePath: string, title: string, type: string, tags: string[],
+    selection: { quarkAccountId?: string; baiduAccountId?: string } | undefined,
+    drives: Partial<Record<"baidu" | "quark", DriveCheckpoint>>, save: () => Promise<void>, requiredProviders?: StorageProvider[]) {
     const results: Array<{ provider: StorageProvider; ok: boolean; error?: string }> = [];
     const remoteDir = buildWallpaperRemoteDir(type, tags);
-    for (const provider of [StorageProvider.baidu, StorageProvider.quark]) {
+    for (const provider of requiredProviders ?? [StorageProvider.baidu, StorageProvider.quark]) {
       try {
         const previous = drives[provider];
         const selected = provider === "baidu" ? selection?.baiduAccountId : selection?.quarkAccountId;
@@ -62,6 +70,7 @@ export class StorageCoordinatorService {
           cp.phase = "uploaded";
           await save();
         }
+        if (cp.phase === "sharing" && requiredProviders) throw new Error("上次分享结果未知，请先在原网盘账号核对并恢复分享检查点；未重复创建分享");
         if (cp.phase === "uploaded" || cp.phase === "sharing") {
           cp.phase = "sharing";
           await save();
@@ -91,6 +100,11 @@ export class StorageCoordinatorService {
   }
 
   async syncWallpaper(wallpaperId: string, filePath: string, title: string, type: string, tags: string[], selection?: { quarkAccountId?: string; baiduAccountId?: string }) {
+    return this.leases.run("storage-transfers", (fence) => this.performSync(wallpaperId, filePath, title, type, tags, selection, fence));
+  }
+
+  private async performSync(wallpaperId: string, filePath: string, title: string, type: string, tags: string[], selection: { quarkAccountId?: string; baiduAccountId?: string } | undefined, fence: WorkFence) {
+    await fence.assert();
     const results: Array<{ provider: StorageProvider; ok: boolean; url?: string; passcode?: string; remoteFileId?: string; remotePath?: string; storageAccountId?: string; error?: string }> = [];
     const remoteDir = buildWallpaperRemoteDir(type, tags);
     const quarkAccount = await this.accounts.getAccountForProvider(StorageProvider.quark, selection?.quarkAccountId);
@@ -100,6 +114,7 @@ export class StorageCoordinatorService {
       results.push({ provider: StorageProvider.baidu, ok: false, error: missingManagedAccountError(StorageProvider.baidu) });
     } else {
       try {
+        await fence.assert();
         const share = await this.baidu.uploadAndShare(filePath, baiduAccount, remoteDir.baiduRelativeDir);
         results.push({ provider: StorageProvider.baidu, ok: true, url: share.url, passcode: share.passcode, remotePath: share.remotePath, storageAccountId: baiduAccount.id });
       } catch (error) {
@@ -111,7 +126,9 @@ export class StorageCoordinatorService {
       results.push({ provider: StorageProvider.quark, ok: false, error: missingManagedAccountError(StorageProvider.quark) });
     } else {
       try {
+        await fence.assert();
         const upload = await this.quark.upload(filePath, quarkAccount, remoteDir.quarkSegments);
+        await fence.assert();
         const share = await this.quark.share(upload.fids, title, quarkAccount);
         results.push({ provider: StorageProvider.quark, ok: true, url: share.url, passcode: share.passcode, remoteFileId: upload.fids[0], remotePath: upload.fullPath, storageAccountId: quarkAccount.id });
       } catch (error) {
@@ -120,6 +137,7 @@ export class StorageCoordinatorService {
     }
 
     const successful = results.filter((item) => item.ok && item.url);
+    await fence.assert();
     const primaryProvider = successful[0]?.provider;
     if (primaryProvider) {
       await this.prisma.storageLink.updateMany({

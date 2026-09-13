@@ -110,12 +110,130 @@ model Wallpaper {
   manualTitle     String?
   batchKey        String?
   batchPublishQueued Boolean      @default(false)
+  contentHash     String?         @unique @db.Char(64)
+  collectionOnly  Boolean         @default(false)
+  articleAssets   WallMuseAsset[]
+  collectionItems WallMuseCollectionItem[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([status, sortOrder])
   @@index([matchKey])
   @@index([batchKey])
+}
+
+// One fenced lease is shared by old and new source intake paths.
+model WorkLease {
+  key       String   @id @db.VarChar(191)
+  owner     String   @db.VarChar(64)
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+}
+
+model WallMuseArticle {
+  id                String   @id @default(cuid())
+  requestKey        String   @unique @db.VarChar(100)
+  requestHash       String   @db.Char(64)
+  title             String   @db.VarChar(240)
+  lifecycle         String   @default("pending") @db.VarChar(24)
+  currentRevisionId String?  @db.VarChar(64)
+  copiedRevisionId  String?  @db.VarChar(64)
+  activeJobId       String?  @db.VarChar(64)
+  copiedAt          DateTime?
+  syncedAt          DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  jobs              WallMuseJob[]
+  revisions         WallMuseRevision[]
+  assets            WallMuseAsset[]
+  collection        WallMuseCollection?
+
+  @@index([lifecycle, createdAt])
+}
+
+model WallMuseRevision {
+  id          String   @id @db.VarChar(64)
+  articleId   String
+  article     WallMuseArticle @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  revision    Int
+  payload     Json
+  contentHash String   @db.Char(64)
+  candidate   Boolean  @default(false)
+  copiedAt    DateTime?
+  createdAt   DateTime @default(now())
+
+  @@unique([articleId, revision])
+}
+
+model WallMuseJob {
+  id            String   @id @default(cuid())
+  articleId     String
+  article       WallMuseArticle @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  requestKey    String   @unique @db.VarChar(100)
+  requestHash   String   @db.Char(64)
+  kind          String   @default("generate") @db.VarChar(24)
+  status        String   @default("queued") @db.VarChar(24)
+  stage         String   @default("collect") @db.VarChar(24)
+  message       String?  @db.Text
+  error         String?  @db.Text
+  input         Json
+  checkpoint    Json
+  nextRunAt     DateTime @default(now())
+  cancelRequested Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([articleId, createdAt])
+}
+
+model WallMuseAsset {
+  id             String   @id @default(cuid())
+  articleId      String
+  article        WallMuseArticle @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  wallpaperId    String
+  wallpaper      Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Restrict)
+  ordinal        Int
+  source         String   @db.VarChar(64)
+  sourceId       String   @db.VarChar(255)
+  contentHash    String   @db.Char(64)
+  perceptualHash String?  @db.Char(16)
+  publishPath    String   @db.VarChar(512)
+  width          Int
+  height         Int
+  state          String   @default("analyze") @db.VarChar(24)
+  analysis       Json?
+  drives         Json
+  createdAt      DateTime @default(now())
+
+  @@unique([articleId, wallpaperId])
+  @@unique([articleId, ordinal])
+}
+
+model WallMuseCollection {
+  id          String   @id @default(cuid())
+  articleId   String   @unique
+  article     WallMuseArticle @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  revisionId  String   @db.VarChar(64)
+  title       String   @db.VarChar(240)
+  intro       String   @db.Text
+  coverUrl    String   @db.VarChar(1024)
+  wallpaperIds Json
+  createdAt   DateTime @default(now())
+  items       WallMuseCollectionItem[]
+
+  @@index([createdAt])
+}
+
+model WallMuseCollectionItem {
+  collectionId String
+  collection   WallMuseCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  wallpaperId  String
+  wallpaper    Wallpaper @relation(fields: [wallpaperId], references: [id], onDelete: Restrict)
+  sortOrder    Int
+
+  @@id([collectionId, wallpaperId])
+  @@unique([collectionId, sortOrder])
 }
 
 model WallpaperClick {

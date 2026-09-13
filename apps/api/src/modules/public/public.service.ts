@@ -169,6 +169,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     const tag = cleanSearchText(query.tag);
     const where = {
       status: WallpaperStatus.published,
+      collectionOnly: false,
       // 搜索同时匹配标题和标签，方便按标签词检索壁纸。
       ...(keyword ? {
         OR: [
@@ -287,7 +288,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const [recent, hotGroups] = await Promise.all([
       this.prisma.wallpaper.findMany({
-        where: { status: WallpaperStatus.published },
+        where: { status: WallpaperStatus.published, collectionOnly: false },
         orderBy: { createdAt: "desc" },
         take: 60,
         include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
@@ -576,7 +577,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
   async tags() {
     const tags = await this.prisma.tag.findMany({
       orderBy: { name: "asc" },
-      where: { wallpapers: { some: { wallpaper: { status: WallpaperStatus.published } } } },
+      where: { wallpapers: { some: { wallpaper: { status: WallpaperStatus.published, collectionOnly: false } } } },
     });
     return tags.map((tag) => tag.name);
   }
@@ -588,7 +589,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     const keyword = cleanSearchText(query.keyword);
     const grouped = await this.prisma.wallpaperTag.groupBy({
       by: ["tagId"],
-      where: { wallpaper: { status: WallpaperStatus.published } },
+      where: { wallpaper: { status: WallpaperStatus.published, collectionOnly: false } },
       _count: { _all: true },
       orderBy: { _count: { tagId: "desc" } },
     });
@@ -613,12 +614,12 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     const [typeGroups, orientationGroups, tagGroups] = await Promise.all([
       this.prisma.wallpaper.groupBy({
         by: ["type"],
-        where: { status: WallpaperStatus.published },
+        where: { status: WallpaperStatus.published, collectionOnly: false },
         _count: { _all: true },
       }),
       this.prisma.wallpaper.groupBy({
         by: ["orientation"],
-        where: { status: WallpaperStatus.published },
+        where: { status: WallpaperStatus.published, collectionOnly: false },
         _count: { _all: true },
       }),
       this.topTags(),
@@ -644,7 +645,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
   /** 热门标签：按「下载×5 + 浏览」加权热度排序，取前 16 个；壁纸数量做次排序。 */
   private async topTags() {
     const wallpapers = await this.prisma.wallpaper.findMany({
-      where: { status: WallpaperStatus.published },
+      where: { status: WallpaperStatus.published, collectionOnly: false },
       select: { downloadCount: true, viewCount: true, tags: { select: { tagId: true } } },
     });
     const stats = new Map<string, { count: number; heat: number }>();
@@ -686,6 +687,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
       where: {
         id: { not: id },
         status: WallpaperStatus.published,
+        collectionOnly: false,
         tags: { some: { tag: { name } } },
       },
       include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
@@ -701,7 +703,7 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     const picks = related.slice(0, 6);
     if (picks.length < 6) {
       picks.push(...await this.prisma.wallpaper.findMany({
-        where: { id: { notIn: [id, ...picks.map((item) => item.id)] }, status: WallpaperStatus.published, type: type as WallpaperType },
+        where: { id: { notIn: [id, ...picks.map((item) => item.id)] }, status: WallpaperStatus.published, collectionOnly: false, type: type as WallpaperType },
         include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
         orderBy: [{ downloadCount: "desc" }, { createdAt: "desc" }, { id: "asc" }],
         take: 6 - picks.length,
@@ -720,11 +722,11 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const count = await this.prisma.wallpaperTag.count({
-        where: { tagId, wallpaper: { status: WallpaperStatus.published } },
+        where: { tagId, wallpaper: { status: WallpaperStatus.published, collectionOnly: false } },
       });
       if (!count) continue;
       const item = await this.prisma.wallpaperTag.findFirst({
-        where: { tagId, wallpaper: { status: WallpaperStatus.published } },
+        where: { tagId, wallpaper: { status: WallpaperStatus.published, collectionOnly: false } },
         skip: Math.floor(Math.random() * count),
         include: { wallpaper: { select: { coverUrl: true } } },
       });

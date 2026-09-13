@@ -133,6 +133,7 @@ type SystemSettings = {
   defaultAutoPublish: boolean;
   uploadMultiPostMode?: "merge" | "separate";
   rewardDownloadType: string;
+  wallMuseEnabled?: boolean;
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
   permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
@@ -1820,6 +1821,9 @@ function Settings() {
           </Form.List>
           <div className="form-hint">先在微信后台创建并发布道具，再在这里填写完全一致的道具 ID 和价格。保存后立即生效，不需要修改服务器环境变量或重启。</div>
         </div>
+        <Form.Item label="启用 WallMuse 文章与公众号合集" name="wallMuseEnabled" valuePropName="checked" extra="保存后生效，无需重启。关闭后暂停后续文章处理并隐藏公开合集内容，已有文章和素材保留；已开始的处理步骤会完成。">
+          <Switch />
+        </Form.Item>
         <Form.Item label="仅在空闲时段自动处理上传" name="processIdleEnabled" valuePropName="checked">
           <Switch />
         </Form.Item>

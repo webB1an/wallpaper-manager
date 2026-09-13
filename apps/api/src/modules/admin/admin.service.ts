@@ -23,7 +23,8 @@ import { StorageAccountService } from "../storage/storage-account.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { TasksService } from "../tasks/tasks.service";
 import { WdbzkService } from "../wdbzk/wdbzk.service";
-import { autoSourceIds, autoSourceMeta, fetchAutoSource, normalizeAutoSources, pickNextAutoSource } from "./auto-publish-sources";
+import { autoSourceIds, autoSourceMeta, normalizeAutoSources, pickNextAutoSource } from "./auto-publish-sources";
+import { SourceIntakeService } from "../sources/source-intake.service";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { BridgeFileExpiredError, removeBridgeTransfer, transferTaskUpdate } from "./bridge-transfer";
 import { AutoPublishCheckpoint, canResumeAutoPublish, isAutoPublishCheckpoint } from "./auto-publish-checkpoint";
@@ -38,6 +39,7 @@ type SystemSettings = {
   rewardDownloadType: RewardDownloadType;
   autoSourceEnabled?: Record<string, boolean>;
   miniAdminOpenids?: string[];
+  wallMuseEnabled?: boolean;
   processIdleEnabled?: boolean;
   processIdleWindows?: Array<{ start: string; end: string }>;
   permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
@@ -76,6 +78,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoPublish: false,
   uploadMultiPostMode: "merge",
   rewardDownloadType: "daily10",
+  wallMuseEnabled: false,
   processIdleEnabled: true,
   processIdleWindows: [
     { start: "00:00", end: "09:00" },
@@ -128,6 +131,7 @@ export class AdminService implements OnModuleInit {
     private readonly storage: StorageCoordinatorService,
     private readonly wdbzk: WdbzkService,
     private readonly tasks: TasksService,
+    private readonly sourceIntake: SourceIntakeService,
     @InjectQueue(WALLPAPER_QUEUE) private readonly wallpaperQueue: Queue,
   ) {}
 
@@ -204,25 +208,21 @@ export class AdminService implements OnModuleInit {
           where: { id: board.id },
           data: { sourceConfig: nextConfig as Prisma.InputJsonValue },
         });
-        const exclude = (await this.prisma.wallpaperSource.findMany({ where: { source: selectedSource }, select: { sourceId: true } })).map((row) => row.sourceId);
         await this.tasks.update(task.id, { status: "running", progress: 8, message: `正在从 ${selectedSource} 拉取壁纸` });
-        const item = await fetchAutoSource(selectedSource, {
-          exclude,
+        const intake = await this.sourceIntake.obtain(selectedSource, {
           config: nextConfig,
           configService: this.config,
           transferKey: task.id,
           resumeBridge: checkpoint?.bridge,
           onBridgeReady: async (bridge) => { await saveCheckpoint({ ...checkpoint!, bridge, stage: "download" }); },
           onTransferProgress: async (progress) => { await this.tasks.update(task.id, transferTaskUpdate(progress)); },
-        });
-        await this.tasks.update(task.id, { progress: 30, message: "正在保存原图并生成封面" });
-        await saveCheckpoint({ ...checkpoint!, stage: "asset" });
-        persisted = await this.persistWallpaperDownload(item.filePath, item.fileName, item.fileType, task.id);
-        cover = await this.createCover(persisted.path, persisted.mimeType, `auto-${task.id}`);
-        const type = item.type === "live" ? WallpaperType.live : WallpaperType.static;
-        displayTitle = (item.fileName || item.sourceId).replace(/\.[^.]+$/, "") || item.sourceId;
-        record = await this.prisma.$transaction(async (tx) => {
-          const created = await tx.wallpaper.create({
+        }, async (item) => {
+          await this.tasks.update(task.id, { progress: 30, message: "正在保存原图并生成封面" });
+          await saveCheckpoint({ ...checkpoint!, stage: "asset" });
+          persisted = await this.persistWallpaperDownload(item.filePath, item.fileName, item.fileType, task.id);
+          cover = await this.createCover(persisted.path, persisted.mimeType, `auto-${task.id}`);
+          displayTitle = (item.fileName || item.sourceId).replace(/\.[^.]+$/, "") || item.sourceId;
+          return {
             data: {
               title: displayTitle,
               originalName: item.fileName,
@@ -230,20 +230,24 @@ export class AdminService implements OnModuleInit {
               coverUrl: publicAssetUrl(this.config, cover!.relativePath),
               assetPath: persisted!.relativePath,
               mimeType: persisted!.mimeType,
-              type,
+              type: item.type === "live" ? WallpaperType.live : WallpaperType.static,
               orientation: orientationFromDimensions(item.width, item.height),
               status: WallpaperStatus.draft,
             },
-          });
-          await tx.wallpaperSource.upsert({
-            where: { source_sourceId: { source: selectedSource, sourceId: item.sourceId } },
-            update: {},
-            create: { source: selectedSource, sourceId: item.sourceId, wallpaperId: created.id },
-          });
+            cleanup: async () => { if (persisted) await this.removeUploadedFile(persisted.path); if (cover) await this.removeUploadedFile(cover.path); },
+          };
+        }, async (tx, created) => {
           const next = { ...checkpoint!, stage: "analyze" as const, wallpaperId: created.id };
           await tx.task.update({ where: { id: task.id }, data: { payload: { boardId: board.id, checkpoint: next } as unknown as Prisma.InputJsonValue } });
-          return created;
         });
+        if (!intake.created) {
+          const message = "来源素材已被其他任务入库，已跳过，未重复上传或发布";
+          await this.tasks.update(task.id, { status: "skipped", progress: 100, message });
+          await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
+          await removeBridgeTransfer(task.id).catch(() => undefined);
+          return { ok: true, message };
+        }
+        record = intake.wallpaper;
         checkpoint = { ...checkpoint!, stage: "analyze", wallpaperId: record.id };
       } else {
         const existing = await this.prisma.wallpaper.findUnique({ where: { id: checkpoint!.wallpaperId } });
@@ -592,7 +596,7 @@ export class AdminService implements OnModuleInit {
   /** 清理已上架且已在网盘有链接的本地原图（originals/），只保留缩略图。 */
   async cleanupOriginals(): Promise<{ checked: number; removed: number }> {
     const wallpapers = await this.prisma.wallpaper.findMany({
-      where: { status: WallpaperStatus.published, assetPath: { startsWith: "originals/" } },
+      where: { status: WallpaperStatus.published, assetPath: { startsWith: "originals/" }, articleAssets: { none: {} } },
       select: { id: true, assetPath: true, storageLinks: { where: { isActive: true }, select: { provider: true } } },
     });
     let removed = 0;
@@ -807,6 +811,7 @@ export class AdminService implements OnModuleInit {
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
       ...(input.autoSourceEnabled ? { autoSourceEnabled: input.autoSourceEnabled } : {}),
+      ...(typeof input.wallMuseEnabled === "boolean" ? { wallMuseEnabled: input.wallMuseEnabled } : {}),
       ...(typeof input.processIdleEnabled === "boolean" ? { processIdleEnabled: input.processIdleEnabled } : {}),
       ...(Array.isArray(input.processIdleWindows) ? { processIdleWindows: sanitizeIdleWindows(input.processIdleWindows) } : {}),
       ...(Array.isArray(input.miniAdminOpenids)
@@ -1564,7 +1569,7 @@ export class AdminService implements OnModuleInit {
     const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id } });
     if (!wallpaper || wallpaper.status === "archived" || wallpaper.status === "rejected") throw new Error("壁纸已删除或下架，未覆盖状态");
     await this.prisma.wallpaper.update({ where: { id }, data: { status: WallpaperStatus.published } });
-    if (wallpaper.assetPath) {
+    if (wallpaper.assetPath && !(await this.prisma.wallMuseAsset.count({ where: { wallpaperId: id } }))) {
       await this.removeUploadedFile(join(process.cwd(), "storage", "public", wallpaper.assetPath));
       await this.prisma.wallpaper.update({ where: { id }, data: { assetPath: null } });
     }
