@@ -17,17 +17,37 @@ export interface IntakeFiles {
   cleanup: () => Promise<void>;
 }
 
+// Only failures while obtaining source material may switch sources. Persistence,
+// fencing and progress checkpoint failures must retain their original semantics.
+export class SourceFetchError extends Error {}
+
 @Injectable()
 export class SourceIntakeService {
   protected fetchSource = fetchAutoSource;
   constructor(private readonly prisma: PrismaService, private readonly leases: WorkLeaseService) {}
 
-  async obtain(source: string, context: Omit<AutoSourceContext, "exclude">,
+  async obtain(source: string, context: Omit<AutoSourceContext, "exclude"> & { classifySourceFailures?: boolean },
     prepare: (item: AutoSourceItem, hash: string) => Promise<IntakeFiles>,
     onCreated: (tx: Prisma.TransactionClient, wallpaper: Wallpaper, item: AutoSourceItem, hash: string) => Promise<void>) {
     return this.leases.run(`source:${source}`, async (fence) => {
       const exclude = (await this.prisma.wallpaperSource.findMany({ where: { source }, select: { sourceId: true } })).map((row) => row.sourceId);
-      const item = await this.fetchSource(source, { ...context, exclude });
+      let item: AutoSourceItem;
+      let callbackFailed = false;
+      try {
+        item = await this.fetchSource(source, { ...context, exclude,
+          onBridgeReady: async (bridge) => {
+            try { await context.onBridgeReady?.(bridge); }
+            catch (error) { callbackFailed = true; throw error; }
+          },
+          onTransferProgress: async (...args) => {
+            try { await context.onTransferProgress?.(...args); }
+            catch (error) { callbackFailed = true; throw error; }
+          },
+        });
+      } catch (error) {
+        if (callbackFailed || !context.classifySourceFailures) throw error;
+        throw new SourceFetchError(error instanceof Error ? error.message : String(error));
+      }
       await fence.assert();
       if (!item.sourceId || item.sourceId.length > 255) throw new Error("来源返回了无效的素材编号");
       const info = await stat(item.filePath);

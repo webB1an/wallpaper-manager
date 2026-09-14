@@ -59,6 +59,7 @@ export interface Checkpoint {
   version: 1;
   attempts: number;
   activeSource?: string;
+  unavailableSources?: string[];
   bridge?: BridgeItem;
   transferKey?: string;
   candidateId?: string;

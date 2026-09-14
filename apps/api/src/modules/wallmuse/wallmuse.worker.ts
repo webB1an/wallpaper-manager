@@ -7,7 +7,7 @@ import { deploymentDraining } from "../../common/deployment-drain";
 import { publicAssetUrl } from "../../common/public-url";
 import { BridgeFileExpiredError, removeBridgeTransfer } from "../admin/bridge-transfer";
 import { PrismaService } from "../prisma/prisma.service";
-import { SourceIntakeService } from "../sources/source-intake.service";
+import { SourceFetchError, SourceIntakeService } from "../sources/source-intake.service";
 import { LeaseBusyError, LeaseLostError, WorkLeaseService, type WorkFence } from "../sources/work-lease.service";
 import { StorageCoordinatorService } from "../storage/storage-coordinator.service";
 import { prepareArticleFiles, privateAssetPath } from "./article-files";
@@ -102,6 +102,20 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
         await update({ status: "queued", message: "共享来源正在使用，稍后继续", nextRunAt: new Date(Date.now() + 10_000) });
         return;
       }
+      if (error instanceof SourceFetchError && job.stage === "collect" && cp.activeSource) {
+        const source = cp.activeSource;
+        const message = messageOf(error);
+        cp.unavailableSources = [...new Set([...(cp.unavailableSources || []), source])];
+        cp.failures = [...(cp.failures || []), { stage: job.stage, message: source + ": " + message, at: new Date().toISOString() }].slice(-10);
+        delete cp.activeSource; delete cp.bridge; delete cp.transferKey;
+        const remaining = input.sources.filter((id) => !cp.unavailableSources!.includes(id));
+        const canContinue = remaining.length > 0 && cp.attempts < input.candidateBudget;
+        await update({ status: canContinue ? "queued" : "failed", error: canContinue ? null : message,
+          message: canContinue ? source + " 暂不可用，已跳过；将切换其他已选来源继续采集（" + message + "）"
+            : "已选来源均不可用或采集预算已用完，已保留完成步骤；请核对来源后继续",
+          nextRunAt: new Date(Date.now() + 10_000) });
+        return;
+      }
       if (error instanceof BridgeFileExpiredError && job.stage === "collect") { delete cp.bridge; delete cp.activeSource; delete cp.transferKey; }
       const message = messageOf(error);
       cp.failures = [...(cp.failures || []), { stage: job.stage, message, at: new Date().toISOString() }].slice(-10);
@@ -119,7 +133,9 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
     }
     if (cp.attempts >= input.candidateBudget) throw new Error(`候选预算已用完，目前只有 ${candidates.length} 张通过审核且不近似的图片，目标为 ${input.targetCount} 张；未用重复图片凑数`);
     if (!cp.activeSource) {
-      cp.activeSource = input.sources[cp.attempts % input.sources.length];
+      const available = input.sources.filter((source) => !(cp.unavailableSources || []).includes(source));
+      if (!available.length) throw new Error("本次已选来源均不可用，请核对来源后继续");
+      cp.activeSource = available[cp.attempts % available.length];
       cp.attempts++;
       cp.transferKey = `wm-${job.id}-${cp.attempts}`;
       await update({ message: `第 ${cp.attempts}/${input.candidateBudget} 次采集，来源 ${cp.activeSource}` });
@@ -128,7 +144,7 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
     if (!(await this.service.capabilities()).sources.some((item) => item.id === source && item.enabled)) throw new Error("本次选定的来源已被停用，请在素材服务核对来源配置后继续");
     let prepared: Awaited<ReturnType<typeof prepareArticleFiles>> | undefined;
     const result = await this.intake.obtain(source, {
-      configService: this.config, config: {}, transferKey: cp.transferKey, resumeBridge: cp.bridge,
+      classifySourceFailures: true, configService: this.config, config: {}, transferKey: cp.transferKey, resumeBridge: cp.bridge,
       onBridgeReady: async (bridge) => { cp.bridge = bridge; await update({ message: `已取得 ${source} 素材，正在下载` }); },
       onTransferProgress: async () => { await fence.assert(); },
     }, async (item) => {

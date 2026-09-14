@@ -296,7 +296,7 @@ export class WallMuseService {
     const checkpoint = job.checkpoint as unknown as Checkpoint;
     const input = job.input as unknown as StoredGenerationInput;
     if (job.stage === "collect" && checkpoint.attempts >= input.candidateBudget) throw new BadRequestException("采集预算已用完，请新建任务或调整已有策划");
-    const result = await this.prisma.wallMuseJob.updateMany({ where: { id, status: "failed" }, data: { status: "queued", error: null, nextRunAt: new Date(), message: "继续处理已保存步骤" } });
+    const result = await this.prisma.wallMuseJob.updateMany({ where: { id, status: "failed" }, data: { status: "queued", error: null, checkpoint: json({ ...checkpoint, unavailableSources: [] }), nextRunAt: new Date(), message: "继续处理已保存步骤" } });
     if (!result.count) throw new ConflictException("任务状态已变化");
     return this.job(id);
   }
