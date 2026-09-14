@@ -8,8 +8,9 @@ import { WallMuseAiService } from "./wallmuse-ai.service";
 import { WallMusePolicyService } from "./wallmuse-policy.service";
 import { WallMuseController } from "./wallmuse.controller";
 import { WallMuseService } from "./wallmuse.service";
+import { WallMuseCleanupService } from "./wallmuse-cleanup.service";
 import { WallMuseWorker } from "./wallmuse.worker";
 
 @Module({ imports: [AdminModule, AiModule, SourcesModule, StorageModule], controllers: [WallMuseController, CollectionsController],
-  providers: [WallMuseService, WallMusePolicyService, WallMuseAiService, WallMuseWorker] })
+  providers: [WallMuseService, WallMusePolicyService, WallMuseAiService, WallMuseWorker, WallMuseCleanupService] })
 export class WallMuseModule {}

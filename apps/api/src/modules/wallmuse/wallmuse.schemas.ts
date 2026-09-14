@@ -60,6 +60,8 @@ export interface Checkpoint {
   attempts: number;
   activeSource?: string;
   unavailableSources?: string[];
+  theme?: string;
+  themeReviewedIds?: string[];
   bridge?: BridgeItem;
   transferKey?: string;
   candidateId?: string;

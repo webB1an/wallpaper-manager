@@ -66,7 +66,7 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
     const input = job.input as unknown as StoredGenerationInput;
     const update = async (data: Prisma.WallMuseJobUpdateInput, tx?: Prisma.TransactionClient) => {
       await fence.assert(tx);
-      await (tx || this.prisma).wallMuseJob.update({ where: { id: job.id }, data: { ...data, checkpoint: json(cp) } });
+      await (tx || this.prisma).wallMuseJob.update({ where: { id: job.id }, data: { ...data, checkpoint: data.checkpoint ?? json(cp) } });
     };
     try {
       if (job.cancelRequested) {
@@ -80,7 +80,7 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
       else if (job.stage === "storage") await this.syncStorage(job, input, cp, update, fence);
       else if (job.stage === "plan") {
         const candidates = await this.candidates(job.articleId, true);
-        cp.plan = await this.ai.plan(candidates, input.targetCount, input.preferredStyle);
+        cp.plan = await this.ai.plan(candidates, input.targetCount, input.preferredStyle, cp.theme);
         await update({ stage: "copy", status: "queued", message: "选图与主题已完成，等待生成文案", nextRunAt: new Date() });
       } else if (job.stage === "copy") {
         if (!cp.plan) throw new Error("文章策划缺失");
@@ -125,13 +125,14 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
 
   private async collect(job: WallMuseJob, input: StoredGenerationInput, cp: Checkpoint,
     update: (data: Prisma.WallMuseJobUpdateInput, tx?: Prisma.TransactionClient) => Promise<void>, fence: WorkFence) {
+    if (await this.prepareTheme(job, input, cp, update, fence)) return;
     const candidates = await this.candidates(job.articleId, true);
     const desired = Math.min(input.candidateBudget, input.targetCount + Math.ceil(input.targetCount / 3));
     if (candidates.length >= desired || (cp.attempts >= input.candidateBudget && candidates.length >= input.targetCount)) {
       await update({ stage: "plan", status: "queued", message: "候选壁纸已准备完成，等待 AI 策划", nextRunAt: new Date() });
       return;
     }
-    if (cp.attempts >= input.candidateBudget) throw new Error(`候选预算已用完，目前只有 ${candidates.length} 张通过审核且不近似的图片，目标为 ${input.targetCount} 张；未用重复图片凑数`);
+    if (cp.attempts >= input.candidateBudget) throw new Error(`候选预算已用完，目前只有 ${candidates.length} 张符合主题、通过审核且不近似的图片，目标为 ${input.targetCount} 张；未用重复图片凑数`);
     if (!cp.activeSource) {
       const available = input.sources.filter((source) => !(cp.unavailableSources || []).includes(source));
       if (!available.length) throw new Error("本次已选来源均不可用，请核对来源后继续");
@@ -172,6 +173,47 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
     delete cp.transferKey;
   }
 
+  private async prepareTheme(job: WallMuseJob, input: StoredGenerationInput, cp: Checkpoint,
+    update: (data: Prisma.WallMuseJobUpdateInput, tx?: Prisma.TransactionClient) => Promise<void>, fence: WorkFence) {
+    // Includes ready assets from jobs created before theme filtering was introduced.
+    const assets = await this.prisma.wallMuseAsset.findMany({ where: { articleId: job.articleId, state: { in: ["theme_pending", "ready"] } }, orderBy: { ordinal: "asc" } });
+    const pending = assets.filter((asset) => !(cp.themeReviewedIds || []).includes(asset.id) && (asset.analysis as WallpaperAnalysis | null)?.safe);
+    const sourcesExhausted = input.sources.every((source) => (cp.unavailableSources || []).includes(source));
+    if (pending.length && (cp.theme || pending.length >= Math.min(3, input.targetCount) || cp.attempts >= input.candidateBudget || sourcesExhausted)) {
+      const decision = await this.ai.curate(pending.map((asset) => {
+        const analysis = asset.analysis as WallpaperAnalysis;
+        return { id: asset.id, title: analysis.title, summary: analysis.summary || "", tags: analysis.tags };
+      }), input.preferredStyle, cp.theme);
+      const nextCheckpoint = { ...cp, theme: decision.theme,
+        themeReviewedIds: [...new Set([...(cp.themeReviewedIds || []), ...pending.map((asset) => asset.id)])] };
+      try {
+      await this.prisma.$transaction(async (tx) => {
+        await fence.assert(tx);
+        for (const asset of pending) await tx.wallMuseAsset.update({ where: { id: asset.id }, data: {
+          state: decision.acceptedIds.includes(asset.id) ? (asset.state === "ready" ? "ready" : "storage") : "off_theme",
+        } });
+        await update({ status: "queued", message: "主题：" + decision.theme + "；已筛选 " + pending.length + " 张，符合 " + decision.acceptedIds.length + " 张，不足将自动补采", nextRunAt: new Date(), checkpoint: json(nextCheckpoint) }, tx);
+      });
+      Object.assign(cp, nextCheckpoint);
+      } catch (error) {
+        // A lost commit response must not overwrite a successfully saved theme checkpoint.
+        const stored = await this.prisma.wallMuseJob.findUnique({ where: { id: job.id }, select: { checkpoint: true } })
+          .catch(() => { throw new LeaseLostError("主题保存结果暂时无法确认，等待安全恢复"); });
+        const saved = stored?.checkpoint as unknown as Checkpoint | undefined;
+        if (!saved || !pending.every((asset) => saved.themeReviewedIds?.includes(asset.id))) throw error;
+        Object.assign(cp, saved);
+      }
+      return true;
+    }
+    const awaitingStorage = await this.prisma.wallMuseAsset.findFirst({ where: { articleId: job.articleId, state: "storage" }, orderBy: { ordinal: "asc" } });
+    if (awaitingStorage) {
+      cp.candidateId = awaitingStorage.id;
+      await update({ stage: "storage", status: "queued", message: "主题筛选通过，准备同步原图", nextRunAt: new Date() });
+      return true;
+    }
+    return false;
+  }
+
   private async analyze(job: WallMuseJob, cp: Checkpoint,
     update: (data: Prisma.WallMuseJobUpdateInput, tx?: Prisma.TransactionClient) => Promise<void>, fence: WorkFence) {
     const asset = await this.activeAsset(job.articleId, cp.candidateId);
@@ -187,9 +229,9 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
         update: { title: analysis.title, tags: analysis.tags, sensitiveFlags: analysis.sensitiveFlags, safe: analysis.safe, summary: analysis.summary } });
       await tx.wallpaper.update({ where: { id: wallpaper.id }, data: { title: analysis.title, status: analysis.safe ? "pending_review" : "rejected",
         tags: { deleteMany: {}, create: tags.map((tag, sortOrder) => ({ tagId: tag.id, sortOrder })) } } });
-      await tx.wallMuseAsset.update({ where: { id: asset.id }, data: { analysis: json(analysis), state: analysis.safe ? "storage" : "rejected" } });
-      if (!analysis.safe) delete cp.candidateId;
-      await update({ stage: analysis.safe ? "storage" : "collect", status: "queued", message: analysis.safe ? "识图审核通过，准备同步网盘" : "素材未通过审核，保留去重记录并继续补采", nextRunAt: new Date() }, tx);
+      await tx.wallMuseAsset.update({ where: { id: asset.id }, data: { analysis: json(analysis), state: analysis.safe ? "theme_pending" : "rejected" } });
+      // Retain the candidate identity until the next step, including on a rolled-back write.
+      await update({ stage: "collect", status: "queued", message: analysis.safe ? "识图审核通过，等待自动主题筛选" : "素材未通过审核，保留去重记录并继续补采", nextRunAt: new Date() }, tx);
     });
   }
 

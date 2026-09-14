@@ -322,7 +322,7 @@ export class WallMuseService {
       const revision = await tx.wallMuseRevision.findUnique({ where: { id: input.baseRevisionId } });
       const base = parseInput(revisionSchema, revision?.payload);
       const job = await tx.wallMuseJob.create({ data: { articleId: id, requestKey, requestHash: hash, kind: "regenerate", stage: input.scope === "plan" ? "plan" : "copy", input: json({ ...stored, ...input, targetCount: base.assets.length, copyDensity: base.density, preferredStyle: input.preferredStyle ?? stored.preferredStyle }),
-        checkpoint: json({ version: 1, attempts: 0, ...(input.scope !== "plan" ? { plan: { subject: base.subject, selectedIds: base.assets.map((asset) => asset.id), templateId: base.templateId } } : {}) }), message: "等待空闲时段重新生成" } });
+        checkpoint: json({ version: 1, attempts: 0, theme: base.subject, ...(input.scope !== "plan" ? { plan: { subject: base.subject, selectedIds: base.assets.map((asset) => asset.id), templateId: base.templateId } } : {}) }), message: "等待空闲时段重新生成" } });
       await tx.wallMuseArticle.update({ where: { id }, data: { activeJobId: job.id } });
       return job.id;
     });
