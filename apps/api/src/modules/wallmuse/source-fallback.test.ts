@@ -11,7 +11,7 @@ function setup(error: Error, overrides: any = {}) {
     prisma: { wallMuseJob: { update: async ({ data }: any) => Object.assign(job, data) } },
     policy: { assertIdle: async () => {} },
     service: { capabilities: async () => ({ sources: job.input.sources.map((id: string) => ({ id, enabled: true })) }) },
-    candidates: async () => [], prepareTheme: async () => false,
+    candidates: async () => [], restoreCandidates: async () => false,
     intake: { obtain: async (source: string) => { sources.push(source); throw error; } },
     logger: { warn: () => {} },
   });

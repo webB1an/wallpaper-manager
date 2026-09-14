@@ -7,89 +7,99 @@ import { WallMuseAiService } from "./wallmuse-ai.service";
 import { WallMuseWorker } from "./wallmuse.worker";
 import { cleanupDecision, referencedByRevision, unlinkWallMuseFile, WallMuseCleanupService } from "./wallmuse-cleanup.service";
 
-test("automatic theme is based on samples; later checks cannot rename it or invent asset ids", async () => {
-  let answer: any = { theme: "青绿山林", acceptedIds: ["a"] };
+const images = ["forest", "city", "sea"].map((id) => ({ id, title: id, tags: [], summary: id }));
+
+test("anchor stays first and different subjects are retained without a filtering call", async () => {
   let requests = 0;
-  const ai = new WallMuseAiService({ generateJson: async () => { requests++; return answer; } } as any, { assertIdle: async () => {} } as any);
-  const candidates = [{ id: "a", title: "树林", tags: ["绿色"], summary: "山林" }];
-  assert.equal((await ai.curate(candidates, "")).theme, "青绿山林");
-  answer = { theme: "随机精选", acceptedIds: [] };
-  assert.deepEqual(await ai.curate(candidates, "", "青绿山林"), { theme: "青绿山林", acceptedIds: [] });
-  answer = { theme: "青绿山林", acceptedIds: ["invented"] };
-  await assert.rejects(ai.curate(candidates, ""), /无效/);
-  answer.acceptedIds = ["a", "a"];
-  await assert.rejects(ai.curate(candidates, ""), /重复/);
-  assert.equal(requests, 4);
+  const ai = new WallMuseAiService({ generateJson: async (_: string, data: any) => {
+    requests++; assert.equal(data.anchor.id, "city");
+    return { subject: "都市夜色", selectedIds: ["sea", "forest", "city"], templateId: "film-gallery" };
+  } } as any, { assertIdle: async () => {} } as any);
+  const plan = await ai.plan(images, 3, "", "city");
+  assert.deepEqual(plan.selectedIds, ["city", "sea", "forest"]);
+  assert.equal(requests, 1);
 });
 
-test("theme AI obeys idle policy and planner keeps the fixed theme", async () => {
-  const ai = new WallMuseAiService({ generateJson: async () => assert.fail("must not call") } as any, { assertIdle: async () => { throw new Error("wait idle"); } } as any);
-  await assert.rejects(ai.curate([], ""), /wait idle/);
-  const planner = new WallMuseAiService({ generateJson: async () => ({ subject: "随机精选", selectedIds: ["a"], templateId: "film-gallery" }) } as any, { assertIdle: async () => {} } as any);
-  const result = await planner.plan([{ id: "a", title: "树林", tags: [], summary: "山林" }], 1, "", "青绿山林");
-  assert.equal(result.subject, "青绿山林");
+test("planning rejects omitted, repeated or foreign images and obeys idle policy", async () => {
+  for (const selectedIds of [["forest", "city"], ["city", "city", "sea"], ["foreign", "city", "sea"]]) {
+    const ai = new WallMuseAiService({ generateJson: async () => ({ subject: "测试", selectedIds, templateId: "film-gallery" }) } as any, { assertIdle: async () => {} } as any);
+    await assert.rejects(ai.plan(images, 3, "", "city"));
+  }
+  const ai = new WallMuseAiService({ generateJson: async () => assert.fail("no AI outside idle") } as any, { assertIdle: async () => { throw new Error("wait idle"); } } as any);
+  await assert.rejects(ai.plan(images, 3, "", "city"), /wait idle/);
 });
 
-function themeHarness() {
-  const assets: any[] = ["a", "b", "c"].map((id) => ({ id, state: "theme_pending", analysis: { safe: true, title: id, tags: [], summary: id } }));
-  const cp: any = { version: 1, attempts: 3 };
-  const input: any = { sources: ["wallpost"], targetCount: 18, candidateBudget: 54, preferredStyle: "" };
+test("exact requested count moves straight to planning without downloading extra candidates", async () => {
   const updates: any[] = [];
-  let decisions = 0;
-  const tx: any = { wallMuseAsset: { findMany: async () => assets.filter((asset) => ["theme_pending", "ready"].includes(asset.state)), findFirst: async () => assets.find((asset) => asset.state === "storage"), update: async ({ where, data }: any) => Object.assign(assets.find((asset) => asset.id === where.id), data) } };
   const worker: any = Object.assign(Object.create(WallMuseWorker.prototype), {
-    prisma: { ...tx, $transaction: async (fn: any) => fn(tx) },
-    ai: { curate: async (_: any, __: any, theme: any) => { decisions++; return { theme: theme || "青绿山林", acceptedIds: theme ? [] : ["a", "c"] }; } },
+    candidates: async () => images,
+    restoreCandidates: async () => assert.fail("already enough"),
+    intake: { obtain: async () => assert.fail("no extra download") },
   });
-  return { worker, assets, cp, input, updates, decisions: () => decisions,
-    run: () => worker.prepareTheme({ articleId: "article" }, input, cp, async (data: any) => { updates.push(data); }, { assert: async () => {} }) };
-}
-
-test("sample automatically locks theme, only matching assets enter storage, others are replenished", async () => {
-  const h = themeHarness();
-  await h.run();
-  assert.equal(h.cp.theme, "青绿山林");
-  assert.deepEqual(h.assets.map((a) => a.state), ["storage", "off_theme", "storage"]);
-  await h.run();
-  assert.equal(h.cp.candidateId, "a");
-  assert.equal(h.updates.at(-1).stage, "storage");
-  h.assets[0].state = "ready"; h.assets[2].state = "ready";
-  h.assets.push({ id: "d", state: "theme_pending", analysis: { safe: true, title: "城市", tags: [], summary: "夜景" } });
-  await h.run();
-  assert.equal(h.assets[3].state, "off_theme");
-  assert.equal(h.cp.theme, "青绿山林");
-  assert.equal(h.decisions(), 2);
-  assert.equal(await h.run(), false, "all reviewed, continue collecting without another AI call");
+  await worker.collect({ articleId: "a" }, { targetCount: 3, candidateBudget: 12 }, { attempts: 3 }, async (data: any) => updates.push(data), {});
+  assert.equal(updates[0].stage, "plan");
 });
 
-test("small samples wait for more, while old ready candidates are checked before planning", async () => {
-  const h = themeHarness();
-  h.assets.splice(1);
-  assert.equal(await h.run(), false);
-  assert.equal(h.decisions(), 0);
-  h.input.targetCount = 1; h.assets[0].state = "ready";
-  await h.run();
-  assert.equal(h.cp.theme, "青绿山林");
-  assert.equal(h.assets[0].state, "ready");
+test("random anchor and exact batch are saved before AI and remain stable across retries", async () => {
+  let calls = 0;
+  let stored: any;
+  const anchors: string[] = [];
+  const worker: any = Object.assign(Object.create(WallMuseWorker.prototype), {
+    policy: { assertIdle: async () => {} },
+    prisma: { wallMuseJob: { update: async ({ data }: any) => { if (data.checkpoint) stored = structuredClone(data.checkpoint); } } },
+    candidates: async () => [...images, { id: "extra", title: "extra", tags: [], summary: "" }],
+    ai: { plan: async (batch: any[], count: number, _: string, anchor: string) => {
+      assert.deepEqual(batch.map((x) => x.id), images.map((x) => x.id));
+      assert.equal(count, 3); assert.equal(stored.themeAnchorId, anchor);
+      anchors.push(anchor);
+      if (++calls === 1) throw new Error("temporary AI error");
+      return { subject: "测试", selectedIds: [anchor, ...batch.map((x) => x.id).filter((id) => id !== anchor)], templateId: "film-gallery" };
+    } },
+  });
+  const job: any = { id: "job", articleId: "article", stage: "plan", input: { targetCount: 3 }, checkpoint: { version: 1, attempts: 3 } };
+  const fence = { assert: async () => {} };
+  await worker.step(job, fence);
+  await worker.step({ ...job, checkpoint: stored }, fence);
+  assert.equal(anchors.length, 2); assert.equal(anchors[0], anchors[1]);
+  assert.equal(stored.plan.selectedIds[0], anchors[0]);
 });
 
-test("failed theme transaction cannot mark uncommitted candidates reviewed", async () => {
-  const h = themeHarness();
-  h.worker.prisma.$transaction = async () => { throw new Error("transaction rolled back"); };
-  h.worker.prisma.wallMuseJob = { findUnique: async () => ({ checkpoint: { version: 1, attempts: 3 } }) };
-  await assert.rejects(h.run(), /rolled back/);
-  assert.equal(h.cp.theme, undefined);
-  assert.equal(h.cp.themeReviewedIds, undefined);
-  assert.ok(h.assets.every((asset) => asset.state === "theme_pending"));
+test("legacy theme-rejected images are resumed even after the collection budget is exhausted", async () => {
+  const worker: any = Object.assign(Object.create(WallMuseWorker.prototype), {
+    candidates: async () => [],
+    prisma: { wallMuseAsset: { findFirst: async () => ({ id: "saved", state: "off_theme", analysis: { safe: true } }) } },
+    intake: { obtain: async () => assert.fail("must reuse saved image") },
+  });
+  const cp: any = { attempts: 12 };
+  const writes: any[] = [];
+  await worker.collect({ articleId: "a" }, { targetCount: 3, candidateBudget: 12 }, cp, async (data: any) => writes.push(data), {});
+  assert.equal(cp.candidateId, "saved"); assert.equal(writes[0].stage, "analyze");
 });
 
-test("lost theme commit response reloads the committed checkpoint instead of overwriting it", async () => {
-  const h = themeHarness();
-  h.worker.prisma.$transaction = async () => { throw new Error("commit response lost"); };
-  h.worker.prisma.wallMuseJob = { findUnique: async () => ({ checkpoint: { version: 1, attempts: 3, theme: "青绿山林", themeReviewedIds: ["a", "b", "c"] } }) };
-  assert.equal(await h.run(), true);
-  assert.equal(h.cp.theme, "青绿山林");
-  assert.deepEqual(h.cp.themeReviewedIds, ["a", "b", "c"]);
+test("near duplicates are removed before AI recognition", async () => {
+  const writes: any[] = [];
+  const tx: any = { wallMuseAsset: { update: async ({ data }: any) => writes.push(data) } };
+  const worker: any = Object.assign(Object.create(WallMuseWorker.prototype), {
+    activeAsset: async () => ({ id: "new", wallpaperId: "w", perceptualHash: "0000000000000000" }),
+    prisma: { wallpaper: { findUniqueOrThrow: async () => ({ status: "draft" }) },
+      wallMuseAsset: { findMany: async () => [{ id: "prior", perceptualHash: "0000000000000001", analysis: { safe: true } }] },
+      $transaction: async (fn: any) => fn(tx) },
+    ai: { analyze: async () => assert.fail("duplicate must not consume AI") },
+  });
+  await worker.analyze({ articleId: "a" }, { candidateId: "new" }, async (data: any) => writes.push(data), { assert: async () => {} });
+  assert.equal(writes[0].state, "near_duplicate"); assert.equal(writes[1].stage, "collect");
+});
+
+test("restored off-theme image reuses its analysis without another AI call", async () => {
+  const writes: any[] = [];
+  const tx: any = { aiAnalysis: { upsert: async () => {} }, wallpaper: { update: async () => {} }, wallMuseAsset: { update: async ({ data }: any) => writes.push(data) } };
+  const worker: any = Object.assign(Object.create(WallMuseWorker.prototype), {
+    activeAsset: async () => ({ id: "old", wallpaperId: "w", state: "off_theme", analysis: { safe: true, title: "城市", tags: [], summary: "夜景" } }),
+    prisma: { wallpaper: { findUniqueOrThrow: async () => ({ status: "pending_review" }) }, $transaction: async (fn: any) => fn(tx) },
+    ai: { analyze: async () => assert.fail("existing analysis must be reused") },
+  });
+  await worker.analyze({ articleId: "a" }, { candidateId: "old" }, async (data: any) => writes.push(data), { assert: async () => {} });
+  assert.equal(writes[0].state, "storage"); assert.equal(writes[1].stage, "storage");
 });
 
 const now = Date.parse("2026-09-14T00:00:00Z");

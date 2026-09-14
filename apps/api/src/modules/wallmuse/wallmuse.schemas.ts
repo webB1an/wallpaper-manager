@@ -61,6 +61,8 @@ export interface Checkpoint {
   activeSource?: string;
   unavailableSources?: string[];
   theme?: string;
+  themeAnchorId?: string;
+  selectedAssetIds?: string[];
   themeReviewedIds?: string[];
   bridge?: BridgeItem;
   transferKey?: string;
