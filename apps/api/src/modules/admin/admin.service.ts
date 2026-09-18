@@ -725,8 +725,8 @@ export class AdminService implements OnModuleInit {
     if (!autoProcess) return created;
 
     const ids = created.map((item) => item.id);
-    if (batchKey && autoPublish) {
-      // 小程序端一次上传：逐张请求，最后一张（或收尾接口）触发批次处理与发帖。
+    if (batchKey) {
+      // 小程序端一次上传：逐张请求，最后一张（或收尾接口）触发批次处理；是否发帖由批次自身配置决定。
       const total = Number(options?.batchTotal || 0);
       const count = await this.prisma.wallpaper.count({ where: { batchKey } });
       if (total > 0 && count >= total) {
@@ -734,10 +734,6 @@ export class AdminService implements OnModuleInit {
         return created.map((item) => ({ ...item, queued: batch }));
       }
       return created;
-    }
-    if (batchKey && !autoPublish) {
-      const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, undefined, { publish: false });
-      return created.map((item) => ({ ...item, queued: batch }));
     }
     if (options?.batchPublish === true) {
       const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, options?.channelAccountId, { publish: autoPublish === true });
@@ -1610,17 +1606,20 @@ export class AdminService implements OnModuleInit {
     return { queued: true, taskId: task.id, count: ids.length };
   }
 
-  /** 小程序批次发帖：同一 batchKey 且开启发帖、尚未排队发布的壁纸，一次性入队批量处理；是否合并发帖由系统配置在运行时决定。幂等。 */
+  /** 小程序批次处理：同一 batchKey 且尚未入队的壁纸，一次性入队批量处理；是否发帖由该批次壁纸的 autoPublish 决定。幂等。 */
   async enqueueMiniBatchPublish(batchKey: string) {
     if (!batchKey) throw new BadRequestException("缺少批次标识");
+    const first = await this.prisma.wallpaper.findFirst({ where: { batchKey }, select: { autoPublish: true } });
+    if (!first) return { queued: false, count: 0 };
+    const publish = first.autoPublish;
     const updated = await this.prisma.wallpaper.updateMany({
-      where: { batchKey, autoPublish: true, batchPublishQueued: false },
+      where: { batchKey, autoPublish: publish, batchPublishQueued: false },
       data: { batchPublishQueued: true },
     });
     if (updated.count === 0) return { queued: false, count: 0 };
-    const batch = await this.prisma.wallpaper.findMany({ where: { batchKey }, select: { id: true } });
+    const batch = await this.prisma.wallpaper.findMany({ where: { batchKey, autoPublish: publish }, select: { id: true } });
     const ids = batch.map((item) => item.id);
-    const queued = await this.enqueueProcessWallpaperBatch(ids, undefined, undefined, { publish: true });
+    const queued = await this.enqueueProcessWallpaperBatch(ids, undefined, undefined, { publish });
     return { queued: true, count: ids.length, taskId: queued.taskId };
   }
 

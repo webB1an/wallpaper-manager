@@ -13,6 +13,7 @@ async function main() {
     prisma: { wallpaper: {
       updateMany: async () => ({ count: 2 }),
       findMany: async () => [{ id: "one" }, { id: "two" }],
+      findFirst: async () => ({ autoPublish: true }),
     } },
     enqueueProcessWallpaperBatch: async (ids: string[], _storage: unknown, _channel: unknown, options?: { publish?: boolean }) => { miniCalls.push(`batch:${ids.join(",")}:${options?.publish !== false}`); return { queued: true, taskId: "batch" }; },
   } as unknown as AdminService;

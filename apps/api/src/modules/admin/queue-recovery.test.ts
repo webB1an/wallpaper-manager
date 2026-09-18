@@ -176,3 +176,34 @@ test("new checkpoints resume after restart, while an in-flight publication is ne
     assert.equal(failed, stage === "publish_inflight" ? 1 : 0);
   }
 });
+
+test("mini batch completion waits for the whole batch and preserves publish mode", async () => {
+  const enqueued: Array<{ ids: string[]; publish?: boolean }> = [];
+  let marked = 0;
+  const service = Object.assign(Object.create(AdminService.prototype), {
+    prisma: { wallpaper: {
+      findFirst: async () => ({ autoPublish: false }),
+      updateMany: async ({ where, data }: { where: { batchKey: string; autoPublish: boolean; batchPublishQueued: boolean }; data: { batchPublishQueued: boolean } }) => {
+        assert.equal(where.batchKey, "mini-batch");
+        assert.equal(where.autoPublish, false);
+        assert.equal(where.batchPublishQueued, false);
+        assert.equal(data.batchPublishQueued, true);
+        marked++;
+        return { count: 2 };
+      },
+      findMany: async ({ where }: { where: { batchKey: string; autoPublish: boolean } }) => {
+        assert.equal(where.batchKey, "mini-batch");
+        assert.equal(where.autoPublish, false);
+        return [{ id: "one" }, { id: "two" }];
+      },
+    } },
+    enqueueProcessWallpaperBatch: async (ids: string[], _storage: unknown, _channel: unknown, options?: { publish?: boolean }) => {
+      enqueued.push({ ids, publish: options?.publish });
+      return { queued: true, taskId: "batch-task" };
+    },
+  });
+  const result = await service.enqueueMiniBatchPublish("mini-batch");
+  assert.equal(marked, 1);
+  assert.deepEqual(enqueued, [{ ids: ["one", "two"], publish: false }]);
+  assert.deepEqual(result, { queued: true, count: 2, taskId: "batch-task" });
+});
