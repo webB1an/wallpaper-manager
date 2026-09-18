@@ -62,50 +62,62 @@ export class AiService {
     }
     const base64 = imageBytes.toString("base64");
     await beforeRequest?.();
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.config.get<string>("DEEPSEEK_MODEL") || "deepseek-v4-flash-vision-exp",
-        messages: [
-          {
-            role: "system",
-            content: [
-              "你是壁纸内容审核与分类助手。",
-              "只根据图片内容输出 JSON。",
-              "需要识别标题、中文标签，以及是否包含色情、暴力、政治、低俗。",
-              "敏感审核只拦截 sexual、violence、political、vulgar 四类。",
-              "色情/暴力/政治/低俗任一命中时 safe=false；四类都未命中时 safe=true。",
-            ].join(""),
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: `文件名：${originalName}\n输出 JSON：{"title":"中文标题","tags":["标签"],"sensitiveFlags":["sexual|violence|political|vulgar"],"safe":true,"summary":"一句话描述"}` },
-              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-        thinking: { type: "disabled" },
-        temperature: 0.2,
-        max_tokens: 500,
-      }),
-      signal: AbortSignal.timeout(60_000),
-    });
+    const requestRaw = async (temperature: number) => {
+      const response = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.config.get<string>("DEEPSEEK_MODEL") || "deepseek-v4-flash-vision-exp",
+          messages: [
+            {
+              role: "system",
+              content: [
+                "你是壁纸内容审核与分类助手。",
+                "只根据图片内容输出 JSON。",
+                "需要识别标题、中文标签，以及是否包含色情、暴力、政治、低俗。",
+                "敏感审核只拦截 sexual、violence、political、vulgar 四类。",
+                "色情/暴力/政治/低俗任一命中时 safe=false；四类都未命中时 safe=true。",
+              ].join(""),
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: `文件名：${originalName}\n输出 JSON：{"title":"中文标题","tags":["标签"],"sensitiveFlags":["sexual|violence|political|vulgar"],"safe":true,"summary":"一句话描述，不超过60字"}` },
+                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } },
+              ],
+            },
+          ],
+          response_format: { type: "json_object" },
+          thinking: { type: "disabled" },
+          temperature,
+          max_tokens: 800,
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
 
-    if (!response.ok) throw new Error(`DeepSeek 识图失败 (${response.status})`);
-    const body = (await response.json()) as { choices?: Array<{ message?: { content?: string | null } }> };
-    const raw = body.choices?.[0]?.message?.content;
-    if (!raw) throw new Error("DeepSeek 未返回识别结果");
-    const parsed = analysisSchema.parse(normalizeAnalysisPayload(JSON.parse(raw), originalName));
-    return {
-      ...parsed,
-      safe: parsed.safe && parsed.sensitiveFlags.length === 0,
+      if (!response.ok) throw new Error(`DeepSeek 识图失败 (${response.status})`);
+      const body = (await response.json()) as { choices?: Array<{ message?: { content?: string | null } }> };
+      const raw = body.choices?.[0]?.message?.content;
+      if (!raw) throw new Error("DeepSeek 未返回识别结果");
+      return raw;
     };
+    const parseAnalysis = (raw: string) => {
+      const parsed = analysisSchema.parse(normalizeAnalysisPayload(parseImageAnalysisJson(raw), originalName));
+      return {
+        ...parsed,
+        safe: parsed.safe && parsed.sensitiveFlags.length === 0,
+      };
+    };
+
+    try {
+      return parseAnalysis(await requestRaw(0.2));
+    } catch (error) {
+      if (!(error instanceof SyntaxError) && !(error instanceof z.ZodError)) throw error;
+      return parseAnalysis(await requestRaw(0));
+    }
   }
 
   async persistAnalysis(wallpaperId: string, analysis: WallpaperAnalysis, raw?: unknown) {
@@ -159,4 +171,18 @@ function normalizeAnalysisPayload(value: unknown, originalName: string) {
     safe: record.safe === true,
     summary: typeof record.summary === "string" ? record.summary.trim().slice(0, 160) : undefined,
   };
+}
+
+function parseImageAnalysisJson(raw: string): unknown {
+  let text = raw.trim();
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) text = fenced[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start >= 0 && end > start) text = text.slice(start, end + 1);
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new SyntaxError(`识图结果 JSON 无法解析：${text.replace(/\s+/g, " ").slice(0, 200)}`);
+  }
 }
