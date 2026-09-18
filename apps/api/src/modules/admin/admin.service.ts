@@ -36,6 +36,10 @@ type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   uploadMultiPostMode?: "merge" | "separate";
+  separatePostGapMinSeconds: number;
+  separatePostGapMaxSeconds: number;
+  batchPostGapMinSeconds: number;
+  batchPostGapMaxSeconds: number;
   rewardDownloadType: RewardDownloadType;
   autoSourceEnabled?: Record<string, boolean>;
   miniAdminOpenids?: string[];
@@ -77,6 +81,10 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultAutoProcess: true,
   defaultAutoPublish: false,
   uploadMultiPostMode: "merge",
+  separatePostGapMinSeconds: 3,
+  separatePostGapMaxSeconds: 8,
+  batchPostGapMinSeconds: 6,
+  batchPostGapMaxSeconds: 15,
   rewardDownloadType: "daily10",
   wallMuseEnabled: false,
   processIdleEnabled: true,
@@ -718,7 +726,7 @@ export class AdminService implements OnModuleInit {
 
     const ids = created.map((item) => item.id);
     if (batchKey && autoPublish) {
-      // 小程序端一次上传：逐张请求，最后一张（或收尾接口）触发合并发帖。
+      // 小程序端一次上传：逐张请求，最后一张（或收尾接口）触发批次处理与发帖。
       const total = Number(options?.batchTotal || 0);
       const count = await this.prisma.wallpaper.count({ where: { batchKey } });
       if (total > 0 && count >= total) {
@@ -728,11 +736,12 @@ export class AdminService implements OnModuleInit {
       return created;
     }
     if (batchKey && !autoPublish) {
-      const queued: Array<{ queued: boolean; taskId: string }> = [];
-      for (const id of ids) {
-        queued.push(await this.enqueueProcessWallpaper(id, options?.storageSelection, undefined));
-      }
-      return created.map((item, index) => ({ ...item, queued: queued[index] }));
+      const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, undefined, { publish: false });
+      return created.map((item) => ({ ...item, queued: batch }));
+    }
+    if (options?.batchPublish === true) {
+      const batch = await this.enqueueProcessWallpaperBatch(ids, options?.storageSelection, options?.channelAccountId, { publish: autoPublish === true });
+      return created.map((item) => ({ ...item, queued: batch }));
     }
     const allStatic = created.every((item) => item.type !== WallpaperType.live);
     if (shouldMergeUpload({ autoPublish, batchPublish: options?.batchPublish, postMode: settings.uploadMultiPostMode, count: ids.length, allStatic })) {
@@ -800,6 +809,8 @@ export class AdminService implements OnModuleInit {
     if (input.defaultAutoPublish === true) {
       await this.assertChannelReady("未配置默认腾讯频道账号，不能开启默认自动发帖");
     }
+    const separatePostGap = normalizePostGapSeconds(input.separatePostGapMinSeconds, input.separatePostGapMaxSeconds);
+    const batchPostGap = normalizePostGapSeconds(input.batchPostGapMinSeconds, input.batchPostGapMaxSeconds);
     const value: SystemSettings = {
       ...current,
       ...(typeof input.defaultAutoProcess === "boolean" ? { defaultAutoProcess: input.defaultAutoProcess } : {}),
@@ -807,6 +818,8 @@ export class AdminService implements OnModuleInit {
       ...(input.uploadMultiPostMode === "merge" || input.uploadMultiPostMode === "separate"
         ? { uploadMultiPostMode: input.uploadMultiPostMode }
         : {}),
+      ...(separatePostGap ? { separatePostGapMinSeconds: separatePostGap[0], separatePostGapMaxSeconds: separatePostGap[1] } : {}),
+      ...(batchPostGap ? { batchPostGapMinSeconds: batchPostGap[0], batchPostGapMaxSeconds: batchPostGap[1] } : {}),
       ...(input.rewardDownloadType === "daily10" || input.rewardDownloadType === "unlimited"
         ? { rewardDownloadType: input.rewardDownloadType }
         : {}),
@@ -1548,6 +1561,10 @@ export class AdminService implements OnModuleInit {
       }
 
       cp.stage = "done"; await save();
+      if (wallpaper.autoPublish && !skipPublish) {
+        const settings = await this.getSettings();
+        await sleep(randomDelayMs([settings.separatePostGapMinSeconds * 1000, settings.separatePostGapMaxSeconds * 1000]));
+      }
       if (!skipPublish) await this.finalizeUploadedWallpaper(id);
       taskResult.warnings = warnings;
       if (finalizeTask) {
@@ -1575,24 +1592,25 @@ export class AdminService implements OnModuleInit {
     }
   }
 
-  async enqueueProcessWallpaperBatch(ids: string[], storageSelection?: StorageSelection, channelAccountId?: string) {
+  async enqueueProcessWallpaperBatch(ids: string[], storageSelection?: StorageSelection, channelAccountId?: string, options?: { publish?: boolean }) {
     if (!ids.length) throw new BadRequestException("请选择要处理的壁纸");
     await this.assertStorageReady(storageSelection);
     const delay = await this.uploadProcessingDelayMs(ids);
+    const publish = options?.publish !== false;
     const task = await this.tasks.create(
       "upload_asset",
-      { wallpaperIds: ids, batch: true, queuePayloadVersion: 1, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) },
+      { wallpaperIds: ids, batch: true, queuePayloadVersion: 1, publish, ...(storageSelection ? { storageSelection } : {}), ...(channelAccountId ? { channelAccountId } : {}) },
       delay > 0 ? "已进入队列，等待空闲时段批量处理" : `批量处理 ${ids.length} 张壁纸`,
     );
     await this.wallpaperQueue.add(
       "process-wallpaper-batch",
-      { wallpaperIds: ids, taskId: task.id, storageSelection, channelAccountId },
+      { wallpaperIds: ids, taskId: task.id, storageSelection, channelAccountId, publish },
       { jobId: task.id, attempts: 1, removeOnComplete: 200, removeOnFail: 500, ...(delay > 0 ? { delay } : {}) },
     );
     return { queued: true, taskId: task.id, count: ids.length };
   }
 
-  /** 小程序批次合并发帖：同一 batchKey 且开启发帖、尚未排队发布的壁纸，一次性入队批量处理+合并发帖。幂等。 */
+  /** 小程序批次发帖：同一 batchKey 且开启发帖、尚未排队发布的壁纸，一次性入队批量处理；是否合并发帖由系统配置在运行时决定。幂等。 */
   async enqueueMiniBatchPublish(batchKey: string) {
     if (!batchKey) throw new BadRequestException("缺少批次标识");
     const updated = await this.prisma.wallpaper.updateMany({
@@ -1602,20 +1620,15 @@ export class AdminService implements OnModuleInit {
     if (updated.count === 0) return { queued: false, count: 0 };
     const batch = await this.prisma.wallpaper.findMany({ where: { batchKey }, select: { id: true } });
     const ids = batch.map((item) => item.id);
-    const settings = await this.getSettings();
-    if (settings.uploadMultiPostMode === "separate") {
-      const queued = [];
-      for (const id of ids) queued.push(await this.enqueueProcessWallpaper(id));
-      return { queued: true, count: ids.length, taskIds: queued.map((item) => item.taskId) };
-    }
-    const queued = await this.enqueueProcessWallpaperBatch(ids);
+    const queued = await this.enqueueProcessWallpaperBatch(ids, undefined, undefined, { publish: true });
     return { queued: true, count: ids.length, taskId: queued.taskId };
   }
 
-  /** 批量处理（AI+网盘同步，不逐张发帖），完成后把静态图合并成一个帖子（每帖最多 18 张），动态壁纸各自一帖。 */
-  async runProcessWallpaperBatch(ids: string[], taskId: string, storageSelection?: StorageSelection, channelAccountId?: string) {
+  /** 批量处理（AI+网盘同步，顺序执行不并发），完成后按系统配置合并发帖或逐张发帖。 */
+  async runProcessWallpaperBatch(ids: string[], taskId: string, storageSelection?: StorageSelection, channelAccountId?: string, options?: { publish?: boolean }) {
     const warnings: string[] = [];
     const taskResult: Record<string, unknown> = {};
+    const publish = options?.publish !== false;
     try {
       const processedIds: string[] = [];
       for (let i = 0; i < ids.length; i++) {
@@ -1630,15 +1643,24 @@ export class AdminService implements OnModuleInit {
       }
 
       const published: unknown[] = [];
-      if (processedIds.length) {
-        const wallpapers = await this.prisma.wallpaper.findMany({ where: { id: { in: processedIds } }, select: { id: true, type: true } });
-        const statics = wallpapers.filter((item) => item.type !== WallpaperType.live).map((item) => item.id);
-        const lives = wallpapers.filter((item) => item.type === WallpaperType.live).map((item) => item.id);
-        const groups: string[][] = [];
-        for (let i = 0; i < statics.length; i += 18) groups.push(statics.slice(i, i + 18));
-        for (const liveId of lives) groups.push([liveId]);
-        await this.tasks.update(taskId, { progress: 88, message: "正在合并发帖到腾讯频道" });
-        for (const group of groups) {
+      if (publish && processedIds.length) {
+        const settings = await this.getSettings();
+        const separatePosts = settings.uploadMultiPostMode === "separate";
+        const separatePostGapMs: [number, number] = [settings.separatePostGapMinSeconds * 1000, settings.separatePostGapMaxSeconds * 1000];
+        const batchPostGapMs: [number, number] = [settings.batchPostGapMinSeconds * 1000, settings.batchPostGapMaxSeconds * 1000];
+        let groups: string[][] = [];
+        if (separatePosts) {
+          groups = processedIds.map((id) => [id]);
+        } else {
+          const wallpapers = await this.prisma.wallpaper.findMany({ where: { id: { in: processedIds } }, select: { id: true, type: true } });
+          const statics = wallpapers.filter((item) => item.type !== WallpaperType.live).map((item) => item.id);
+          const lives = wallpapers.filter((item) => item.type === WallpaperType.live).map((item) => item.id);
+          for (let i = 0; i < statics.length; i += 18) groups.push(statics.slice(i, i + 18));
+          for (const liveId of lives) groups.push([liveId]);
+        }
+        await this.tasks.update(taskId, { progress: 88, message: separatePosts ? "正在逐张发帖到腾讯频道" : "正在合并发帖到腾讯频道" });
+        for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+          const group = groups[groupIndex];
           const current = await this.prisma.task.findUnique({ where: { id: taskId }, select: { payload: true } });
           const payload = (current?.payload || {}) as Record<string, any>;
           const key = group.join("|");
@@ -1658,10 +1680,16 @@ export class AdminService implements OnModuleInit {
             if (error instanceof ChannelPermissionDeniedError) await saveGroup("pending");
             throw error;
           }
+          if (separatePosts && groupIndex < groups.length - 1) {
+            await sleep(randomDelayMs(separatePostGapMs));
+          }
         }
         for (const id of processedIds) await this.finalizeUploadedWallpaper(id);
-      } else {
+        await sleep(randomDelayMs(batchPostGapMs));
+      } else if (publish) {
         warnings.push("没有可发布的壁纸");
+      } else if (processedIds.length) {
+        for (const id of processedIds) await this.finalizeUploadedWallpaper(id);
       }
 
       taskResult.channel = published;
@@ -1671,8 +1699,10 @@ export class AdminService implements OnModuleInit {
         status: "success",
         progress: 100,
         message: warnings.length
-          ? `批量处理完成：发布 ${processedIds.length} 张（${published.length} 帖），存在 ${warnings.length} 条提醒`
-          : `批量处理完成：${processedIds.length} 张已合并发帖`,
+          ? `批量处理完成：处理 ${processedIds.length} 张${publish ? `，发布 ${published.length} 帖` : ""}，存在 ${warnings.length} 条提醒`
+          : publish
+            ? `批量处理完成：${processedIds.length} 张已发布`
+            : `批量处理完成：${processedIds.length} 张已处理，未发帖`,
         result: taskResult,
       });
       return { ok: true, count: processedIds.length, posts: published.length, warnings };
@@ -2577,4 +2607,20 @@ function formatReadinessReport(data: {
 
 function shortError(error: unknown): string {
   return String(error instanceof Error ? error.message : error).replace(/\s+/g, " ").slice(0, 240);
+}
+
+function randomDelayMs([min, max]: [number, number]): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizePostGapSeconds(min: unknown, max: unknown): [number, number] | null {
+  if (!Number.isInteger(min) || !Number.isInteger(max)) return null;
+  const lo = Math.max(0, Number(min));
+  const hi = Math.max(0, Number(max));
+  if (lo > hi) return null;
+  return [Math.min(300, lo), Math.min(300, hi)];
 }

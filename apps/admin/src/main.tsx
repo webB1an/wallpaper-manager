@@ -132,6 +132,10 @@ type SystemSettings = {
   defaultAutoProcess: boolean;
   defaultAutoPublish: boolean;
   uploadMultiPostMode?: "merge" | "separate";
+  separatePostGapMinSeconds: number;
+  separatePostGapMaxSeconds: number;
+  batchPostGapMinSeconds: number;
+  batchPostGapMaxSeconds: number;
   rewardDownloadType: string;
   wallMuseEnabled?: boolean;
   processIdleEnabled?: boolean;
@@ -1752,12 +1756,39 @@ function Settings() {
         <Form.Item
           label="多图上传发帖方式"
           name="uploadMultiPostMode"
-          tooltip="统一控制管理端和小程序的多图上传；资源库手动发帖不受影响"
         >
           <Select options={[
             { value: "merge", label: "合并为一帖（每帖最多 18 张）" },
             { value: "separate", label: "每张图片单独发帖" },
           ]} />
+        </Form.Item>
+        <Form.Item
+          label="单张发帖随机间隔（秒）"
+          tooltip="每张图片单独发帖时，相邻帖子之间随机等待；单图任务发帖也使用这个范围。填 0 表示不等待"
+        >
+          <Space>
+            <Form.Item name="separatePostGapMinSeconds" noStyle rules={[{ required: true, message: "填写最小间隔" }]}>
+              <InputNumber min={0} max={300} precision={0} placeholder="最小" style={{ width: 120 }} />
+            </Form.Item>
+            <span>至</span>
+            <Form.Item name="separatePostGapMaxSeconds" noStyle rules={[{ required: true, message: "填写最大间隔" }]}>
+              <InputNumber min={0} max={300} precision={0} placeholder="最大" style={{ width: 120 }} />
+            </Form.Item>
+          </Space>
+        </Form.Item>
+        <Form.Item
+          label="批次发帖随机间隔（秒）"
+          tooltip="相邻批次之间随机等待，避免连续批次发帖过于频繁。填 0 表示不等待"
+        >
+          <Space>
+            <Form.Item name="batchPostGapMinSeconds" noStyle rules={[{ required: true, message: "填写最小间隔" }]}>
+              <InputNumber min={0} max={300} precision={0} placeholder="最小" style={{ width: 120 }} />
+            </Form.Item>
+            <span>至</span>
+            <Form.Item name="batchPostGapMaxSeconds" noStyle rules={[{ required: true, message: "填写最大间隔" }]}>
+              <InputNumber min={0} max={300} precision={0} placeholder="最大" style={{ width: 120 }} />
+            </Form.Item>
+          </Space>
         </Form.Item>
         <Form.Item label="激励视频下载模式" name="rewardDownloadType">
           <Select options={[

@@ -75,6 +75,7 @@ test("uploads resume at storage without repeating AI or an already completed cha
       tasks: { update: async (_id: string, data: object) => Object.assign(task, data) },
       analyzeNow: async () => { calls.ai++; return { title: "fixture", type: "live", tags: [], sensitiveFlags: [], safe: true }; },
       storage: { syncWallpaperResumable: async () => { if (++calls.storage === 1) throw new Error("fixture upload failed"); return [{ ok: true }]; } },
+      getSettings: async () => ({ uploadMultiPostMode: "merge", separatePostGapMinSeconds: 0, separatePostGapMaxSeconds: 0, batchPostGapMinSeconds: 0, batchPostGapMaxSeconds: 0 }),
       assertWallpapersCanPublish: async () => undefined,
       publishWallpaperToChannel: async () => { calls.publish++; return { ok: true }; },
       removeUploadedFile: async () => undefined,

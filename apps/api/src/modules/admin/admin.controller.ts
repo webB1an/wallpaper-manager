@@ -105,6 +105,10 @@ export class AdminController {
     defaultAutoProcess?: boolean;
     defaultAutoPublish?: boolean;
     uploadMultiPostMode?: "merge" | "separate";
+    separatePostGapMinSeconds?: number;
+    separatePostGapMaxSeconds?: number;
+    batchPostGapMinSeconds?: number;
+    batchPostGapMaxSeconds?: number;
     rewardDownloadType?: RewardDownloadType;
     permanentDeliveryResources?: Array<{ name: string; provider: "baidu" | "quark"; url: string; passcode?: string }>;
     virtualPaymentProducts?: Array<{

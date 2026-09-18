@@ -5,13 +5,13 @@ import { WALLPAPER_QUEUE } from "./admin.queue";
 import { PrismaService } from "../prisma/prisma.service";
 import { deploymentDraining } from "../../common/deployment-drain";
 
-@Processor(WALLPAPER_QUEUE, { concurrency: 2 })
+@Processor(WALLPAPER_QUEUE, { concurrency: 1 })
 export class WallpaperProcessor extends WorkerHost {
   constructor(private readonly admin: AdminService, private readonly prisma: PrismaService) {
     super();
   }
 
-  async process(job: Job<{ taskId: string; wallpaperId?: string; wallpaperIds?: string[]; storageSelection?: { quarkAccountId?: string; baiduAccountId?: string }; channelAccountId?: string }>, token?: string) {
+  async process(job: Job<{ taskId: string; wallpaperId?: string; wallpaperIds?: string[]; storageSelection?: { quarkAccountId?: string; baiduAccountId?: string }; channelAccountId?: string; publish?: boolean }>, token?: string) {
     if (!["process-wallpaper", "process-wallpaper-batch"].includes(job.name)) throw new Error("未知上传任务类型");
     const task = await this.prisma.task.findUnique({ where: { id: job.data.taskId }, select: { status: true, progress: true } });
     if (!task || task.status !== "queued" || task.progress !== 0) return { skipped: true, reason: "任务已执行或已结束" };
@@ -32,7 +32,7 @@ export class WallpaperProcessor extends WorkerHost {
       return this.admin.runProcessWallpaper(job.data.wallpaperId || "", job.data.taskId, job.data.storageSelection, job.data.channelAccountId);
     }
     if (job.name === "process-wallpaper-batch") {
-      return this.admin.runProcessWallpaperBatch(job.data.wallpaperIds || [], job.data.taskId, job.data.storageSelection, job.data.channelAccountId);
+      return this.admin.runProcessWallpaperBatch(job.data.wallpaperIds || [], job.data.taskId, job.data.storageSelection, job.data.channelAccountId, { publish: job.data.publish });
     }
     return undefined;
   }

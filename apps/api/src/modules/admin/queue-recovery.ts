@@ -4,6 +4,7 @@ export type UploadJobData = {
   wallpaperIds?: string[];
   storageSelection?: { quarkAccountId?: string; baiduAccountId?: string };
   channelAccountId?: string;
+  publish?: boolean;
 };
 
 /** Old batch tasks did not persist their selected accounts; never guess those on replay. */
@@ -22,11 +23,13 @@ export function recoverUploadPayload(taskId: string, payload: unknown): UploadJo
     storageSelection = { quarkAccountId: selection.quarkAccountId as string | undefined, baiduAccountId: selection.baiduAccountId as string | undefined };
   }
   if (value.channelAccountId !== undefined && !isId(value.channelAccountId)) return null;
+  if (value.publish !== undefined && typeof value.publish !== "boolean") return null;
   return {
     taskId,
     ...(value.batch === true ? { wallpaperIds: ids } : { wallpaperId: ids[0] }),
     storageSelection,
     channelAccountId: value.channelAccountId as string | undefined,
+    ...(value.publish !== undefined ? { publish: value.publish } : {}),
   };
 }
 
