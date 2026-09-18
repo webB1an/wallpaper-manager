@@ -294,7 +294,6 @@ export class WallMuseService {
     if (!job || job.status !== "failed") throw new BadRequestException("只有失败任务可以继续");
     if (job.article.lifecycle === "synced") throw new ConflictException("文章已同步为固定合集");
     const checkpoint = job.checkpoint as unknown as Checkpoint;
-    const input = job.input as unknown as StoredGenerationInput;
     // Exhausted legacy jobs may already contain enough safe, theme-rejected images.
     // Let the worker recover those first; its collection budget still prevents new fetches.
     const result = await this.prisma.wallMuseJob.updateMany({ where: { id, status: "failed" }, data: { status: "queued", error: null, checkpoint: json({ ...checkpoint, unavailableSources: [] }), nextRunAt: new Date(), message: "继续处理已保存步骤" } });
