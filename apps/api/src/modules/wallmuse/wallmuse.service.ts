@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { z } from "zod";
 import { AdminService } from "../admin/admin.service";
 import { autoSourceMeta } from "../admin/auto-publish-sources";
+import { animeSources, isAnimeSource } from "./anime-policy";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageAccountService } from "../storage/storage-account.service";
 import { WallMuseAiService } from "./wallmuse-ai.service";
@@ -46,7 +47,7 @@ export class WallMuseService {
 
   async capabilities() {
     const [settings, schedule] = await Promise.all([this.admin.getSettings(), this.policy.schedule()]);
-    const sources = autoSourceMeta(settings.autoSourceEnabled).filter((source) => source.id !== "wallpost_live");
+    const sources = autoSourceMeta(settings.autoSourceEnabled).filter((source) => isAnimeSource(source.id));
     return { apiVersion: "1.0", features: settings.wallMuseEnabled === true ? ["articles", "generate", "regenerate", "manual-collections"] : [],
       aiConfigured: this.ai.configured(), sources, miniProgram: this.miniProgram(),
       schedule: { windowEnabled: true, ...schedule }, enabled: settings.wallMuseEnabled === true };
@@ -63,14 +64,14 @@ export class WallMuseService {
     const capabilities = await this.capabilities();
     if (!capabilities.schedule.windows.length) throw new BadRequestException("请先配置有效空闲时段");
     const enabled = capabilities.sources.filter((source) => source.enabled).map((source) => source.id);
-    const preferred = ["wallpost", "openverse", "nekos_best", ...enabled].filter((id, index, ids) => enabled.includes(id) && ids.indexOf(id) === index);
+    const preferred = animeSources.filter((id) => enabled.includes(id));
     const sources = request.sourceMode === "manual" ? [...new Set(request.sources || [])] : preferred.slice(0, 3);
-    if (!sources.length || sources.some((id) => !enabled.includes(id))) throw new BadRequestException("请选择至少一个已启用的静态壁纸来源");
+    if (!sources.length || sources.some((id) => !enabled.includes(id))) throw new BadRequestException("请选择至少一个已启用的二次元壁纸来源");
     const [baidu, quark] = await Promise.all([this.accounts.getDefaultAccount(StorageProvider.baidu), this.accounts.getDefaultAccount(StorageProvider.quark)]);
     if (!baidu && !quark) throw new BadRequestException("请先在 wallpaper-manager 配置可用网盘账号");
     const recent = await this.prisma.wallMuseArticle.findMany({ where: { copiedRevisionId: { not: null } }, orderBy: { copiedAt: "desc" }, take: 3, select: { copiedRevisionId: true } });
     const revisions = await this.prisma.wallMuseRevision.findMany({ where: { id: { in: recent.map((item) => item.copiedRevisionId!) } }, select: { payload: true } });
-    const input: StoredGenerationInput = { ...request, sources,
+    const input: StoredGenerationInput = { ...request, sources, animeOnly: true,
       candidateBudget: request.candidateBudget ?? Math.min(60, Math.max(12, request.targetCount * 3)),
       storageSelection: { ...(baidu ? { baiduAccountId: baidu.id } : {}), ...(quark ? { quarkAccountId: quark.id } : {}) },
       requiredProviders: [...(baidu ? ["baidu" as const] : []), ...(quark ? ["quark" as const] : [])],

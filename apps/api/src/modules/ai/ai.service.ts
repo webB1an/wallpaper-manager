@@ -11,6 +11,7 @@ const analysisSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(12)).min(1).max(8),
   sensitiveFlags: z.array(z.enum(["sexual", "violence", "political", "vulgar"])).default([]),
   safe: z.boolean(),
+  animeStyle: z.boolean().optional(),
   summary: z.string().trim().max(160).optional(),
 });
 
@@ -43,7 +44,7 @@ export class AiService {
     return JSON.parse(content);
   }
 
-  async analyzeImage(imagePath: string, originalName: string, beforeRequest?: () => Promise<void>): Promise<WallpaperAnalysis> {
+  async analyzeImage(imagePath: string, originalName: string, beforeRequest?: () => Promise<void>, classifyAnime = false): Promise<WallpaperAnalysis> {
     const apiKey = this.config.get<string>("DEEPSEEK_API_KEY")?.trim();
     if (!apiKey) {
       return fallbackAnalysis(originalName);
@@ -77,6 +78,7 @@ export class AiService {
               content: [
                 "你是壁纸内容审核与分类助手。",
                 "只根据图片内容输出 JSON。",
+                classifyAnime ? "额外输出布尔字段 animeStyle：明确属于二次元动漫、漫画、日系角色插画或动漫风格场景时为true；真人照片、现实摄影风景、写实产品、抽象图案或无法判断时为false。风格与safe安全审核独立判断。不要根据文件名猜测。" : "",
                 "需要识别标题、中文标签，以及是否包含色情、暴力、政治、低俗。",
                 "敏感审核只拦截 sexual、violence、political、vulgar 四类。",
                 "色情/暴力/政治/低俗任一命中时 safe=false；四类都未命中时 safe=true。",
@@ -169,6 +171,7 @@ function normalizeAnalysisPayload(value: unknown, originalName: string) {
     tags: tags.length ? tags : ["待整理"],
     sensitiveFlags,
     safe: record.safe === true,
+    ...(typeof record.animeStyle === "boolean" ? { animeStyle: record.animeStyle } : {}),
     summary: typeof record.summary === "string" ? record.summary.trim().slice(0, 160) : undefined,
   };
 }

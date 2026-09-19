@@ -18,6 +18,7 @@ export const createInputSchema = z.object({
 }).strict();
 export type GenerationInput = z.infer<typeof createInputSchema>;
 export interface StoredGenerationInput extends GenerationInput {
+  animeOnly?: boolean;
   candidateBudget: number;
   sources: string[];
   storageSelection: { baiduAccountId?: string; quarkAccountId?: string };

@@ -212,7 +212,9 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
       }
     }
     const saved = asset.analysis as WallpaperAnalysis | null;
-    const analysis = saved || await this.ai.analyze(privateAssetPath(asset.publishPath), wallpaper.originalName);
+    const animeOnly = (job.input as unknown as StoredGenerationInput)?.animeOnly === true;
+    const analysis = saved && (!animeOnly || typeof saved.animeStyle === "boolean") ? saved : await this.ai.analyze(privateAssetPath(asset.publishPath), wallpaper.originalName);
+    const accepted = analysis.safe && (!animeOnly || analysis.animeStyle === true);
     await this.prisma.$transaction(async (tx) => {
       await fence.assert(tx);
       const tags = [];
@@ -221,9 +223,9 @@ export class WallMuseWorker implements OnModuleInit, OnModuleDestroy {
         update: { title: analysis.title, tags: analysis.tags, sensitiveFlags: analysis.sensitiveFlags, safe: analysis.safe, summary: analysis.summary } });
       await tx.wallpaper.update({ where: { id: wallpaper.id }, data: { title: analysis.title, status: analysis.safe ? "pending_review" : "rejected",
         tags: { deleteMany: {}, create: tags.map((tag, sortOrder) => ({ tagId: tag.id, sortOrder })) } } });
-      await tx.wallMuseAsset.update({ where: { id: asset.id }, data: { analysis: json(analysis), state: analysis.safe ? "storage" : "rejected" } });
+      await tx.wallMuseAsset.update({ where: { id: asset.id }, data: { analysis: json(analysis), state: !analysis.safe ? "rejected" : accepted ? "storage" : "not_anime" } });
       // Retain the candidate identity until the next step, including on a rolled-back write.
-      await update({ stage: analysis.safe ? "storage" : "collect", status: "queued", message: analysis.safe ? "识图审核通过，准备同步原图" : "素材未通过审核，保留去重记录并继续补采", nextRunAt: new Date() }, tx);
+      await update({ stage: accepted ? "storage" : "collect", status: "queued", message: accepted ? "识图审核通过，准备同步原图" : analysis.safe ? "图片不是二次元风格，已跳过并自动补采" : "素材未通过审核，保留去重记录并继续补采", nextRunAt: new Date() }, tx);
     });
   }
 

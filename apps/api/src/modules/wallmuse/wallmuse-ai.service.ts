@@ -13,7 +13,7 @@ export class WallMuseAiService {
   async analyze(path: string, name: string) {
     await this.policy.assertIdle();
     if (!this.configured()) throw new Error("DeepSeek 尚未配置，不能把未识别素材当成审核通过");
-    return this.ai.analyzeImage(path, name, () => this.policy.assertIdle().then(() => undefined));
+    return this.ai.analyzeImage(path, name, () => this.policy.assertIdle().then(() => undefined), true);
   }
 
   async titles(plan: ArticlePlan, candidates: AnalyzedCandidate[]) {

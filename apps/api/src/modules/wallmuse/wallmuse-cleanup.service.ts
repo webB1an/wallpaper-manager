@@ -26,7 +26,7 @@ export function cleanupDecision(asset: any, now = Date.now()): "discard" | "orig
   const lastUse = Math.max(new Date(asset.createdAt).getTime(), ...asset.article.jobs.map((job: any) => new Date(job.updatedAt).getTime()));
   if (!Number.isFinite(lastUse)) return null;
   const referenced = referencedByRevision(asset.article.revisions, asset.id);
-  if (["rejected", "off_theme", "near_duplicate"].includes(asset.state) && !referenced && asset.wallpaper.status !== "published") {
+  if (["rejected", "off_theme", "near_duplicate", "not_anime"].includes(asset.state) && !referenced && asset.wallpaper.status !== "published") {
     return now - lastUse >= UNUSED_RETENTION_MS ? "discard" : null;
   }
   if (asset.state === "ready" && now - lastUse >= (referenced ? ORIGINAL_RETENTION_MS : UNUSED_RETENTION_MS)) return "original";
@@ -97,7 +97,7 @@ export class WallMuseCleanupService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.leases.run("wallmuse-cleanup", async () => {
         const rows = await this.prisma.wallMuseAsset.findMany({ where: {
-          state: { in: ["ready", "rejected", "off_theme", "near_duplicate"] }, createdAt: { lt: new Date(Date.now() - UNUSED_RETENTION_MS) },
+          state: { in: ["ready", "rejected", "off_theme", "near_duplicate", "not_anime"] }, createdAt: { lt: new Date(Date.now() - UNUSED_RETENTION_MS) },
           wallpaper: { collectionOnly: true, assetPath: { startsWith: "originals/wm-" } },
           article: { jobs: { none: { status: { notIn: ["done", "cancelled"] } } } },
         }, include: this.include, orderBy: { id: "asc" }, take: 20, ...(this.cursor ? { cursor: { id: this.cursor }, skip: 1 } : {}) });
