@@ -21,7 +21,7 @@ export function referencedByRevision(revisions: Array<{ payload: unknown }>, ass
 }
 
 export function cleanupDecision(asset: any, now = Date.now()): "discard" | "original" | null {
-  if (!asset.wallpaper.collectionOnly || asset.wallpaper.articleAssets.length !== 1 || !asset.wallpaper.assetPath) return null;
+  if (asset.wallpaper.articleAssets.length !== 1 || !/^originals\/wm-[a-f0-9-]+\.[a-z0-9]+$/.test(asset.wallpaper.assetPath || "")) return null;
   if (!asset.article.jobs.length || asset.article.jobs.some((job: any) => !["done", "cancelled"].includes(job.status))) return null;
   const lastUse = Math.max(new Date(asset.createdAt).getTime(), ...asset.article.jobs.map((job: any) => new Date(job.updatedAt).getTime()));
   if (!Number.isFinite(lastUse)) return null;
@@ -98,7 +98,7 @@ export class WallMuseCleanupService implements OnModuleInit, OnModuleDestroy {
       await this.leases.run("wallmuse-cleanup", async () => {
         const rows = await this.prisma.wallMuseAsset.findMany({ where: {
           state: { in: ["ready", "rejected", "off_theme", "near_duplicate", "not_anime"] }, createdAt: { lt: new Date(Date.now() - UNUSED_RETENTION_MS) },
-          wallpaper: { collectionOnly: true, assetPath: { startsWith: "originals/wm-" } },
+          wallpaper: { assetPath: { startsWith: "originals/wm-" } },
           article: { jobs: { none: { status: { notIn: ["done", "cancelled"] } } } },
         }, include: this.include, orderBy: { id: "asc" }, take: 20, ...(this.cursor ? { cursor: { id: this.cursor }, skip: 1 } : {}) });
         this.cursor = rows.length === 20 ? rows.at(-1)!.id : undefined;

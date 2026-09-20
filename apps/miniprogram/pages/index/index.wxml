@@ -50,13 +50,7 @@
     <view class="search-button" bindtap="reload">搜索</view>
   </view>
 
-  <view class="collection-entry" bindtap="openCollections">
-    <view class="collection-entry-icon">刊</view>
-    <view class="collection-entry-copy"><text class="collection-entry-title">公众号合集</text><text class="collection-entry-subtitle">按文章，找到本期喜欢的壁纸</text></view>
-    <text class="collection-entry-arrow">›</text>
-  </view>
-
-  <view wx:if="{{hotTags.length}}" class="hot-tags">
+  <view class="hot-tags">
     <block wx:for="{{hotTags}}" wx:key="name">
       <text class="hot-tag" bindtap="openTag" data-tag="{{item.name}}">#{{item.name}}</text>
     </block>

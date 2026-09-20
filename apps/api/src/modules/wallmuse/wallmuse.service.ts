@@ -43,7 +43,7 @@ export class WallMuseService {
       }
     }
   }
-  miniProgram() { return { name: "漫元壁纸", appId: this.config.get<string>("MINIPROGRAM_APPID")?.trim() || this.config.get<string>("WECHAT_APPID")?.trim() || "", pagePath: "pages/collections/collections" }; }
+  miniProgram() { return { name: "漫元壁纸", appId: this.config.get<string>("MINIPROGRAM_APPID")?.trim() || this.config.get<string>("WECHAT_APPID")?.trim() || "", pagePath: "pages/index/index" }; }
 
   async capabilities() {
     const [settings, schedule] = await Promise.all([this.admin.getSettings(), this.policy.schedule()]);
@@ -256,6 +256,12 @@ export class WallMuseService {
         if (article.collection.revisionId !== revisionId) throw new ConflictException("文章已有固定合集，不支持更新");
         return { status: "synced", collectionId: article.collection.id, wallpaperIds: article.collection.wallpaperIds };
       }
+      if (article.lifecycle === "synced") {
+        if (article.copiedRevisionId !== revisionId) throw new ConflictException("文章已同步，不支持更新");
+        const stored = await tx.wallMuseRevision.findFirst({ where: { id: revisionId, articleId: id } });
+        if (!stored) throw new NotFoundException("已同步的文章版本不存在");
+        return { status: "synced", wallpaperIds: parseInput(revisionSchema, stored.payload).assets.map((item) => item.wallpaperId) };
+      }
       if (article.lifecycle !== "history" || article.copiedRevisionId !== revisionId) throw new ConflictException("只有成功复制到公众号并进入历史的版本可以同步");
       const stored = await tx.wallMuseRevision.findFirst({ where: { id: revisionId, articleId: id } });
       if (!stored) throw new NotFoundException("已复制的文章版本不存在");
@@ -268,15 +274,11 @@ export class WallMuseService {
         if (!Object.keys(drives).length || Object.entries(drives).some(([provider, drive]) => !drive || drive.phase !== "shared" || !asset.wallpaper.storageLinks.some((link) => link.provider === provider && link.storageAccountId === drive.accountId && link.url === drive.url && link.isActive))) throw new BadRequestException("部分壁纸缺少原网盘账号的有效分享链接");
       }
       const ids = revision.assets.map((item) => item.wallpaperId);
-      const publish = await tx.wallpaper.updateMany({ where: { id: { in: ids }, status: { in: ["pending_review", "published"] }, aiAnalysis: { is: { safe: true } } }, data: { status: "published" } });
-      if (publish.count !== ids.length) throw new ConflictException("素材状态已变化，未创建合集");
-      const first = assets.find((asset) => asset.id === revision.assets[0].id)!;
-      if (!first.wallpaper.coverUrl) throw new BadRequestException("合集封面不可用");
-      const collection = await tx.wallMuseCollection.create({ data: { articleId: id, revisionId, title: revision.title, intro: revision.intro,
-        coverUrl: first.wallpaper.coverUrl, wallpaperIds: json(ids), items: { create: ids.map((wallpaperId, sortOrder) => ({ wallpaperId, sortOrder })) } } });
+      const publish = await tx.wallpaper.updateMany({ where: { id: { in: ids }, status: { in: ["pending_review", "published"] }, aiAnalysis: { is: { safe: true } } }, data: { status: "published", collectionOnly: false } });
+      if (publish.count !== ids.length) throw new ConflictException("素材状态已变化，未完成上架");
       const updated = await tx.wallMuseArticle.updateMany({ where: { id, lifecycle: "history", copiedRevisionId: revisionId }, data: { lifecycle: "synced", syncedAt: new Date() } });
       if (!updated.count) throw new ConflictException("文章状态已变化，请刷新后确认");
-      return { status: "synced", collectionId: collection.id, wallpaperIds: ids };
+      return { status: "synced", wallpaperIds: ids };
     });
   }
 

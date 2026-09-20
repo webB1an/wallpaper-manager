@@ -152,10 +152,6 @@ Page({
     wx.navigateTo({ url: `/pages/detail/detail?id=${event.currentTarget.dataset.id}` });
   },
 
-  openCollections() {
-    wx.navigateTo({ url: "/pages/collections/collections" });
-  },
-
   openTag(event: WechatMiniprogram.TouchEvent) {
     const tag = String(event.currentTarget.dataset.tag || "").trim();
     if (!tag) return;

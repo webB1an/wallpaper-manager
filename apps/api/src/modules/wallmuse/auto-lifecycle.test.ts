@@ -122,7 +122,10 @@ test("retention protects historical versions, recent work, failed jobs and share
   assert.equal(cleanupDecision(a, now), null);
   a.article.jobs[0].updatedAt = "2026-09-02T00:00:00Z";
   a.wallpaper.collectionOnly = false;
+  assert.equal(cleanupDecision(a, now), "discard");
+  a.wallpaper.assetPath = "originals/user-upload.jpg";
   assert.equal(cleanupDecision(a, now), null);
+  a.wallpaper.assetPath = "originals/wm-abcd.jpg";
   a.wallpaper.collectionOnly = true; a.wallpaper.articleAssets.push({ id: "another" });
   assert.equal(cleanupDecision(a, now), null);
   assert.equal(referencedByRevision([{ payload: {} }], "a"), true);

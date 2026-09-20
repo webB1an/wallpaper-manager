@@ -146,16 +146,16 @@ test("共享来源租约阻止并发领取，工作结束后释放给下一任�
   await leases.run("source:test", async (fence) => fence.assert());
 });
 
-test("同步仅发布已复制版本引用的图片，按顺序创建一次固定合集", async () => {
+test("同步仅上架已复制版本的图片到普通列表，重复请求不重复发布", async () => {
   const h = harness();
   h.article.lifecycle = "history"; h.article.copiedRevisionId = h.first.id;
   let publishes = 0; let collections = 0;
   h.tx.wallMuseAsset.findMany = async () => [{ id: "asset-1", drives: { baidu: { accountId: "original-account", phase: "shared", url: "https://pan.baidu.com/s/saved" } }, wallpaper: { id: "wallpaper-1", status: "pending_review", coverUrl: "https://example.com/cover.jpg", aiAnalysis: { safe: true }, storageLinks: [{ provider: "baidu", storageAccountId: "original-account", url: "https://pan.baidu.com/s/saved", isActive: true }] } }];
-  h.tx.wallpaper = { updateMany: async ({ where }: any) => { assert.deepEqual(where.id.in, ["wallpaper-1"]); publishes++; return { count: 1 }; } };
+  h.tx.wallpaper = { updateMany: async ({ where, data }: any) => { assert.deepEqual(where.id.in, ["wallpaper-1"]); assert.equal(data.collectionOnly, false); publishes++; return { count: 1 }; } };
   h.tx.wallMuseCollection = { create: async ({ data }: any) => { collections++; assert.deepEqual(data.items.create, [{ wallpaperId: "wallpaper-1", sortOrder: 0 }]); h.article.collection = { id: "fixed-collection", ...data }; return h.article.collection; } };
   await h.service.sync(h.article.id, { revisionId: h.first.id });
   await h.service.sync(h.article.id, { revisionId: h.first.id });
-  assert.equal(h.article.lifecycle, "synced"); assert.equal(publishes, 1); assert.equal(collections, 1);
+  assert.equal(h.article.lifecycle, "synced"); assert.equal(publishes, 1); assert.equal(collections, 0);
 });
 test("网盘补记要求人工确认与原账号/阶段一致，记录已有分享后只继续剩余步骤", async () => {
   const h = harness();
