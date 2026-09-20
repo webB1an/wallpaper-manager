@@ -35,6 +35,18 @@ function harness() {
   return { service, article, rows, first, writes, prisma, tx };
 }
 
+test("保存移除图片的版本会下架对应壁纸并停用链接，不影响保留图片", async () => {
+  const h = harness();
+  const second = { ...h.first.assets[0], id: "asset-2", wallpaperId: "wallpaper-2" };
+  h.rows.get(h.first.id).payload = { ...h.first, assets: [...h.first.assets, second] };
+  const archived: string[] = []; const disabled: string[] = [];
+  h.tx.wallpaper = { updateMany: async ({ where, data }: any) => { assert.equal(data.status, "archived"); archived.push(...where.id.in); return { count: 1 }; } };
+  h.tx.storageLink = { updateMany: async ({ where, data }: any) => { assert.equal(data.isActive, false); disabled.push(...where.wallpaperId.in); } };
+  await h.service.save(h.article.id, { baseRevisionId: h.first.id, revision: { ...h.first, id: "removed-revision" } });
+  assert.deepEqual(archived, ["wallpaper-2"]);
+  assert.deepEqual(disabled, ["wallpaper-2"]);
+});
+
 test("保存编辑稿不进入历史；复制才记录准确版本，重复补记不重复写入", async () => {
   const h = harness();
   const changed = { ...h.first, id: "revision-2", intro: "新的开篇" };

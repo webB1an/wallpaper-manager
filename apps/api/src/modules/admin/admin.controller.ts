@@ -1,3 +1,4 @@
+import { WallpaperDeleteService } from "./wallpaper-delete.service";
 import { BadRequestException, Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UploadedFiles, UseGuards, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
@@ -11,7 +12,7 @@ type AiReviewQuery = "unreviewed" | "safe" | "blocked";
 
 @Controller("admin")
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(private readonly admin: AdminService, private readonly deletion: WallpaperDeleteService) {}
 
   @UseGuards(AdminAuthGuard)
   @Post("tasks/:id/resume")
@@ -219,6 +220,12 @@ export class AdminController {
   @Get("analytics")
   async analytics(@Query() query: { days?: number }) {
     return { code: 200, data: await this.admin.getAnalytics(query) };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Delete("wallpapers/:id")
+  async deleteWallpaper(@Param("id") id: string) {
+    return { code: 200, data: await this.deletion.remove(id) };
   }
 
   @UseGuards(AdminAuthGuard)

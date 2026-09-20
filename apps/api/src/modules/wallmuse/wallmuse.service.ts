@@ -172,8 +172,14 @@ export class WallMuseService {
     const selected = revisionId || (article.lifecycle === "synced" ? article.copiedRevisionId : article.currentRevisionId);
     const revision = selected ? await this.prisma.wallMuseRevision.findFirst({ where: { id: selected, articleId: id } }) : null;
     if (revisionId && !revision) throw new NotFoundException("文章版本不存在");
+    let visibleRevision = revision?.payload as unknown as ArticleRevision | undefined;
+    if (visibleRevision) {
+      const available = await this.prisma.wallMuseAsset.findMany({ where: { articleId: id, id: { in: visibleRevision.assets.map((asset) => asset.id) }, state: "ready", wallpaper: { status: { notIn: ["archived", "rejected"] } } }, select: { id: true } });
+      const ids = new Set(available.map((asset) => asset.id));
+      visibleRevision = { ...visibleRevision, assets: visibleRevision.assets.filter((asset) => ids.has(asset.id)) };
+    }
     const candidates = await this.prisma.wallMuseRevision.findMany({ where: { articleId: id, candidate: true }, select: { id: true, revision: true, createdAt: true }, orderBy: { revision: "desc" }, take: 20 });
-    return { articleId: id, lifecycle: article.lifecycle, copiedRevisionId: article.copiedRevisionId, currentRevision: revision?.payload || null,
+    return { articleId: id, lifecycle: article.lifecycle, copiedRevisionId: article.copiedRevisionId, currentRevision: visibleRevision || null,
       serverRevisionId: article.currentRevisionId, candidates, job: await this.latestJob(id) };
   }
 
@@ -230,6 +236,13 @@ export class WallMuseService {
         const payload = { ...normalized, revision: (latest._max.revision || 0) + 1 };
         stored = await tx.wallMuseRevision.create({ data: { id: input.id, articleId: id, revision: payload.revision, payload: json(payload), contentHash: hash, candidate: staleBase } });
         if (!staleBase) {
+          const previous = await tx.wallMuseRevision.findFirst({ where: { id: baseRevisionId, articleId: id } });
+          const previousAssets = (previous?.payload as unknown as ArticleRevision | undefined)?.assets || [];
+          const removed = previousAssets.filter((asset) => !payload.assets.some((item) => item.id === asset.id)).map((asset) => asset.wallpaperId);
+          if (removed.length) {
+            await tx.wallpaper.updateMany({ where: { id: { in: removed }, articleAssets: { some: { articleId: id } } }, data: { status: "archived", autoPublish: false } });
+            await tx.storageLink.updateMany({ where: { wallpaperId: { in: removed } }, data: { isActive: false } });
+          }
           const updated = await tx.wallMuseArticle.updateMany({ where: { id, currentRevisionId: baseRevisionId, lifecycle: { not: "synced" } }, data: { currentRevisionId: stored.id, title: payload.title } });
           if (!updated.count) throw new ConflictException("文章已更新，请重新载入");
           article.currentRevisionId = stored.id;

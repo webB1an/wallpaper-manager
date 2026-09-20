@@ -1,3 +1,4 @@
+import { WallpaperDeleteService } from "./wallpaper-delete.service";
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { AiModule } from "../ai/ai.module";
@@ -25,7 +26,7 @@ import { SourcesModule } from "../sources/sources.module";
     TasksModule,
   ],
   controllers: [AdminController],
-  providers: [AdminService, WallpaperProcessor, QueueRecoveryService],
+  providers: [WallpaperDeleteService, AdminService, WallpaperProcessor, QueueRecoveryService],
   exports: [AdminService],
 })
 export class AdminModule {}

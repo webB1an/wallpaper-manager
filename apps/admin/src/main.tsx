@@ -921,6 +921,13 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             <Button size="small" onClick={() => openChannelPublish([row.id])}>发频道</Button>
             <Button size="small" onClick={() => patch(row.id, { status: "published" }, load)}>上架</Button>
             <Button size="small" danger onClick={() => patch(row.id, { status: "archived" }, load)}>下架</Button>
+            <Popconfirm title="永久删除这张壁纸？" description="删除资源记录、缩略图和服务器图片文件，关联文章将不再显示此图。网盘文件保留。不可恢复。" okText="确认删除" cancelText="取消" okButtonProps={{ danger: true }} onConfirm={async () => {
+              try {
+                await request(`/api/admin/wallpapers/${row.id}`, { method: "DELETE" });
+                setSelectedRowKeys((keys) => keys.filter((key) => key !== row.id));
+                message.success("壁纸和对应图片文件已删除"); await load();
+              } catch (error) { message.error(error instanceof Error ? error.message : "删除失败，请重试"); }
+            }}><Button size="small" danger>删除</Button></Popconfirm>
           </Space>,
         },
       ]} />
