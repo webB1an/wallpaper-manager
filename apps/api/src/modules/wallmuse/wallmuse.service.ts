@@ -1,3 +1,4 @@
+import { deleteWallpaperInTransaction } from "../admin/wallpaper-delete.service";
 import { BadRequestException, ConflictException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Prisma, StorageProvider } from "@prisma/client";
@@ -242,6 +243,7 @@ export class WallMuseService {
           if (removed.length) {
             await tx.wallpaper.updateMany({ where: { id: { in: removed }, articleAssets: { some: { articleId: id } } }, data: { status: "archived", autoPublish: false } });
             await tx.storageLink.updateMany({ where: { wallpaperId: { in: removed } }, data: { isActive: false } });
+            for (const wallpaperId of removed) await deleteWallpaperInTransaction(tx, wallpaperId);
           }
           const updated = await tx.wallMuseArticle.updateMany({ where: { id, currentRevisionId: baseRevisionId, lifecycle: { not: "synced" } }, data: { currentRevisionId: stored.id, title: payload.title } });
           if (!updated.count) throw new ConflictException("文章已更新，请重新载入");

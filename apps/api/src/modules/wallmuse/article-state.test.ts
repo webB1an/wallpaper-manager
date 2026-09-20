@@ -35,16 +35,27 @@ function harness() {
   return { service, article, rows, first, writes, prisma, tx };
 }
 
-test("保存移除图片的版本会下架对应壁纸并停用链接，不影响保留图片", async () => {
+test("保存移除图片的版本会永久删除远端图片，旧版本无法重新上架", async () => {
   const h = harness();
   const second = { ...h.first.assets[0], id: "asset-2", wallpaperId: "wallpaper-2" };
   h.rows.get(h.first.id).payload = { ...h.first, assets: [...h.first.assets, second] };
   const archived: string[] = []; const disabled: string[] = [];
+  const deleted: string[] = [];
   h.tx.wallpaper = { updateMany: async ({ where, data }: any) => { assert.equal(data.status, "archived"); archived.push(...where.id.in); return { count: 1 }; } };
   h.tx.storageLink = { updateMany: async ({ where, data }: any) => { assert.equal(data.isActive, false); disabled.push(...where.wallpaperId.in); } };
+  h.tx.wallpaper.findUnique = async () => ({ id: "wallpaper-2", articleAssets: [], coverPath: null, assetPath: null });
+  h.tx.wallpaper.delete = async ({ where }: any) => { deleted.push(where.id); };
+  h.tx.wallMuseJob = { updateMany: async () => ({ count: 0 }) };
+  h.tx.wallMuseCollectionItem = { deleteMany: async () => ({ count: 0 }) };
+  h.tx.wallMuseAsset.deleteMany = async () => ({ count: 1 });
   await h.service.save(h.article.id, { baseRevisionId: h.first.id, revision: { ...h.first, id: "removed-revision" } });
+  assert.deepEqual(deleted, ["wallpaper-2"]);
   assert.deepEqual(archived, ["wallpaper-2"]);
   assert.deepEqual(disabled, ["wallpaper-2"]);
+  const old = { ...h.first, id: "stale-copy", title: "Share｜远山壁纸2张", assets: [...h.first.assets, second] };
+  await assert.rejects(h.service.save(h.article.id, { baseRevisionId: "removed-revision", revision: old }, true), /本次采集且可用/);
+  h.article.lifecycle = "history"; h.article.copiedRevisionId = h.first.id;
+  await assert.rejects(h.service.sync(h.article.id, { revisionId: h.first.id }), /部分素材尚未准备完成/);
 });
 
 test("保存编辑稿不进入历史；复制才记录准确版本，重复补记不重复写入", async () => {

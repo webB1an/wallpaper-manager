@@ -19,15 +19,7 @@ export async function removeOwnedFile(root: string, relative: string) {
   }
 }
 
-@Injectable()
-export class WallpaperDeleteService {
-  constructor(private readonly prisma: PrismaService, private readonly leases: WorkLeaseService) {}
-
-  async remove(id: string) {
-    try {
-      return await this.leases.run("wallmuse-worker", async (worker) => this.leases.run("storage-transfers", async (storage) => {
-        return this.prisma.$transaction(async (tx) => {
-          await worker.assert(tx); await storage.assert(tx);
+export async function deleteWallpaperInTransaction(tx: Prisma.TransactionClient, id: string) {
           const wallpaper = await tx.wallpaper.findUnique({ where: { id }, include: { articleAssets: true } });
           if (!wallpaper) return { deleted: true };
           const articleIds = wallpaper.articleAssets.map((asset) => asset.articleId);
@@ -50,6 +42,18 @@ export class WallpaperDeleteService {
           }
           await tx.wallpaper.delete({ where: { id } });
           return { deleted: true };
+}
+
+@Injectable()
+export class WallpaperDeleteService {
+  constructor(private readonly prisma: PrismaService, private readonly leases: WorkLeaseService) {}
+
+  async remove(id: string) {
+    try {
+      return await this.leases.run("wallmuse-worker", async (worker) => this.leases.run("storage-transfers", async (storage) => {
+        return this.prisma.$transaction(async (tx) => {
+          await worker.assert(tx); await storage.assert(tx);
+          return deleteWallpaperInTransaction(tx, id);
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 30_000 });
       }));
     } catch (error) {
