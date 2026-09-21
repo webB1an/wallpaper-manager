@@ -835,6 +835,8 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         }}>清理原图</Button>
         <Button onClick={() => confirmManualListing(() => bulkPatch(selectedRowKeys, { status: "published", manualReviewConfirmed: true }, load))}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
+        <Button disabled={!selectedRowKeys.length} onClick={() => bulkStorageLinks(selectedRowKeys, true, load)}>批量启用网盘链接</Button>
+        <Button danger disabled={!selectedRowKeys.length} onClick={() => bulkStorageLinks(selectedRowKeys, false, load)}>批量停用网盘链接</Button>
         <Button danger disabled={!selectedRowKeys.length} onClick={() => {
           const ids = [...selectedRowKeys];
           Modal.confirm({
@@ -956,6 +958,13 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         onOk={async () => {
           if (!editing) return;
           const values = await form.validateFields();
+          if (values.status === "published") {
+            confirmManualListing(async () => {
+              await patch(editing.id, { ...values, sortOrder: Number(values.sortOrder || 0), tags: splitTags(values.tags), manualReviewConfirmed: true }, load);
+              setEditing(null);
+            });
+            return;
+          }
           await patch(editing.id, {
             ...values,
             sortOrder: Number(values.sortOrder || 0),
@@ -989,6 +998,15 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           if (values.tags !== undefined) data.tags = splitTags(values.tags);
           if (!data.status && data.tags === undefined) {
             message.warning("请选择要修改的内容");
+            return;
+          }
+          if (data.status === "published") {
+            const ids = [...selectedRowKeys];
+            confirmManualListing(async () => {
+              await bulkPatch(ids, { ...data, manualReviewConfirmed: true }, load);
+              setBulkEditing(false);
+              bulkForm.resetFields();
+            });
             return;
           }
           await bulkPatch(selectedRowKeys, data, load);
@@ -3073,6 +3091,26 @@ async function processBatch(ids: React.Key[], selection: StorageSelectionForm, r
   });
   message.success(`已加入 ${result.queued} 个处理任务`);
   reload();
+}
+
+function bulkStorageLinks(selectedIds: React.Key[], isActive: boolean, reload: () => void) {
+  const ids = [...selectedIds];
+  if (!ids.length) return;
+  Modal.confirm({
+    title: `确认${isActive ? "启用" : "停用"} ${ids.length} 个资源的全部网盘链接？`,
+    content: isActive
+      ? "仅启用所选资源已有的网盘链接，不会上架资源或修改 AI 审核结果；短链仍需资源已上架才能访问。不会恢复网盘端已删除或失效的分享。"
+      : "所选资源的全部网盘链接将停用，对应短链将无法访问。不会删除网盘文件，可再次批量启用。",
+    okText: isActive ? "确认启用" : "确认停用", cancelText: "取消",
+    okButtonProps: { danger: !isActive },
+    onOk: async () => {
+      const result = await request<{ count: number }>("/api/admin/wallpapers/bulk/storage-links", {
+        method: "POST", body: JSON.stringify({ ids, isActive }),
+      });
+      message.success(`已${isActive ? "启用" : "停用"} ${result.count} 条网盘链接`);
+      reload();
+    },
+  });
 }
 
 function confirmManualListing(onConfirm: () => Promise<void>) {

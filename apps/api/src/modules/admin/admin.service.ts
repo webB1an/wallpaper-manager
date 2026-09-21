@@ -1337,6 +1337,15 @@ export class AdminService implements OnModuleInit {
     return { storageLink, shortLink };
   }
 
+  async bulkUpdateStorageLinks(ids: string[] | undefined, isActive: unknown) {
+    const wallpaperIds = requiredWallpaperIds(ids);
+    if (typeof isActive !== "boolean") throw new BadRequestException("请明确指定启用或停用");
+    return this.prisma.storageLink.updateMany({
+      where: { wallpaperId: { in: wallpaperIds }, isActive: !isActive },
+      data: { isActive },
+    });
+  }
+
   async updateStorageLink(linkId: string, data: { isActive?: boolean; isPrimary?: boolean }) {
     const link = await this.prisma.storageLink.findUnique({ where: { id: linkId } });
     if (!link) throw new Error("网盘链接不存在");

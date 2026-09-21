@@ -18,6 +18,35 @@ import { runInNewContext } from "node:vm";
 @Module({})
 class UploadTestModule {}
 
+test("bulk link activation is scoped, explicit and preserves primary links", async () => {
+  const calls: unknown[] = [];
+  const service: AdminService = Object.assign(Object.create(AdminService.prototype), {
+    prisma: { storageLink: { updateMany: async (query: unknown) => { calls.push(query); return { count: 2 }; } } },
+  });
+  await assert.rejects(service.bulkUpdateStorageLinks([], true));
+  await assert.rejects(service.bulkUpdateStorageLinks(undefined, true));
+  await assert.rejects(service.bulkUpdateStorageLinks(["a"], "false"));
+  await assert.rejects(service.bulkUpdateStorageLinks(["a"], undefined));
+  assert.equal(calls.length, 0);
+  assert.deepEqual(await service.bulkUpdateStorageLinks(["a", "a", "b"], true), { count: 2 });
+  await service.bulkUpdateStorageLinks(["a"], false);
+  assert.deepEqual(calls, [
+    { where: { wallpaperId: { in: ["a", "b"] }, isActive: false }, data: { isActive: true } },
+    { where: { wallpaperId: { in: ["a"] }, isActive: true }, data: { isActive: false } },
+  ]);
+});
+
+test("both editor listing paths ask for manual review before sending approval", () => {
+  const source = readFileSync(resolve(process.cwd(), "apps/admin/src/main.tsx"), "utf8");
+  const single = source.slice(source.indexOf('title="编辑壁纸"'), source.indexOf('title="批量编辑"'));
+  const bulk = source.slice(source.indexOf('title="批量编辑"'), source.indexOf('title="批量处理"'));
+  for (const section of [single, bulk]) {
+    assert.match(section, /status === "published"/);
+    assert.match(section, /confirmManualListing\(async/);
+    assert.match(section, /manualReviewConfirmed: true/);
+  }
+});
+
 test("manual review bypasses only AI rejection and never persists an AI approval", async () => {
   let missingLinks = false;
   const writes: unknown[] = [];
