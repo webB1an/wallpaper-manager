@@ -253,6 +253,13 @@ export class AdminController {
     return { code: 200, data: await this.admin.updateWallpaper(id, { ...body, type, status, sortOrder }) };
   }
 
+  // Register the literal bulk path before :id so "bulk" is never a wallpaper ID.
+  @UseGuards(AdminAuthGuard)
+  @Post("wallpapers/bulk/storage-links")
+  async bulkStorageLinks(@Body() body?: { ids?: string[]; isActive?: boolean }) {
+    return { code: 200, data: await this.admin.bulkUpdateStorageLinks(body?.ids, body?.isActive) };
+  }
+
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/:id/storage-links")
   async addStorageLink(@Param("id") id: string, @Body() body: {
@@ -275,12 +282,6 @@ export class AdminController {
   @Post("wallpapers/bulk/deactivate-unpublished-links")
   async deactivateUnpublishedLinks(@Body() body: { ids: string[] }) {
     return { code: 200, data: await this.admin.deactivateUnpublishedStorageLinks(body.ids || []) };
-  }
-
-  @UseGuards(AdminAuthGuard)
-  @Post("wallpapers/bulk/storage-links")
-  async bulkStorageLinks(@Body() body?: { ids?: string[]; isActive?: boolean }) {
-    return { code: 200, data: await this.admin.bulkUpdateStorageLinks(body?.ids, body?.isActive) };
   }
 
   @UseGuards(AdminAuthGuard)

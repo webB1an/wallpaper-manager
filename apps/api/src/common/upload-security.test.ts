@@ -9,6 +9,10 @@ import { join, resolve, sep } from "node:path";
 import { PublicController } from "../modules/public/public.controller";
 import { PublicService } from "../modules/public/public.service";
 import { AdminService } from "../modules/admin/admin.service";
+import { AdminController } from "../modules/admin/admin.controller";
+import { AdminAuthGuard } from "../modules/admin/auth.guard";
+import { WallpaperDeleteService } from "../modules/admin/wallpaper-delete.service";
+import { JwtService } from "@nestjs/jwt";
 import { MiniUploadGuard } from "../modules/public/mini-upload.guard";
 import { removeUploadedTempFiles } from "./upload";
 import { activeTempFiles, cleanExpiredTempFiles, TEMP_TTL_MS } from "./temp-cleanup.service";
@@ -17,6 +21,39 @@ import { runInNewContext } from "node:vm";
 
 @Module({})
 class UploadTestModule {}
+
+test("HTTP bulk storage routes do not match the single-link route and retain admin authentication", async () => {
+  const bulkCalls: unknown[] = [];
+  const singleCalls: unknown[] = [];
+  Reflect.defineMetadata("design:paramtypes", [AdminService, WallpaperDeleteService], AdminController);
+  Reflect.defineMetadata("design:paramtypes", [JwtService], AdminAuthGuard);
+  const app = await NestFactory.create({ module: UploadTestModule, controllers: [AdminController], providers: [
+    { provide: AdminService, useValue: {
+      bulkUpdateStorageLinks: async (ids: string[], isActive: boolean) => { bulkCalls.push({ ids, isActive }); return { count: 1 }; },
+      addStorageLink: async (id: string, data: unknown) => { singleCalls.push({ id, data }); return { id: "link" }; },
+    } },
+    { provide: WallpaperDeleteService, useValue: {} },
+    { provide: JwtService, useValue: { verify: (token: string) => { if (token !== "test-admin") throw new Error("invalid"); return {}; } } },
+    AdminAuthGuard,
+  ] }, { logger: false });
+  try {
+    await app.listen(0, "127.0.0.1");
+    const base = await app.getUrl();
+    const post = (path: string, body: unknown, token?: string) => fetch(`${base}/admin/${path}`, {
+      method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body),
+    });
+    assert.equal((await post("wallpapers/bulk/storage-links", { ids: ["baidu-only"], isActive: true })).status, 401);
+    for (const isActive of [true, false]) {
+      const response = await post("wallpapers/bulk/storage-links", { ids: ["baidu-only"], isActive }, "test-admin");
+      assert.equal(response.status, 201);
+      assert.deepEqual((await response.json()).data, { count: 1 });
+    }
+    assert.deepEqual(bulkCalls, [{ ids: ["baidu-only"], isActive: true }, { ids: ["baidu-only"], isActive: false }]);
+    assert.equal(singleCalls.length, 0);
+    assert.equal((await post("wallpapers/example/storage-links", { provider: "baidu", url: "https://pan.baidu.com/s/example" }, "test-admin")).status, 201);
+    assert.equal(singleCalls.length, 1);
+  } finally { await app.close(); }
+});
 
 test("bulk link activation is scoped, explicit and preserves primary links", async () => {
   const calls: unknown[] = [];
