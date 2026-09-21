@@ -625,7 +625,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
   const [form] = Form.useForm();
   const [bulkForm] = Form.useForm<{ status?: string; tags?: string }>();
   const [processForm] = Form.useForm<StorageSelectionForm>();
-  const [publishForm] = Form.useForm<{ accountId?: string }>();
+  const [publishForm] = Form.useForm<{ accountId?: string; manualReviewConfirmed?: boolean }>();
   const [publishTargetIds, setPublishTargetIds] = useState<React.Key[]>([]);
   const [channelAccounts, setChannelAccounts] = useState<ChannelAccount[]>([]);
   const [storageAccounts, setStorageAccounts] = useState<StorageAccount[]>([]);
@@ -833,7 +833,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             message.error({ content: error instanceof Error ? error.message : "清理失败", key: "cleanupOriginals" });
           }
         }}>清理原图</Button>
-        <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
+        <Button onClick={() => confirmManualListing(() => bulkPatch(selectedRowKeys, { status: "published", manualReviewConfirmed: true }, load))}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
         <Button danger disabled={!selectedRowKeys.length} onClick={() => {
           const ids = [...selectedRowKeys];
@@ -936,7 +936,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
             <Button size="small" onClick={() => analyze(row.id, load)}>AI识别</Button>
             <Button size="small" type="primary" onClick={() => openProcess([row.id])}>一键处理</Button>
             <Button size="small" onClick={() => openChannelPublish([row.id])}>发频道</Button>
-            <Button size="small" onClick={() => patch(row.id, { status: "published" }, load)}>上架</Button>
+            <Button size="small" onClick={() => confirmManualListing(() => patch(row.id, { status: "published", manualReviewConfirmed: true }, load))}>上架</Button>
             <Button size="small" danger onClick={() => patch(row.id, { status: "archived" }, load)}>下架</Button>
             <Popconfirm title="永久删除这张壁纸？" description="删除资源记录、缩略图和服务器图片文件，关联文章将不再显示此图。网盘文件保留。不可恢复。" okText="确认删除" cancelText="取消" okButtonProps={{ danger: true }} onConfirm={async () => {
               try {
@@ -1083,7 +1083,7 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
           try {
             await request("/api/admin/channels/publish", {
               method: "POST",
-              body: JSON.stringify({ ids: publishTargetIds, accountId: values.accountId }),
+              body: JSON.stringify({ ids: publishTargetIds, accountId: values.accountId, manualReviewConfirmed: values.manualReviewConfirmed === true }),
             });
             message.success("频道发布完成");
             setPublishTargetIds([]);
@@ -1114,6 +1114,10 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         {publishIssue ? <Alert className="modal-alert" type="warning" showIcon message={publishIssue} /> : null}
         {!channelLoading && !channelAccounts.length ? <Alert className="modal-alert" type="warning" showIcon message="还没有配置频道账号，请先在频道配置中新增账号。" /> : null}
         <Form form={publishForm} layout="vertical">
+          <Alert type="warning" showIcon message="AI 未通过或未审核的资源，须人工检查内容后开启下方确认。仅覆盖本次审核限制，不会修改 AI 结果；网盘短链及媒体检查仍生效。" />
+          <Form.Item label="我已人工审核全部所选资源，确认允许发帖" name="manualReviewConfirmed" valuePropName="checked">
+            <Switch />
+          </Form.Item>
           <Form.Item label="本次发布资源">
             <Tag color="gold">{publishTargetIds.length} 个</Tag>
             <span className="form-hint">动态壁纸一次只能发 1 个，静态壁纸一次最多 18 张。</span>
@@ -3069,6 +3073,16 @@ async function processBatch(ids: React.Key[], selection: StorageSelectionForm, r
   });
   message.success(`已加入 ${result.queued} 个处理任务`);
   reload();
+}
+
+function confirmManualListing(onConfirm: () => Promise<void>) {
+  Modal.confirm({
+    title: "人工复核后上架",
+    content: "请确认已人工检查全部所选壁纸，内容符合发布要求。确认后本次上架可覆盖 AI 未通过或未审核的限制；不会修改 AI 原始结果，仍需具备可用网盘短链。",
+    okText: "已人工审核，确认上架",
+    cancelText: "取消",
+    onOk: onConfirm,
+  });
 }
 
 async function patch(id: string, data: unknown, reload: () => void) {

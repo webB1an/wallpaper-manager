@@ -1281,6 +1281,7 @@ export class AdminService implements OnModuleInit {
   }
 
   async updateWallpaper(id: string, data: {
+    manualReviewConfirmed?: boolean;
     title?: string;
     type?: WallpaperType;
     status?: WallpaperStatus;
@@ -1288,7 +1289,7 @@ export class AdminService implements OnModuleInit {
     tags?: string[];
   }) {
     if (data.status === WallpaperStatus.published) {
-      await this.assertWallpapersCanPublish([id]);
+      await this.assertWallpapersCanPublish([id], data.manualReviewConfirmed === true);
     }
     const tags = data.tags
       ? await Promise.all(data.tags.map((name) => this.prisma.tag.upsert({ where: { name }, update: {}, create: { name } })))
@@ -1377,10 +1378,10 @@ export class AdminService implements OnModuleInit {
     };
   }
 
-  async bulkUpdate(ids: string[] | undefined, data: { status?: WallpaperStatus; tags?: string[] }) {
+  async bulkUpdate(ids: string[] | undefined, data: { status?: WallpaperStatus; tags?: string[]; manualReviewConfirmed?: boolean }) {
     const wallpaperIds = requiredWallpaperIds(ids);
     if (data.status === WallpaperStatus.published) {
-      await this.assertWallpapersCanPublish(wallpaperIds);
+      await this.assertWallpapersCanPublish(wallpaperIds, data.manualReviewConfirmed === true);
     }
     if (data.status) {
       await this.prisma.wallpaper.updateMany({ where: { id: { in: wallpaperIds } }, data: { status: data.status } });
@@ -1712,7 +1713,7 @@ export class AdminService implements OnModuleInit {
     }
   }
 
-  async publishWallpaperToChannel(id: string, accountId?: string) {
+  async publishWallpaperToChannel(id: string, accountId?: string, manualReviewConfirmed = false) {
     const account = await this.getChannelAccountForPublish(accountId);
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
     const wallpaper = await this.prisma.wallpaper.findUnique({
@@ -1720,7 +1721,7 @@ export class AdminService implements OnModuleInit {
       include: { tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] } },
     });
     if (!wallpaper) throw new BadRequestException("壁纸不存在");
-    await this.assertWallpapersCanPublish([id]);
+    await this.assertWallpapersCanPublish([id], manualReviewConfirmed === true);
     const content = buildChannelContent(wallpaper.title);
     const absoluteAsset = wallpaper.assetPath ? join(process.cwd(), "storage", "public", wallpaper.assetPath) : undefined;
     const absoluteCover = wallpaper.coverPath ? join(process.cwd(), "storage", "public", wallpaper.coverPath) : undefined;
@@ -1742,7 +1743,7 @@ export class AdminService implements OnModuleInit {
     return result;
   }
 
-  async publishWallpapersToChannel(ids: string[] | undefined, accountId?: string) {
+  async publishWallpapersToChannel(ids: string[] | undefined, accountId?: string, manualReviewConfirmed = false) {
     const uniqueIds = requiredWallpaperIds(ids);
     const account = await this.getChannelAccountForPublish(accountId);
     if (!account) throw new BadRequestException("未配置腾讯频道账号");
@@ -1753,7 +1754,7 @@ export class AdminService implements OnModuleInit {
     });
     if (!wallpapers.length) throw new BadRequestException("没有可发布的壁纸");
     if (wallpapers.length !== uniqueIds.length) throw new BadRequestException("存在未找到的壁纸，无法发布到频道");
-    await this.assertWallpapersCanPublish(wallpapers.map((item) => item.id));
+    await this.assertWallpapersCanPublish(wallpapers.map((item) => item.id), manualReviewConfirmed === true);
     const liveItems = wallpapers.filter((item) => item.mimeType?.startsWith("video/") || item.type === WallpaperType.live);
     if (liveItems.length > 1 || (liveItems.length === 1 && wallpapers.length > 1)) {
       throw new BadRequestException("动态壁纸一次只能发布 1 个，不能和静态图混发");
@@ -1990,7 +1991,7 @@ export class AdminService implements OnModuleInit {
     return result.ok && existsSync(output);
   }
 
-  private async assertWallpapersCanPublish(ids: string[]) {
+  private async assertWallpapersCanPublish(ids: string[], manualReviewConfirmed = false) {
     const uniqueIds = unique(ids);
     if (!uniqueIds.length) throw new BadRequestException("请选择壁纸");
     const blocked = await this.prisma.wallpaper.findMany({
@@ -2009,9 +2010,12 @@ export class AdminService implements OnModuleInit {
       },
       take: 5,
     });
-    if (blocked.length) {
+    if (blocked.length && !manualReviewConfirmed) {
       const names = blocked.map((item) => item.title).join("、");
       throw new BadRequestException(`存在未通过 AI 审核的壁纸，禁止上架或发帖：${names}`);
+    }
+    if (blocked.length && manualReviewConfirmed) {
+      this.logger.warn(`管理员人工确认，覆盖本次 AI 审核拦截：${uniqueIds.join(",")}`);
     }
     const missingDownloads = await this.prisma.wallpaper.findMany({
       where: {

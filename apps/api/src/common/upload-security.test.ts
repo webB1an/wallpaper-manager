@@ -18,6 +18,54 @@ import { runInNewContext } from "node:vm";
 @Module({})
 class UploadTestModule {}
 
+test("manual review bypasses only AI rejection and never persists an AI approval", async () => {
+  let missingLinks = false;
+  const writes: unknown[] = [];
+  const service: AdminService = Object.assign(Object.create(AdminService.prototype), {
+    logger: { warn: () => undefined },
+    prisma: { wallpaper: {
+      findMany: async (query: { where: { OR: Array<Record<string, unknown>> } }) =>
+        "aiAnalysis" in query.where.OR[0]
+          ? [{ title: "AI rejected", status: "rejected", aiAnalysis: { safe: false } }]
+          : missingLinks ? [{ title: "No links" }] : [],
+      update: async (query: { data: unknown }) => { writes.push(query.data); return query.data; },
+      updateMany: async (query: { data: unknown }) => { writes.push(query.data); return { count: 1 }; },
+    } },
+  });
+  await assert.rejects(service.updateWallpaper("a", { status: "published" }), /未通过 AI/);
+  await assert.rejects(service.bulkUpdate(["a"], { status: "published" }), /未通过 AI/);
+  await assert.rejects(service.updateWallpaper("a", { status: "published", manualReviewConfirmed: "true" as unknown as boolean }), /未通过 AI/);
+  await service.updateWallpaper("a", { status: "published", manualReviewConfirmed: true });
+  await service.bulkUpdate(["a"], { status: "published", manualReviewConfirmed: true });
+  assert.equal(writes.length, 2);
+  for (const data of writes) assert.equal("aiAnalysis" in (data as object), false);
+  await assert.rejects(service.updateWallpaper("a", { status: "published" }), /未通过 AI/);
+  missingLinks = true;
+  await assert.rejects(service.updateWallpaper("a", { status: "published", manualReviewConfirmed: true }), /网盘短链/);
+  await assert.rejects(service.bulkUpdate(["a"], { status: "published", manualReviewConfirmed: true }), /网盘短链/);
+  assert.equal(writes.length, 2);
+});
+
+test("single and batch channel publishing require explicit per-request manual confirmation", async () => {
+  const confirmations: boolean[] = [];
+  const service: AdminService = Object.assign(Object.create(AdminService.prototype), {
+    getChannelAccountForPublish: async () => ({ id: "account" }),
+    prisma: { wallpaper: {
+      findUnique: async () => ({ id: "a" }),
+      findMany: async () => [{ id: "a" }],
+    } },
+    assertWallpapersCanPublish: async (_ids: string[], confirmed: boolean) => {
+      confirmations.push(confirmed);
+      throw new Error("gate reached");
+    },
+  });
+  await assert.rejects(service.publishWallpaperToChannel("a"), /gate reached/);
+  await assert.rejects(service.publishWallpaperToChannel("a", undefined, true), /gate reached/);
+  await assert.rejects(service.publishWallpapersToChannel(["a"]), /gate reached/);
+  await assert.rejects(service.publishWallpapersToChannel(["a"], undefined, true), /gate reached/);
+  assert.deepEqual(confirmations, [false, true, false, true]);
+});
+
 test("retired direct-download endpoints return 410 without invoking download services", async () => {
   Reflect.defineMetadata("design:paramtypes", [PublicService, AdminService], PublicController);
   Reflect.defineMetadata("design:paramtypes", [PublicService], MiniUploadGuard);

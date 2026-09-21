@@ -183,8 +183,8 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/:id/publish-channel")
-  async publishChannel(@Param("id") id: string) {
-    return { code: 200, data: await this.admin.publishWallpaperToChannel(id) };
+  async publishChannel(@Param("id") id: string, @Body() body?: { manualReviewConfirmed?: boolean }) {
+    return { code: 200, data: await this.admin.publishWallpaperToChannel(id, undefined, body?.manualReviewConfirmed === true) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -195,8 +195,8 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("channels/publish")
-  async publishChannelBatch(@Body() body: { ids: string[]; accountId?: string }) {
-    return { code: 200, data: await this.admin.publishWallpapersToChannel(body.ids || [], body.accountId) };
+  async publishChannelBatch(@Body() body: { ids: string[]; accountId?: string; manualReviewConfirmed?: boolean }) {
+    return { code: 200, data: await this.admin.publishWallpapersToChannel(body.ids || [], body.accountId, body.manualReviewConfirmed === true) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -237,6 +237,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Patch("wallpapers/:id")
   async update(@Param("id") id: string, @Body() body: {
+    manualReviewConfirmed?: boolean;
     title?: string;
     type?: WallpaperType;
     status?: WallpaperStatus;
@@ -278,7 +279,7 @@ export class AdminController {
 
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/bulk")
-  async bulk(@Body() body?: { ids?: string[]; status?: WallpaperStatus; tags?: string[] }) {
+  async bulk(@Body() body?: { ids?: string[]; status?: WallpaperStatus; tags?: string[]; manualReviewConfirmed?: boolean }) {
     const status = optionalEnum(body?.status, WallpaperStatus, "壁纸状态");
     return { code: 200, data: await this.admin.bulkUpdate(body?.ids, { ...(body || {}), status }) };
   }
