@@ -6,6 +6,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { removeOwnedFile, WallpaperDeleteService } from "./wallpaper-delete.service";
 
+test("批量删除串行去重，保留逐项失败，不吞掉其他成功项", async () => {
+  const service = new WallpaperDeleteService({} as any, {} as any);
+  const order: string[] = [];
+  let active = false;
+  service.remove = async (id: string) => {
+    assert.equal(active, false); active = true;
+    await Promise.resolve(); order.push(id); active = false;
+    if (id === "bad") throw new Error("internal failure");
+    return { deleted: true };
+  };
+  const result = await service.removeMany(["a", "bad", "a", "b"]);
+  assert.deepEqual(order, ["a", "bad", "b"]);
+  assert.deepEqual(result.deleted, ["a", "b"]);
+  assert.equal(result.failed[0].id, "bad");
+  await assert.rejects(service.removeMany([]));
+  await assert.rejects(service.removeMany(new Array(101).fill("a")));
+  await assert.rejects(service.removeMany([null]));
+});
+
 test("删除文件限制在存储目录内，缺失文件允许重试", async () => {
   const root = await mkdtemp(join(tmpdir(), "wallpaper-delete-"));
   try {

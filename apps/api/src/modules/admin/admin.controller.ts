@@ -223,6 +223,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Post("wallpapers/bulk/delete")
+  async deleteWallpapers(@Body() body: { ids?: unknown }) {
+    return { code: 200, data: await this.deletion.removeMany(body?.ids) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Delete("wallpapers/:id")
   async deleteWallpaper(@Param("id") id: string) {
     return { code: 200, data: await this.deletion.remove(id) };

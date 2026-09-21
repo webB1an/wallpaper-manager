@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable } from "@nestjs/common";
 import { lstat, realpath, unlink } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { Prisma } from "@prisma/client";
@@ -47,6 +47,19 @@ export async function deleteWallpaperInTransaction(tx: Prisma.TransactionClient,
 @Injectable()
 export class WallpaperDeleteService {
   constructor(private readonly prisma: PrismaService, private readonly leases: WorkLeaseService) {}
+
+  async removeMany(input: unknown) {
+    if (!Array.isArray(input) || !input.length || input.length > 100 || input.some((id) => typeof id !== "string" || !id.trim() || id.length > 64)) {
+      throw new BadRequestException("请选择 1～100 张壁纸后删除");
+    }
+    const deleted: string[] = [];
+    const failed: Array<{ id: string; message: string }> = [];
+    for (const id of new Set(input as string[])) {
+      try { await this.remove(id); deleted.push(id); }
+      catch (error) { failed.push({ id, message: error instanceof ConflictException ? error.message : "删除失败，请重试或检查服务日志" }); }
+    }
+    return { deleted, failed };
+  }
 
   async remove(id: string) {
     try {

@@ -835,6 +835,23 @@ function Library({ preset }: { preset?: LibraryPreset | null }) {
         }}>清理原图</Button>
         <Button onClick={() => bulkPatch(selectedRowKeys, { status: "published" }, load)}>批量上架</Button>
         <Button danger onClick={() => bulkPatch(selectedRowKeys, { status: "archived" }, load)}>批量下架</Button>
+        <Button danger disabled={!selectedRowKeys.length} onClick={() => {
+          const ids = [...selectedRowKeys];
+          Modal.confirm({
+            title: `永久删除选中的 ${ids.length} 张壁纸？`,
+            content: "将删除资源记录、缩略图和服务器图片文件，关联文章不再显示这些图片。网盘文件保留，此操作不可恢复。",
+            okText: "确认批量删除", cancelText: "取消", okButtonProps: { danger: true },
+            onOk: async () => {
+              try {
+                const result = await request<{ deleted: string[]; failed: Array<{ id: string; message: string }> }>("/api/admin/wallpapers/bulk/delete", { method: "POST", body: JSON.stringify({ ids }) });
+                setSelectedRowKeys(result.failed.map((item) => item.id));
+                await load();
+                if (result.failed.length) Modal.warning({ title: `已删除 ${result.deleted.length} 张，${result.failed.length} 张未删除`, content: <div>{result.failed.map((item) => <p key={item.id}>{item.id}：{item.message}</p>)}</div> });
+                else message.success(`已删除 ${result.deleted.length} 张壁纸及对应图片文件`);
+              } catch (error) { message.error(error instanceof Error ? error.message : "批量删除失败，请刷新核对后重试"); throw error; }
+            },
+          });
+        }}>批量删除</Button>
         {storageFilter === "unpublished_active_short" ? (
           <Button danger ghost onClick={() => deactivateUnpublishedLinks(selectedRowKeys, load)}>停用遗留短链</Button>
         ) : null}
