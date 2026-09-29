@@ -176,16 +176,52 @@ function normalizeAnalysisPayload(value: unknown, originalName: string) {
   };
 }
 
-function parseImageAnalysisJson(raw: string): unknown {
+export function parseImageAnalysisJson(raw: string): unknown {
   let text = raw.trim();
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) text = fenced[1].trim();
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start >= 0 && end > start) text = text.slice(start, end + 1);
   try {
     return JSON.parse(text);
   } catch {
-    throw new SyntaxError(`识图结果 JSON 无法解析：${text.replace(/\s+/g, " ").slice(0, 200)}`);
+    // 整体不是合法 JSON 时，尝试按括号配平提取内嵌的 JSON 对象。
   }
+  // 模型偶尔会把 response_format（如 {"type": "json_object"}）回显在正文前，
+  // 产生拼接的多段 JSON。按括号配平提取顶层 JSON 对象，取最后一个可解析的。
+  const candidates: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        candidates.push(text.slice(start, i + 1));
+        start = -1;
+      } else if (depth < 0) {
+        depth = 0;
+        start = -1;
+      }
+    }
+  }
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    try {
+      return JSON.parse(candidates[i]);
+    } catch {
+      // 该段不合法，继续尝试前一段。
+    }
+  }
+  throw new SyntaxError(`识图结果 JSON 无法解析：${text.replace(/\s+/g, " ").slice(0, 200)}`);
 }

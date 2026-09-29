@@ -428,18 +428,30 @@ export class AdminService implements OnModuleInit {
       const analysis = { title: w.title, type: w.type, tags: w.aiAnalysis.tags, sensitiveFlags: w.aiAnalysis.sensitiveFlags, safe: true, summary: w.aiAnalysis.summary || "" };
       payload.uploadCheckpoints = { [w.id]: { version: 1, stage: "storage", analysis, drives: {} } };
     }
-    const ids = data.wallpaperIds || [data.wallpaperId!];
-    for (const wallpaperId of ids) {
+    const allIds = data.wallpaperIds || [data.wallpaperId!];
+    const ids: string[] = [];
+    const removedIds: string[] = [];
+    for (const wallpaperId of allIds) {
       const cp = payload.uploadCheckpoints?.[wallpaperId] as UploadCheckpoint | undefined;
       const w = await this.prisma.wallpaper.findUnique({ where: { id: wallpaperId } });
-      if (!w || w.status === "archived" || (w.status === "rejected" && cp?.stage !== "skipped")) throw new BadRequestException("部分资源已删除或下架，不能继续");
+      // 已被人工删除或下架的资源跳过，不阻断其余资源的恢复。
+      if (!w || w.status === "archived") {
+        removedIds.push(wallpaperId);
+        if (payload.uploadCheckpoints) delete payload.uploadCheckpoints[wallpaperId];
+        continue;
+      }
+      if (w.status === "rejected" && cp?.stage !== "skipped") throw new BadRequestException("部分资源审核未通过，不能继续");
       if (cp?.stage !== "done" && cp?.stage !== "skipped" && (!w.assetPath || !existsSync(join(process.cwd(), "storage", "public", w.assetPath)))) throw new BadRequestException("恢复所需的原文件不存在");
       if (confirmMissingUploads && cp) {
         for (const drive of Object.values(cp.drives)) if (drive?.phase === "uploading") drive.phase = "pending";
       }
+      ids.push(wallpaperId);
     }
+    if (!ids.length) throw new BadRequestException("批次内的资源已全部删除或下架，没有可恢复的内容");
+    if (data.wallpaperIds) data.wallpaperIds = ids;
+    else data.wallpaperId = ids[0];
     const claimed = await this.prisma.task.updateMany({ where: { id, status: task.status, updatedAt: task.updatedAt }, data: {
-      status: "queued", progress: 0, error: null, message: "已排队，从上传检查点继续", payload: payload as Prisma.InputJsonValue, result: { resumable: false },
+      status: "queued", progress: 0, error: null, message: removedIds.length ? `已排队继续处理；已跳过 ${removedIds.length} 张已删除或下架的资源` : "已排队，从上传检查点继续", payload: payload as Prisma.InputJsonValue, result: { resumable: false },
     } });
     if (!claimed.count) return { ok: false, message: "任务已由其他请求处理，请刷新" };
     // Use a new dispatch id, retaining the durable task id. Never delete an old active job.
