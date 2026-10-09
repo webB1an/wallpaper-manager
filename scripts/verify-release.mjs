@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -32,6 +32,28 @@ function requireContains(path, expected) {
   }
   const text = readText(path);
   if (!text.includes(expected)) fail(`${path} must contain ${expected}`);
+}
+
+// 管理端已从单文件 main.tsx 拆分为 src/ 下的多个模块；
+// 针对页面能力的断言改为在整个 admin 源码范围内检查，避免随文件结构调整失效。
+let adminSourceCache = null;
+function adminSourceText() {
+  if (adminSourceCache === null) {
+    const dir = join(root, "apps/admin/src");
+    const files = readdirSync(dir, { recursive: true })
+      .filter((file) => /\.tsx?$/.test(String(file)))
+      .map((file) => join(dir, String(file)));
+    adminSourceCache = files.map((file) => readFileSync(file, "utf8")).join("\n");
+  }
+  return adminSourceCache;
+}
+
+function requireSrcContains(expected) {
+  if (!adminSourceText().includes(expected)) fail(`apps/admin/src must contain ${expected}`);
+}
+
+function requireSrcNotContains(forbidden) {
+  if (adminSourceText().includes(forbidden)) fail(`apps/admin/src must not contain ${forbidden}`);
 }
 
 function requireNotContains(path, forbidden) {
@@ -315,30 +337,30 @@ requireContains("apps/api/src/modules/storage/storage-account.service.ts", "--co
 requireContains("apps/api/src/modules/storage/storage-account.service.ts", "XDG_CONFIG_HOME");
 requireContains("apps/api/prisma/schema.prisma", "model StorageAccount");
 requireContains("apps/api/prisma/schema.prisma", "storageAccountId");
-requireContains("apps/admin/src/main.tsx", "function StorageAccounts");
-requireContains("apps/admin/src/main.tsx", "网盘账号");
-requireContains("apps/admin/src/main.tsx", "/api/admin/readiness");
-requireContains("apps/admin/src/main.tsx", "微信小程序 AppID 与域名");
-requireContains("apps/admin/src/main.tsx", "复制报告");
-requireContains("apps/admin/src/main.tsx", "夸克主源");
-requireContains("apps/admin/src/main.tsx", "百度备用源");
-requireContains("apps/admin/src/main.tsx", "第一个账号会自动设为默认");
-requireContains("apps/admin/src/main.tsx", "管理端页面完成授权");
-requireContains("apps/admin/src/main.tsx", "每个账号使用独立授权态");
-requireContains("apps/admin/src/main.tsx", "本次夸克同步账号");
-requireContains("apps/admin/src/main.tsx", "本次百度同步账号");
-requireContains("apps/admin/src/main.tsx", "title=\"批量处理\"");
-requireContains("apps/admin/src/main.tsx", "processTargetIds");
-requireContains("apps/admin/src/main.tsx", "openProcess([row.id])");
-requireContains("apps/admin/src/main.tsx", "processBatch(processTargetIds, values, load)");
+requireSrcContains("function StorageAccounts");
+requireSrcContains("网盘账号");
+requireSrcContains("/api/admin/readiness");
+requireSrcContains("微信小程序 AppID 与域名");
+requireSrcContains("复制报告");
+requireSrcContains("夸克主源");
+requireSrcContains("百度备用源");
+requireSrcContains("第一个账号会自动设为默认");
+requireSrcContains("管理端页面完成授权");
+requireSrcContains("每个账号使用独立授权态");
+requireSrcContains("本次夸克同步账号");
+requireSrcContains("本次百度同步账号");
+requireSrcContains("title=\"批量处理\"");
+requireSrcContains("processTargetIds");
+requireSrcContains("openProcess([row.id])");
+requireSrcContains("processBatch(processTargetIds, values, load)");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "bulkProcess(@Body() body?: { ids?: string[]; quarkAccountId?: string; baiduAccountId?: string })");
 requireBefore("apps/api/src/modules/admin/admin.controller.ts", '@Post("wallpapers/bulk/process")', '@Post("wallpapers/:id/process")');
 requireContains("apps/api/src/modules/admin/admin.service.ts", "async enqueueProcessWallpapers(ids: string[] | undefined, storageSelection?: StorageSelection)");
-requireContains("apps/admin/src/main.tsx", "auth/start");
-requireContains("apps/admin/src/main.tsx", "auth/finish");
-requireContains("apps/admin/src/main.tsx", "授权码 / 回调 URL");
-requireContains("apps/admin/src/main.tsx", "未使用账号会直接移除");
-requireContains("apps/admin/src/main.tsx", "清理授权文件");
+requireSrcContains("auth/start");
+requireSrcContains("auth/finish");
+requireSrcContains("授权码 / 回调 URL");
+requireSrcContains("未使用账号会直接移除");
+requireSrcContains("清理授权文件");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageSelection");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "getAccountForProvider");
 requireContains("apps/api/src/modules/storage/storage-coordinator.service.ts", "missingManagedAccountError");
@@ -358,7 +380,7 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "默认账号已�
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertChannelMediaReady");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "频道发帖素材不完整");
 requireContains("apps/api/src/modules/admin/admin.service.ts", 'BadRequestException("未配置腾讯频道账号")');
-requireContains("apps/admin/src/main.tsx", "uploadErrorMessage");
+requireSrcContains("uploadErrorMessage");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "无法生成封面");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "removeUploadedFile");
 requireContains("apps/api/src/modules/import/old-cover-import.service.ts", "nextLegacyShortCode");
@@ -367,13 +389,13 @@ requireContains("apps/api/src/modules/import/old-cover-import.service.ts", "nano
 requireContains("apps/api/src/modules/admin/admin.service.ts", "存在没有可用网盘短链");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "storageLink: { isActive: true }");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertHttpUrl");
-requireContains("apps/admin/src/main.tsx", "defaultChannelReady");
-requireContains("apps/admin/src/main.tsx", "本次发帖频道账号");
-requireContains("apps/admin/src/main.tsx", "未设置默认频道账号");
-requireContains("apps/admin/src/main.tsx", "上传批次和资源库手动发帖都可以选择频道账号");
-requireContains("apps/admin/src/main.tsx", "默认频道账号");
-requireContains("apps/admin/src/main.tsx", "静态最多 18 张 · 动态 1 个");
-requireContains("apps/admin/src/main.tsx", "发帖内容不带网盘链接");
+requireSrcContains("defaultChannelReady");
+requireSrcContains("本次发帖频道账号");
+requireSrcContains("未设置默认频道账号");
+requireSrcContains("上传批次和资源库手动发帖都可以选择频道账号");
+requireSrcContains("默认频道账号");
+requireSrcContains("静态最多 18 张 · 动态 1 个");
+requireSrcContains("发帖内容不带网盘链接");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置默认腾讯频道账号，不能开启默认自动发帖");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "未配置可用腾讯频道账号，不能开启上传后自动发帖");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "assertChannelReady");
@@ -383,24 +405,24 @@ requireContains("apps/admin/src/styles.css", ".upload-options .ant-select");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "updateSettings({ defaultAutoPublish: false })");
 requireContains("apps/api/src/modules/admin/admin.service.ts", 'uploadMultiPostMode: "merge"');
 requireContains("apps/api/src/modules/admin/admin.service.ts", 'input.postMode !== "separate"');
-requireContains("apps/admin/src/main.tsx", 'name="uploadMultiPostMode"');
+requireSrcContains('name="uploadMultiPostMode"');
 requireContains("apps/api/src/modules/admin/admin.service.ts", "where: { wallpaperId: link.wallpaperId }");
-requireContains("apps/admin/src/main.tsx", "先配置默认腾讯频道账号，再开启默认自动发帖");
-requireContains("apps/admin/src/main.tsx", "row.command");
-requireContains("apps/admin/src/main.tsx", "命令已复制");
-requireContains("apps/admin/src/main.tsx", "复制上线报告");
-requireContains("apps/admin/src/main.tsx", "微信小程序发布参数");
-requireContains("apps/admin/src/main.tsx", "request 合法域名");
-requireContains("apps/admin/src/main.tsx", "r.wdbzk.com 只复制文本");
-requireContains("apps/admin/src/main.tsx", "function LaunchFinalSteps");
-requireContains("apps/admin/src/main.tsx", "上线收尾");
-requireContains("apps/admin/src/main.tsx", "function DiagnosticActions");
-requireContains("apps/admin/src/main.tsx", "去网盘账号");
-requireContains("apps/admin/src/main.tsx", "去腾讯频道");
-requireContains("apps/admin/src/main.tsx", "处理短链");
-requireContains("apps/admin/src/main.tsx", "miniprogram_release");
-requireContains("apps/admin/src/main.tsx", "warnCount");
-requireContains("apps/admin/src/main.tsx", "提醒 {warnCount}");
+requireSrcContains("先配置默认腾讯频道账号，再开启默认自动发帖");
+requireSrcContains("row.command");
+requireSrcContains("命令已复制");
+requireSrcContains("复制上线报告");
+requireSrcContains("微信小程序发布参数");
+requireSrcContains("request 合法域名");
+requireSrcContains("r.wdbzk.com 只复制文本");
+requireSrcContains("function LaunchFinalSteps");
+requireSrcContains("上线收尾");
+requireSrcContains("function DiagnosticActions");
+requireSrcContains("去网盘账号");
+requireSrcContains("去腾讯频道");
+requireSrcContains("处理短链");
+requireSrcContains("miniprogram_release");
+requireSrcContains("warnCount");
+requireSrcContains("提醒 {warnCount}");
 requireContains("apps/admin/src/styles.css", "diagnostic-message");
 requireContains("apps/admin/src/styles.css", "storage-readiness");
 requireContains("apps/admin/src/styles.css", "channel-readiness");
@@ -521,9 +543,9 @@ requireContains("apps/api/src/modules/admin/admin.service.ts", "MINIPROGRAM_APPI
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "unpublished_active_short");
 requireContains("apps/api/src/modules/admin/admin.controller.ts", "deactivate-unpublished-links");
 requireContains("apps/api/src/modules/admin/admin.service.ts", "deactivateUnpublishedStorageLinks");
-requireContains("apps/admin/src/main.tsx", "deactivateUnpublishedLinks");
-requireContains("apps/admin/src/main.tsx", "unpublishedActiveShortLinks");
-requireContains("apps/admin/src/main.tsx", "下架活跃短链");
+requireSrcContains("deactivateUnpublishedLinks");
+requireSrcContains("unpublishedActiveShortLinks");
+requireSrcContains("下架活跃短链");
 requireContains("apps/api/src/modules/public/public.service.ts", "resolvePasscode");
 requireContains("apps/api/src/modules/public/public.service.ts", 'searchParams.get("pwd")');
 requireContainsIfPresent(".github/workflows/deploy.yml", "Smoke production");
