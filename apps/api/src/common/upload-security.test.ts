@@ -74,7 +74,7 @@ test("bulk link activation is scoped, explicit and preserves primary links", asy
 });
 
 test("both editor listing paths ask for manual review before sending approval", () => {
-  const source = readFileSync(resolve(process.cwd(), "apps/admin/src/main.tsx"), "utf8");
+  const source = readFileSync(resolve(__dirname, "..", "..", "..", "admin", "src", "pages", "Library.tsx"), "utf8");
   const single = source.slice(source.indexOf('title="编辑壁纸"'), source.indexOf('title="批量编辑"'));
   const bulk = source.slice(source.indexOf('title="批量编辑"'), source.indexOf('title="批量处理"'));
   for (const section of [single, bulk]) {

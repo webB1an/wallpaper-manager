@@ -1173,77 +1173,77 @@ export class AdminService implements OnModuleInit {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [wallpapers, clicks, downloads, favorites, searches, hotDaily, hotWeekly, hotMonthly, aiGroups, failedTasks, publishTasks, boards, searchLogs, clickTagData] = await Promise.all([
-      this.prisma.wallpaper.findMany({ where: { status: WallpaperStatus.published, createdAt: { gte: since } }, select: { createdAt: true } }),
-      this.prisma.wallpaperClick.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      this.prisma.userDownload.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      this.prisma.userFavorite.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } }),
-      this.prisma.searchLog.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, keyword: true, hasResult: true } }),
+    // 趋势与搜索/任务统计全部下推数据库聚合，避免把全量记录拉进 Node 内存。
+    const trendRows = await this.prisma.$queryRaw<Array<{ label: string; kind: string; total: bigint }>>(Prisma.sql`
+      SELECT DATE_FORMAT(createdAt, '%m-%d') AS label, 'published' AS kind, COUNT(*) AS total FROM Wallpaper WHERE status = ${WallpaperStatus.published} AND createdAt >= ${since} GROUP BY label
+      UNION ALL
+      SELECT DATE_FORMAT(createdAt, '%m-%d') AS label, 'views' AS kind, COUNT(*) AS total FROM WallpaperClick WHERE createdAt >= ${since} GROUP BY label
+      UNION ALL
+      SELECT DATE_FORMAT(createdAt, '%m-%d') AS label, 'downloads' AS kind, COUNT(*) AS total FROM UserDownload WHERE createdAt >= ${since} GROUP BY label
+      UNION ALL
+      SELECT DATE_FORMAT(createdAt, '%m-%d') AS label, 'favorites' AS kind, COUNT(*) AS total FROM UserFavorite WHERE createdAt >= ${since} GROUP BY label
+      UNION ALL
+      SELECT DATE_FORMAT(createdAt, '%m-%d') AS label, 'searches' AS kind, COUNT(*) AS total FROM SearchLog WHERE createdAt >= ${since} GROUP BY label
+    `);
+    const [hotDaily, hotWeekly, hotMonthly, aiGroups, searchStatus, topTerms, gaps, failedGroups, publishGroups, boards, clickTagData] = await Promise.all([
       this.hotWallpapers(1),
       this.hotWallpapers(7),
       this.hotWallpapers(30),
       this.prisma.aiAnalysis.groupBy({ by: ["safe"], where: { createdAt: { gte: since } }, _count: { _all: true } }),
-      this.prisma.task.findMany({ where: { status: "failed", createdAt: { gte: since } }, select: { type: true, error: true } }),
-      this.prisma.task.findMany({ where: { type: { in: ["auto_publish", "channel_publish"] }, createdAt: { gte: since } }, select: { status: true } }),
+      this.prisma.searchLog.groupBy({ by: ["hasResult"], where: { createdAt: { gte: since } }, _count: { _all: true } }),
+      this.prisma.searchLog.groupBy({ by: ["keyword"], where: { createdAt: { gte: since } }, _count: { _all: true }, orderBy: { _count: { keyword: "desc" } }, take: 15 }),
+      this.prisma.searchLog.groupBy({ by: ["keyword"], where: { createdAt: { gte: since }, hasResult: false }, _count: { _all: true }, orderBy: { _count: { keyword: "desc" } }, take: 15 }),
+      this.prisma.task.groupBy({ by: ["type"], where: { status: "failed", createdAt: { gte: since } }, _count: { _all: true }, orderBy: { _count: { type: "desc" } }, take: 10 }),
+      this.prisma.task.groupBy({ by: ["status"], where: { type: { in: ["auto_publish", "channel_publish"] }, createdAt: { gte: since } }, _count: { _all: true } }),
       this.prisma.autoPublishBoard.findMany({ orderBy: { createdAt: "asc" }, select: { guildName: true, channelName: true, source: true, enabled: true, lastRunAt: true, lastMessage: true } }),
-      this.prisma.searchLog.findMany({ where: { createdAt: { gte: since } }, select: { keyword: true, hasResult: true } }),
       this.clickTagHeat(since),
     ]);
 
     const labels: string[] = [];
+    const labelIndex = new Map<string, number>();
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(todayStart.getTime() - i * dayMs);
-      labels.push(`${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`);
+      const label = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      labelIndex.set(label, labels.length);
+      labels.push(label);
     }
-    const bucket = (records: Array<{ createdAt: Date }>) => {
-      const arr = new Array(days).fill(0);
-      for (const record of records) {
-        const day = new Date(record.createdAt);
-        day.setHours(0, 0, 0, 0);
-        const offset = Math.round((day.getTime() - todayStart.getTime()) / dayMs);
-        const index = days - 1 + offset;
-        if (index >= 0 && index < days) arr[index] += 1;
-      }
-      return arr;
-    };
+    const trendBuckets: Record<string, number[]> = { published: new Array(days).fill(0), views: new Array(days).fill(0), downloads: new Array(days).fill(0), favorites: new Array(days).fill(0), searches: new Array(days).fill(0) };
+    for (const row of trendRows) {
+      const index = labelIndex.get(String(row.label));
+      const bucket = trendBuckets[String(row.kind)];
+      if (index !== undefined && bucket) bucket[index] += Number(row.total);
+    }
 
     const analyzed = (aiGroups as Array<{ safe: boolean; _count: { _all: number } }>).reduce((sum, item) => sum + item._count._all, 0);
     const blocked = (aiGroups as Array<{ safe: boolean; _count: { _all: number } }>).reduce((sum, item) => sum + (item.safe ? 0 : item._count._all), 0);
-    const failByType = new Map<string, number>();
-    for (const task of failedTasks) failByType.set(task.type, (failByType.get(task.type) || 0) + 1);
-    const publishSuccess = publishTasks.filter((task) => task.status === "success").length;
-
-    const termCount = new Map<string, number>();
-    const gapCount = new Map<string, number>();
-    for (const log of searchLogs) {
-      const key = log.keyword.trim();
-      termCount.set(key, (termCount.get(key) || 0) + 1);
-      if (!log.hasResult) gapCount.set(key, (gapCount.get(key) || 0) + 1);
-    }
+    const searchTotal = (searchStatus as Array<{ hasResult: boolean; _count: { _all: number } }>).reduce((sum, item) => sum + item._count._all, 0);
+    const searchHits = (searchStatus as Array<{ hasResult: boolean; _count: { _all: number } }>).reduce((sum, item) => sum + (item.hasResult ? item._count._all : 0), 0);
+    const publishTotal = (publishGroups as Array<{ status: string; _count: { _all: number } }>).reduce((sum, item) => sum + item._count._all, 0);
+    const publishSuccess = (publishGroups as Array<{ status: string; _count: { _all: number } }>).reduce((sum, item) => sum + (item.status === "success" ? item._count._all : 0), 0);
 
     return {
       range: { days },
       trends: {
         labels,
-        published: bucket(wallpapers),
-        views: bucket(clicks),
-        downloads: bucket(downloads),
-        favorites: bucket(favorites),
-        searches: bucket(searches),
+        published: trendBuckets.published,
+        views: trendBuckets.views,
+        downloads: trendBuckets.downloads,
+        favorites: trendBuckets.favorites,
+        searches: trendBuckets.searches,
       },
       hotWallpapers: { daily: hotDaily, weekly: hotWeekly, monthly: hotMonthly },
       hotTags: clickTagData,
       search: {
-        total: searchLogs.length,
-        hitRate: searchLogs.length ? Number(((searchLogs.filter((item) => item.hasResult).length / searchLogs.length) * 100).toFixed(1)) : 0,
-        topTerms: [...termCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([keyword, count]) => ({ keyword, count })),
-        gaps: [...gapCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([keyword, count]) => ({ keyword, count })),
+        total: searchTotal,
+        hitRate: searchTotal ? Number(((searchHits / searchTotal) * 100).toFixed(1)) : 0,
+        topTerms: (topTerms as Array<{ keyword: string; _count: { _all: number } }>).map((item) => ({ keyword: item.keyword, count: item._count._all })),
+        gaps: (gaps as Array<{ keyword: string; _count: { _all: number } }>).map((item) => ({ keyword: item.keyword, count: item._count._all })),
       },
       publish: {
         boards,
         ai: { analyzed, blocked, blockRate: analyzed ? Number(((blocked / analyzed) * 100).toFixed(1)) : 0 },
-        taskFailures: [...failByType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([type, count]) => ({ type, count })),
-        publishSuccessRate: publishTasks.length ? Number(((publishSuccess / publishTasks.length) * 100).toFixed(1)) : 0,
+        taskFailures: (failedGroups as Array<{ type: string; _count: { _all: number } }>).map((item) => ({ type: item.type, count: item._count._all })),
+        publishSuccessRate: publishTotal ? Number(((publishSuccess / publishTotal) * 100).toFixed(1)) : 0,
       },
     };
   }
