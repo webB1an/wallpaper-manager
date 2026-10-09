@@ -441,7 +441,10 @@ export class AdminService implements OnModuleInit {
         continue;
       }
       if (w.status === "rejected" && cp?.stage !== "skipped") throw new BadRequestException("部分资源审核未通过，不能继续");
-      if (cp?.stage !== "done" && cp?.stage !== "skipped" && (!w.assetPath || !existsSync(join(process.cwd(), "storage", "public", w.assetPath)))) throw new BadRequestException("恢复所需的原文件不存在");
+      // 网盘备份完成（resources 及之后阶段）后原图已被即时回收，这些阶段的恢复不再读本地文件。
+      const fileIndependentStages = ["resources", "resource_inflight", "channel", "channel_inflight"];
+      const fileIndependent = typeof cp?.stage === "string" && fileIndependentStages.includes(cp.stage);
+      if (cp?.stage !== "done" && cp?.stage !== "skipped" && !fileIndependent && (!w.assetPath || !existsSync(join(process.cwd(), "storage", "public", w.assetPath)))) throw new BadRequestException("恢复所需的原文件不存在");
       if (confirmMissingUploads && cp) {
         for (const drive of Object.values(cp.drives)) if (drive?.phase === "uploading") drive.phase = "pending";
       }
@@ -1610,6 +1613,16 @@ export class AdminService implements OnModuleInit {
     }
   }
 
+  /** 网盘备份完成后的原图即时回收；封面与文章排版保留，文件缺失时只清指针。 */
+  private async discardOriginalAfterBackup(id: string) {
+    const wallpaper = await this.prisma.wallpaper.findUnique({ where: { id }, select: { assetPath: true, articleAssets: { select: { id: true } }, storageLinks: { select: { isActive: true, provider: true } } } });
+    // 必须已有活跃百度/夸克备份：网盘同步失败不阻断发布，没有备份就删等于销毁唯一副本。
+    if (!wallpaper?.assetPath || wallpaper.articleAssets.length) return;
+    if (!wallpaper.storageLinks.some((link) => link.isActive && (link.provider === "baidu" || link.provider === "quark"))) return;
+    await this.removeUploadedFile(join(process.cwd(), "storage", "public", wallpaper.assetPath)).catch(() => undefined);
+    await this.prisma.wallpaper.update({ where: { id }, data: { assetPath: null } }).catch(() => undefined);
+  }
+
   async enqueueProcessWallpaperBatch(ids: string[], storageSelection?: StorageSelection, channelAccountId?: string, options?: { publish?: boolean }) {
     if (!ids.length) throw new BadRequestException("请选择要处理的壁纸");
     await this.assertStorageReady(storageSelection);
@@ -1761,6 +1774,8 @@ export class AdminService implements OnModuleInit {
       topicNames: wallpaper.tags.map(({ tag }) => tag.name).slice(0, 6),
     });
     await this.markAccountPublishUsed(result.accountId);
+    // 发帖附件已用完，网盘也有备份：原图到此完成使命，立即回收（文件缺失时静默跳过）。
+    await this.discardOriginalAfterBackup(id).catch(() => undefined);
     return result;
   }
 
@@ -1810,6 +1825,8 @@ export class AdminService implements OnModuleInit {
       topicNames: tags,
     });
     await this.markAccountPublishUsed(result.accountId);
+    // 发帖附件已用完，网盘也有备份：发布涉及的原图立即回收（WallMuse 素材与缺失文件自动跳过）。
+    for (const item of wallpapers) await this.discardOriginalAfterBackup(item.id).catch(() => undefined);
     return result;
   }
 

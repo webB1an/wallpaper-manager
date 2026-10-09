@@ -15,7 +15,7 @@ test("系统设置持久化开关，默认关闭，保存后服务与公开接�
     findUnique: async () => value ? { value } : null,
     upsert: async (args: any) => { value = args.update.value; },
   } } });
-  const service = new WallMuseService({} as any, { get: () => "true" } as any, admin, {} as any, {} as any, {} as any);
+  const service = new WallMuseService({} as any, { get: () => "true" } as any, admin, {} as any, {} as any, {} as any, { sweep: async () => ({ removed: 0, bytes: 0, held: 0 }) } as any);
   assert.equal(await service.enabled(), false, "环境变量不再决定开关");
   await assert.rejects(service.create({}, "test-key"), /尚未启用/);
   const controller = new CollectionsController({ wallMuseCollection: {
@@ -103,13 +103,13 @@ test("同步已有合集返回同一个结果，不再改动壁纸，不接受�
   const collection = { id: "c1", revisionId: "r1", wallpaperIds: ["w1"] };
   const tx = { wallMuseArticle: { findUnique: async () => ({ id: "a1", lifecycle: "synced", collection }) } };
   const service = new WallMuseService({ $transaction: async (fn: (client: unknown) => Promise<unknown>) => fn(tx) } as any,
-    { get: () => "true" } as any, { getSettings: async () => ({ wallMuseEnabled: true }) } as any, {} as any, {} as any, {} as any);
+    { get: () => "true" } as any, { getSettings: async () => ({ wallMuseEnabled: true }) } as any, {} as any, {} as any, {} as any, { sweep: async () => ({ removed: 0, bytes: 0, held: 0 }) } as any);
   assert.deepEqual(await service.sync("a1", { revisionId: "r1" }), { status: "synced", collectionId: "c1", wallpaperIds: ["w1"] });
   await assert.rejects(service.sync("a1", { revisionId: "r2" }), /固定合集/);
 });
 test("未复制文章不能同步小程序", async () => {
   const tx = { wallMuseArticle: { findUnique: async () => ({ id: "a1", lifecycle: "pending", collection: null, copiedRevisionId: null }) } };
   const service = new WallMuseService({ $transaction: async (fn: (client: unknown) => Promise<unknown>) => fn(tx) } as any,
-    { get: () => "true" } as any, { getSettings: async () => ({ wallMuseEnabled: true }) } as any, {} as any, {} as any, {} as any);
+    { get: () => "true" } as any, { getSettings: async () => ({ wallMuseEnabled: true }) } as any, {} as any, {} as any, {} as any, { sweep: async () => ({ removed: 0, bytes: 0, held: 0 }) } as any);
   await assert.rejects(service.sync("a1", { revisionId: "r1" }), /成功复制/);
 });

@@ -29,7 +29,11 @@ export function cleanupDecision(asset: any, now = Date.now()): "discard" | "orig
   if (["rejected", "off_theme", "near_duplicate", "not_anime"].includes(asset.state) && !referenced && asset.wallpaper.status !== "published") {
     return now - lastUse >= UNUSED_RETENTION_MS ? "discard" : null;
   }
-  if (asset.state === "ready" && now - lastUse >= (referenced ? ORIGINAL_RETENTION_MS : UNUSED_RETENTION_MS)) return "original";
+  if (asset.state === "ready") {
+    // 已同步为固定合集的文章不可再编辑，素材在网盘的备份也已通过同步前校验，原图无需再等保留期。
+    const retention = asset.article.lifecycle === "synced" ? 0 : (referenced ? ORIGINAL_RETENTION_MS : UNUSED_RETENTION_MS);
+    if (now - lastUse >= retention) return "original";
+  }
   return null;
 }
 
@@ -68,23 +72,35 @@ export class WallMuseCleanupService implements OnModuleInit, OnModuleDestroy {
   private include = { wallpaper: { include: { storageLinks: true, articleAssets: { select: { id: true } } } },
     article: { include: { jobs: { select: { status: true, updatedAt: true } }, revisions: { select: { payload: true } } } } } as const;
 
-  /** Read-only verification in the original account; never creates uploads or shares. */
-  async backupVerified(asset: any): Promise<boolean> {
+  /** Read-only verification in the original account; never creates uploads or shares.
+   *  Returns true when every recorded drive still proves a usable backup, otherwise a human-readable reason. */
+  async backupVerified(asset: any): Promise<true | string> {
     const drives = Object.entries(asset.drives as DriveState);
-    if (!drives.length || !asset.wallpaper.fileSize || Number(asset.wallpaper.fileSize) > Number.MAX_SAFE_INTEGER) return false;
+    if (!drives.length) return "素材没有任何网盘备份记录";
+    if (!asset.wallpaper.fileSize || Number(asset.wallpaper.fileSize) > Number.MAX_SAFE_INTEGER) return "缺少可校验的文件大小";
     for (const [provider, drive] of drives) {
-      if (!drive || drive.phase !== "shared" || !drive.url || !["baidu", "quark"].includes(provider)) return false;
-      if (!asset.wallpaper.storageLinks.some((link: any) => link.isActive && link.provider === provider && link.storageAccountId === drive.accountId && link.url === drive.url)) return false;
-      const account = await this.accounts.getAccountForProvider(provider as "baidu" | "quark", drive.accountId);
-      if (!account || account.id !== drive.accountId) return false;
+      const label = provider === "baidu" ? "百度" : provider === "quark" ? "夸克" : provider;
+      if (!drive || drive.phase !== "shared" || !drive.url || !["baidu", "quark"].includes(provider)) return `${label}备份未完成分享`;
+      if (!asset.wallpaper.storageLinks.some((link: any) => link.isActive && link.provider === provider && link.storageAccountId === drive.accountId && link.url === drive.url)) return `${label}缺少与备份一致的有效链接记录`;
+      let account;
+      try { account = await this.accounts.getAccountForProvider(provider as "baidu" | "quark", drive.accountId); } catch {
+        return `${label}原账号不存在或已停用`;
+      }
+      if (!account || account.id !== drive.accountId) return `${label}原账号不存在或已停用`;
       const size = Number(asset.wallpaper.fileSize);
       if (provider === "baidu") {
-        if (!drive.remotePath) return false;
-        const listing = await this.baidu.list(drive.remotePath.slice(0, drive.remotePath.lastIndexOf("/")), account);
-        if (listing.items.filter((item) => !item.isDir && item.path === drive.remotePath && item.size === size).length !== 1) return false;
+        if (!drive.remotePath) return `${label}备份缺少网盘路径`;
+        let listing;
+        try { listing = await this.baidu.list(drive.remotePath.slice(0, drive.remotePath.lastIndexOf("/")), account); } catch (error) {
+          return `${label}网盘目录核对失败：${(error as Error).message}`;
+        }
+        if (listing.items.filter((item) => !item.isDir && item.path === drive.remotePath && item.size === size).length !== 1) return `${label}网盘中未找到大小一致的备份文件`;
       } else {
-        const fid = await this.quark.searchFileFid(basename(asset.wallpaper.assetPath), account, size);
-        if (!drive.fids?.includes(fid)) return false;
+        let fid;
+        try { fid = await this.quark.searchFileFid(basename(asset.wallpaper.assetPath), account, size); } catch (error) {
+          return `${label}备份核对失败：${(error as Error).message}`;
+        }
+        if (!drive.fids?.includes(fid)) return `${label}网盘中未找到备份文件`;
       }
     }
     return true;
@@ -97,15 +113,28 @@ export class WallMuseCleanupService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.leases.run("wallmuse-cleanup", async () => {
         const rows = await this.prisma.wallMuseAsset.findMany({ where: {
-          state: { in: ["ready", "rejected", "off_theme", "near_duplicate", "not_anime"] }, createdAt: { lt: new Date(Date.now() - UNUSED_RETENTION_MS) },
+          state: { in: ["ready", "rejected", "off_theme", "near_duplicate", "not_anime"] },
+          // 已同步文章的素材随时可清，其余按 3 天候选保留期进入扫描。
+          OR: [
+            { createdAt: { lt: new Date(Date.now() - UNUSED_RETENTION_MS) } },
+            { article: { lifecycle: "synced" } },
+          ],
           wallpaper: { assetPath: { startsWith: "originals/wm-" } },
           article: { jobs: { none: { status: { notIn: ["done", "cancelled"] } } } },
-        }, include: this.include, orderBy: { id: "asc" }, take: 20, ...(this.cursor ? { cursor: { id: this.cursor }, skip: 1 } : {}) });
-        this.cursor = rows.length === 20 ? rows.at(-1)!.id : undefined;
+        }, include: this.include, orderBy: { id: "asc" }, take: 50, ...(this.cursor ? { cursor: { id: this.cursor }, skip: 1 } : {}) });
+        this.cursor = rows.length === 50 ? rows.at(-1)!.id : undefined;
         for (const asset of rows) {
           try {
             const decision = cleanupDecision(asset);
-            if (!decision || (decision === "original" && !(await this.backupVerified(asset)))) { held++; continue; }
+            if (!decision) { held++; continue; }
+            if (decision === "original") {
+              const verified = await this.backupVerified(asset);
+              if (verified !== true) {
+                held++;
+                this.logger.warn(`素材 ${asset.id} 原图保留：${verified}`);
+                continue;
+              }
+            }
             await this.leases.run("wallmuse-worker", async (fence) => {
               await this.leases.run("storage-transfers", async (storageFence) => {
                 const fresh = await this.prisma.wallMuseAsset.findUnique({ where: { id: asset.id }, include: this.include });

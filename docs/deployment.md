@@ -210,6 +210,7 @@ npm run import:old-covers -w apps/api -- --limit=100
 - 资源库里可手动补夸克/百度链接，后台会为新增链接生成 `r.wdbzk.com` 短链。
 - 小程序详情页会展示短链文本，用户点击复制后自行打开网盘。
 - 小程序内点下载时，若服务器没有源文件，后端会自动从该壁纸的网盘分享链接按需回源（夸克优先、百度备用），拉回的文件写入 `storage/public/fetched/` 并按 `FETCHED_ASSET_TTL_DAYS`（默认 7 天）过期清理，过期后再次下载会重新回源。回源依赖第 7 节配置的网盘账号授权；夸克链路为 分享详情 → 转存 → 搜索 → 读取 四步，个别特殊文件名可能搜索不到，此时会自动尝试百度备用链接。
+- 本地原图（`storage/public/originals/`，管理端上传与来源下载产生）除了上架成功时立即删除外，后台每小时还会周期兜底清理：仅当该壁纸在网盘已有有效备份链接且文件超过 `ORIGINALS_RETENTION_DAYS`（默认 7 天）未变动时才删除，没有网盘备份的原图永远不会被自动清理。WallMuse 文章素材（`originals/wm-*`）由 WallMuse 专属清理流程管理，见 `docs/wallmuse.md`。
 - 下架资源仍有关联活跃短链时，可先在服务器执行 `npm run cleanup:unpublished-links` 做 dry-run 审计；确认后执行 `npm run cleanup:unpublished-links -- --apply` 停用这些非上架资源的活跃网盘链接。
 
 ## 12. 发布前验收清单

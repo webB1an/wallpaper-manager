@@ -10,6 +10,7 @@ import { animeSources, isAnimeSource } from "./anime-policy";
 import { PrismaService } from "../prisma/prisma.service";
 import { StorageAccountService } from "../storage/storage-account.service";
 import { WallMuseAiService } from "./wallmuse-ai.service";
+import { WallMuseCleanupService } from "./wallmuse-cleanup.service";
 import { WallMusePolicyService } from "./wallmuse-policy.service";
 import { privateAssetPath } from "./article-files";
 import { createInputSchema, digest, json, regenerationSchema, revisionDigest, revisionSchema, revisionWriteSchema, titleFor, type ArticleRevision, type Checkpoint, type DriveState, type StoredGenerationInput } from "./wallmuse.schemas";
@@ -31,6 +32,7 @@ export class WallMuseService {
     private readonly accounts: StorageAccountService,
     private readonly ai: WallMuseAiService,
     private readonly policy: WallMusePolicyService,
+    private readonly cleanup: WallMuseCleanupService,
   ) {}
 
   async enabled() { return (await this.admin.getSettings()).wallMuseEnabled === true; }
@@ -264,7 +266,7 @@ export class WallMuseService {
   async sync(id: string, value: unknown) {
     await this.assertEnabled();
     const { revisionId } = parseInput(z.object({ revisionId: z.string().min(1).max(64) }).strict(), value);
-    return this.serial(async (tx) => {
+    const result = await this.serial(async (tx) => {
       const article = await tx.wallMuseArticle.findUnique({ where: { id }, include: { collection: true } });
       if (!article) throw new NotFoundException("文章不存在");
       if (article.collection) {
@@ -293,8 +295,13 @@ export class WallMuseService {
       if (publish.count !== ids.length) throw new ConflictException("素材状态已变化，未完成上架");
       const updated = await tx.wallMuseArticle.updateMany({ where: { id, lifecycle: "history", copiedRevisionId: revisionId }, data: { lifecycle: "synced", syncedAt: new Date() } });
       if (!updated.count) throw new ConflictException("文章状态已变化，请刷新后确认");
-      return { status: "synced", wallpaperIds: ids };
+      const result = { status: "synced", wallpaperIds: ids };
+      return result;
     });
+    // 事务提交成功后文章不可再编辑，异步回收本批原图（内部仍逐一执行网盘备份核对）。
+    // 必须放在事务外：sweep 用独立连接，事务内启动会读不到未提交的 lifecycle=synced。
+    void this.cleanup.sweep().catch(() => undefined);
+    return result;
   }
 
   async cancel(id: string) {

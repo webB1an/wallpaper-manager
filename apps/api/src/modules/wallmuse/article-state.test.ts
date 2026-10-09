@@ -31,7 +31,7 @@ function harness() {
     wallMuseAsset: { findMany: async () => [{ ...first.assets[0], wallpaper: { title: "远山", status: "pending_review" } }] },
   };
   const prisma: any = { $transaction: async (work: any, options: any) => { assert.equal(options.isolationLevel, "Serializable"); return work(tx); } };
-  const service = new WallMuseService(prisma, { get: () => "true" } as any, { getSettings: async () => ({ wallMuseEnabled: true }) } as any, {} as any, {} as any, {} as any);
+  const service = new WallMuseService(prisma, { get: () => "true" } as any, { getSettings: async () => ({ wallMuseEnabled: true }) } as any, {} as any, {} as any, {} as any, { sweep: async () => ({ removed: 0, bytes: 0, held: 0 }) } as any);
   return { service, article, rows, first, writes, prisma, tx };
 }
 

@@ -10,6 +10,7 @@ import { WdbzkModule } from "../wdbzk/wdbzk.module";
 import { AdminController } from "./admin.controller";
 import { WALLPAPER_QUEUE } from "./admin.queue";
 import { AdminService } from "./admin.service";
+import { OriginalsCleanupService } from "./originals-cleanup.service";
 import { WallpaperProcessor } from "./wallpaper.processor";
 import { QueueRecoveryService } from "./queue-recovery.service";
 import { SourcesModule } from "../sources/sources.module";
@@ -26,7 +27,7 @@ import { SourcesModule } from "../sources/sources.module";
     TasksModule,
   ],
   controllers: [AdminController],
-  providers: [WallpaperDeleteService, AdminService, WallpaperProcessor, QueueRecoveryService],
+  providers: [WallpaperDeleteService, AdminService, WallpaperProcessor, QueueRecoveryService, OriginalsCleanupService],
   exports: [AdminService],
 })
 export class AdminModule {}

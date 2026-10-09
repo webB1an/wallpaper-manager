@@ -128,6 +128,13 @@ test("retention protects historical versions, recent work, failed jobs and share
   a.wallpaper.assetPath = "originals/wm-abcd.jpg";
   a.wallpaper.collectionOnly = true; a.wallpaper.articleAssets.push({ id: "another" });
   assert.equal(cleanupDecision(a, now), null);
+  a.wallpaper.articleAssets = [{ id: "a" }];
+  a.state = "ready"; a.article.revisions = [{ payload: { assets: [{ id: "a" }] } }];
+  a.wallpaper.status = "published";
+  a.article.jobs[0].updatedAt = "2026-09-13T23:00:00Z";
+  assert.equal(cleanupDecision(a, now), null, "referenced originals still wait the 7-day retention before sync");
+  a.article.lifecycle = "synced";
+  assert.equal(cleanupDecision(a, now), "original", "synced articles clean up right after backup verification");
   assert.equal(referencedByRevision([{ payload: {} }], "a"), true);
 });
 
@@ -137,11 +144,14 @@ test("backup verification requires original account, exact remote file size and 
   const cleanup = new WallMuseCleanupService({} as any, {} as any, { getAccountForProvider: async () => ({ id: "account" }) } as any, { list: async () => ({ items: [{ path: "/archive/wm-abcd.jpg", name: "wm-abcd.jpg", size, isDir: false }] }) } as any, {} as any);
   assert.equal(await cleanup.backupVerified(a), true);
   size = 5;
-  assert.equal(await cleanup.backupVerified(a), false);
+  assert.notEqual(await cleanup.backupVerified(a), true, "size mismatch must report a reason");
   size = 4; a.drives.baidu.phase = "sharing";
-  assert.equal(await cleanup.backupVerified(a), false);
+  assert.notEqual(await cleanup.backupVerified(a), true);
   a.drives.baidu.phase = "shared"; a.wallpaper.storageLinks[0].isActive = false;
-  assert.equal(await cleanup.backupVerified(a), false);
+  assert.notEqual(await cleanup.backupVerified(a), true);
+  a.wallpaper.storageLinks[0].isActive = true;
+  const unavailable = new WallMuseCleanupService({} as any, {} as any, { getAccountForProvider: async () => { throw new Error("gone"); } } as any, {} as any, {} as any);
+  assert.match(String(await unavailable.backupVerified(a)), /账号/);
 });
 
 test("filesystem cleanup deletes only owned generated files and is idempotent", async () => {
@@ -171,7 +181,8 @@ test("scheduled cleanup retains originals when backup is unverified and preserve
     prisma.$transaction = async (fn: any) => fn(prisma);
     const leases: any = { run: async (_: string, fn: any) => fn({ assert: async () => {} }) };
     const cleanup = new WallMuseCleanupService(prisma, leases, {} as any, {} as any, {} as any);
-    Object.assign(cleanup, { storageRoot: root, backupVerified: async () => verified, logger: { log: () => {}, warn: (message: string) => assert.fail(message) } });
+    // 核对未通过会记录保留原因日志，这里不把 warn 视为失败；断言核心是文件与数据库状态。
+    Object.assign(cleanup, { storageRoot: root, backupVerified: async () => verified, logger: { log: () => {}, warn: () => {} } });
     assert.equal((await cleanup.sweep())?.removed, 0);
     assert.equal(await readFile(join(root, "public/originals/wm-abcd.jpg"), "utf8"), "test");
     verified = true;
