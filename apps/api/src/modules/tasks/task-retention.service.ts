@@ -8,6 +8,8 @@ const DEFAULT_RETENTION_DAYS = 7;
 const MAX_RETENTION_DAYS = 90;
 const SWEEP_INTERVAL_MS = 6 * 60 * 60_000;
 const FIRST_SWEEP_DELAY_MS = 10 * 60_000;
+/** 排队/执行中但超过该时长无任何进展的任务视为已中断（进程重启、部署打断等）。 */
+const STALE_ACTIVE_MS = DAY;
 
 /**
  * 任务表只保留最近 N 天（默认 7 天）的记录。
@@ -47,16 +49,29 @@ export class TaskRetentionService implements OnModuleInit, OnModuleDestroy {
     return Math.min(Math.floor(value), MAX_RETENTION_DAYS);
   }
 
-  async prune(): Promise<{ days: number; cutoff: Date; removed: number }> {
+  async prune(): Promise<{ days: number; cutoff: Date; removed: number; released: number }> {
     const days = this.retentionDays();
     const cutoff = new Date(Date.now() - days * DAY);
+    // 先释放“假执行中”的任务：服务重启、部署打断后任务可能停在 queued/running 再无更新，
+    // 既不满足删除条件（永不清理），又无法在界面上重试，会永久占据最老记录的位置。
+    const { count: released } = await this.prisma.task.updateMany({
+      where: {
+        status: { in: [TaskStatus.queued, TaskStatus.running] },
+        updatedAt: { lt: new Date(Date.now() - STALE_ACTIVE_MS) },
+      },
+      data: {
+        status: TaskStatus.failed,
+        error: "任务超过 24 小时没有任何进展，已判定为中断；如支持断点续跑，可在此重试",
+      },
+    });
     const { count } = await this.prisma.task.deleteMany({
       where: {
         createdAt: { lt: cutoff },
+        // 释放之后仍可能有刚被别的进程领走的任务，保守起见再排除一次活跃状态。
         status: { notIn: [TaskStatus.queued, TaskStatus.running] },
       },
     });
-    return { days, cutoff, removed: count };
+    return { days, cutoff, removed: count, released };
   }
 
   private async sweep() {
@@ -64,6 +79,9 @@ export class TaskRetentionService implements OnModuleInit, OnModuleDestroy {
     this.busy = true;
     try {
       const result = await this.prune();
+      if (result.released) {
+        this.logger.warn(`任务清理前释放了 ${result.released} 条长时间无进展的任务（标记为失败，可重试）`);
+      }
       if (result.removed) {
         this.logger.log(`任务记录清理完成：删除 ${result.removed} 条早于 ${result.days} 天的任务`);
       }

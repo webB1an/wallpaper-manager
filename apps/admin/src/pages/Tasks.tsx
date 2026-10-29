@@ -11,8 +11,11 @@ export function Tasks() {
   const pruneTasks = async () => {
     setPruning(true);
     try {
-      const result = await request<{ days: number; removed: number }>("/api/admin/tasks/prune", { method: "POST" });
-      message.success(`已清理 ${result.removed} 条超过 ${result.days} 天的任务记录`);
+      const result = await request<{ days: number; removed: number; released: number; cutoff: string }>("/api/admin/tasks/prune", { method: "POST" });
+      const parts = [`已清理 ${result.removed} 条超过 ${result.days} 天的任务记录`];
+      if (result.released) parts.push(`${result.released} 条超过 24 小时无进展的任务已标记为失败（可重试）`);
+      parts.push(`早于 ${taskTime(result.cutoff)} 的记录才会被删除`);
+      message.success(parts.join("；"));
       await load(1);
     } catch (error) {
       message.error(error instanceof Error ? error.message : "清理失败");
@@ -60,7 +63,7 @@ export function Tasks() {
   }, [autoRefresh, page, status, type]);
   return (
     <section>
-      <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。时间均为北京时间；最后更新不代表首次失败时间。任务记录只保留最近 7 天（TASK_RETENTION_DAYS 可调）。" />
+      <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。时间均为北京时间；最后更新不代表首次失败时间。任务记录只保留最近 7 天（TASK_RETENTION_DAYS 可调），按创建时间精确计算，所以清理后最早一条通常正好落在 7 天前的那一天。" />
       <Space className="toolbar">
         <Button onClick={() => void load()}>刷新</Button>
         <Tag color="gold">共 {data.total} 条</Tag>
@@ -92,7 +95,7 @@ export function Tasks() {
         <Switch checked={autoRefresh} onChange={setAutoRefresh} />
         <Popconfirm
           title="立即清理过期任务记录？"
-          description="只删除已结束且超过保留期的任务，排队中/执行中的任务不会被删除。"
+          description="只删除已结束且早于保留期起点的任务；排队中/执行中的任务不会被删除，但超过 24 小时无进展的会被先标记为失败，以便重试和后续清理。"
           okText="清理"
           cancelText="取消"
           onConfirm={pruneTasks}
