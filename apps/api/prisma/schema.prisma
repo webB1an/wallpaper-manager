@@ -465,6 +465,9 @@ model ChannelAccount {
   isDefault   Boolean  @default(false)
   autoPublish Boolean  @default(true)
   lastAutoPublishAt DateTime?
+  /// 平台明确拒绝（token 过期/失效）后写入；恢复发帖成功或更新 Token 时清空。
+  unavailableAt     DateTime?
+  unavailableReason String?   @db.VarChar(255)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

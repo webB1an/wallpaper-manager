@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tag, message } from "antd";
+import { Alert, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tabs, Tag, Tooltip, message } from "antd";
 import { request } from "../api";
 import { Header } from "../ui";
 import type { AutoPublishBoardRow, ChannelAccount, TencentChannelOption, TencentGuildOption } from "../types";
@@ -191,6 +191,55 @@ export function Channels() {
     await load();
   };
 
+  const [textTarget, setTextTarget] = useState<ChannelAccount | null>(null);
+  const [textContent, setTextContent] = useState("");
+  const [sendingText, setSendingText] = useState(false);
+  const submitTextTest = async () => {
+    if (!textTarget) return;
+    setSendingText(true);
+    try {
+      const result = await request<{ message: string }>(`/api/admin/channels/${textTarget.id}/test-text`, {
+        method: "POST",
+        body: JSON.stringify({ content: textContent }),
+      });
+      message.success(result.message || "纯文字测试发帖成功");
+      setTextTarget(null);
+      setTextContent("");
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "测试发帖失败");
+      await load();
+    } finally {
+      setSendingText(false);
+    }
+  };
+
+  const [tokenTarget, setTokenTarget] = useState<ChannelAccount | null>(null);
+  const [tokenValue, setTokenValue] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const submitToken = async () => {
+    if (!tokenTarget) return;
+    const token = tokenValue.trim();
+    if (!token) {
+      message.warning("请填写新的 Token");
+      return;
+    }
+    setSavingToken(true);
+    try {
+      await request(`/api/admin/channels/${tokenTarget.id}/token`, { method: "PATCH", body: JSON.stringify({ token }) });
+      message.success("Token 已更新，账号恢复可用");
+      setTokenTarget(null);
+      setTokenValue("");
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "Token 更新失败");
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
+  const unavailable = items.filter((item) => item.unavailableAt);
+
   const discoverGuilds = async () => {
     const token = String(form.getFieldValue("token") || "").trim();
     if (!token) {
@@ -276,11 +325,31 @@ export function Channels() {
                 action={<Button size="small" type="primary" onClick={() => setActiveTab("new")}>新增账号</Button>}
               />
             )}
+            {unavailable.length > 0 && (
+              <Alert
+                className="page-alert"
+                type="warning"
+                showIcon
+                message={`${unavailable.length} 个账号当前不可用`}
+                description={`${unavailable.map((item) => item.label).join("、")}：平台返回 Token 失效，自动发帖会跳过这些账号并用同板块其它账号继续。重新授权后点「更新 Token」即可恢复。`}
+              />
+            )}
             <Table rowKey="id" dataSource={items} columns={[
             { title: "名称", dataIndex: "label" },
             { title: "Token", dataIndex: "tokenTail", render: (tail) => `******${tail}` },
             { title: "频道", dataIndex: "guildName" },
             { title: "版块", dataIndex: "channelName" },
+            {
+              title: "状态",
+              dataIndex: "unavailableAt",
+              render: (value: string | null, row) => value
+                ? (
+                  <Tooltip title={`${new Date(value).toLocaleString("zh-CN")} ${row.unavailableReason || "Token 失效"}`}>
+                    <Tag color="red">不可用</Tag>
+                  </Tooltip>
+                )
+                : <Tag color="green">正常</Tag>,
+            },
             { title: "默认", dataIndex: "isDefault", render: (value) => value ? <Tag color="gold">默认</Tag> : null },
             {
               title: "自动发帖",
@@ -305,6 +374,10 @@ export function Channels() {
                   await load();
                 }}>设为默认</Button>}
                 <Button size="small" onClick={() => openRename(row)}>改名</Button>
+                <Button size="small" onClick={() => { setTokenTarget(row); setTokenValue(""); }}>
+                  {row.unavailableAt ? "更新 Token" : "更换 Token"}
+                </Button>
+                <Button size="small" onClick={() => { setTextTarget(row); setTextContent(""); }}>发文字测试</Button>
                 <Popconfirm title="删除这个频道账号？" okText="删除" cancelText="取消" onConfirm={async () => {
                   await request(`/api/admin/channels/${row.id}`, { method: "DELETE" });
                   message.success("频道账号已删除");
@@ -396,6 +469,50 @@ export function Channels() {
         <Form layout="vertical">
           <Form.Item label="账号名称" required>
             <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} placeholder="输入新的账号名称" />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title={`纯文字发帖测试${textTarget ? ` · ${textTarget.label}` : ""}`}
+        open={Boolean(textTarget)}
+        onCancel={() => setTextTarget(null)}
+        onOk={submitTextTest}
+        confirmLoading={sendingText}
+        okText="发送"
+        cancelText="取消"
+      >
+        <Alert
+          className="page-alert"
+          type="info"
+          showIcon
+          message="会真实发一条纯文字动态到该账号的版块"
+          description="用于验证 Token 与版块发帖权限，不带图片或视频；发送成功会自动清除该账号的不可用标记。"
+        />
+        <Form layout="vertical">
+          <Form.Item label="测试文案">
+            <Input.TextArea
+              rows={4}
+              maxLength={200}
+              showCount
+              value={textContent}
+              onChange={(event) => setTextContent(event.target.value)}
+              placeholder="留空则发送一条带时间戳的默认测试文案"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title={`更新账号 Token${tokenTarget ? ` · ${tokenTarget.label}` : ""}`}
+        open={Boolean(tokenTarget)}
+        onCancel={() => setTokenTarget(null)}
+        onOk={submitToken}
+        confirmLoading={savingToken}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form layout="vertical">
+          <Form.Item label="新的 Token" required extra="重新授权拿到新 Token 后粘贴进来；保存即清除不可用标记，建议随后做一次纯文字发帖测试。">
+            <Input.Password value={tokenValue} onChange={(event) => setTokenValue(event.target.value)} placeholder="QQ_AI_CONNECT_TOKEN" />
           </Form.Item>
         </Form>
       </Modal>

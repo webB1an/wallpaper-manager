@@ -91,6 +91,10 @@ export type ChannelAccount = {
   channelName?: string;
   isDefault: boolean;
   autoPublish: boolean;
+  lastAutoPublishAt?: string | null;
+  /** 平台明确拒绝（Token 过期/失效）的时间；发帖成功或更新 Token 后清空。 */
+  unavailableAt?: string | null;
+  unavailableReason?: string | null;
 };
 
 export type StorageAccount = {

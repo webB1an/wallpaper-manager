@@ -17,6 +17,9 @@ const PUBLIC_CHANNEL_ACCOUNT_SELECT = {
   channelName: true,
   isDefault: true,
   autoPublish: true,
+  lastAutoPublishAt: true,
+  unavailableAt: true,
+  unavailableReason: true,
   createdAt: true,
 } as const;
 
@@ -29,10 +32,36 @@ interface PublishInput {
   onAccountSwitch?: (message: string) => Promise<void>;
 }
 
-export class ChannelPermissionDeniedError extends Error {}
+/** 平台明确拒绝本次发帖（内容未被发出），可以安全地换账号重试。 */
+export class ChannelPublishRejectedError extends Error {}
+export class ChannelPermissionDeniedError extends ChannelPublishRejectedError {}
+/** 账号凭据失效（token 过期/无效）：换账号重试，同时把该账号标记为不可用。 */
+export class ChannelAccountUnavailableError extends ChannelPublishRejectedError {}
 
 export function isPermissionDeniedResult(parsed: { success?: boolean; error?: { message?: string } } | null, stderr: string, commandFailed = false): boolean {
   return (parsed?.success === false || (commandFailed && parsed?.success !== true)) && /暂无权限/.test(parsed?.error?.message || "") && !/timed?\s*out|timeout|超时/i.test(stderr);
+}
+
+/**
+ * token 过期/失效（业务码 100051）不是权限也不是内容问题，重新授权即可恢复。
+ * 只看明确的凭据失效信号，避免把超时、网络错误误判成账号不可用。
+ */
+export function isAccountUnavailableResult(parsed: { success?: boolean; error?: { message?: string } } | null, stderr = ""): boolean {
+  if (/timed?\s*out|timeout|超时/i.test(stderr)) return false;
+  const text = `${parsed?.error?.message || ""}\n${stderr}`;
+  return /(?:^|[^0-9])100051(?:[^0-9]|$)/.test(text)
+    || /token\s*(?:is\s*)?(?:expired|invalid)|token\s*(?:已)?(?:过期|失效)|登录态(?:已)?失效/i.test(text);
+}
+
+/** 可用账号优先，其次按最久未发帖；标记为不可用的账号排到最后，但仍会尝试（可能已在别处重新授权）。 */
+export function sortChannelCandidates<T extends { unavailableAt: Date | null; lastAutoPublishAt: Date | null; createdAt: Date; id: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const badDiff = (a.unavailableAt ? 1 : 0) - (b.unavailableAt ? 1 : 0);
+    if (badDiff !== 0) return badDiff;
+    const lastDiff = (a.lastAutoPublishAt?.getTime() ?? 0) - (b.lastAutoPublishAt?.getTime() ?? 0);
+    if (lastDiff !== 0) return lastDiff;
+    return a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id);
+  });
 }
 
 export interface TencentGuildOption {
@@ -178,24 +207,79 @@ export class ChannelService {
           topicNames: input.topicNames || [],
         });
       } catch (error) {
-        if (!(error instanceof ChannelPermissionDeniedError)) throw error;
+        // 明确拒绝（暂无权限 / token 失效）时内容没有发出，换账号是安全的；超时等不确定结果不在此列。
+        if (!(error instanceof ChannelPublishRejectedError)) throw error;
+        if (error instanceof ChannelAccountUnavailableError) {
+          await this.markUnavailable(current.id, error.message);
+        }
         if (index === 0) {
           const alternatives = await this.prisma.channelAccount.findMany({
             where: { id: { not: account.id }, autoPublish: true, guildId: account.guildId, channelId: account.channelId },
-            orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }, { id: "asc" }],
           });
-          candidates.push(...alternatives);
+          candidates.push(...sortChannelCandidates(alternatives));
         }
         const next = candidates[index + 1];
-        if (!next) throw new ChannelPermissionDeniedError(`同板块 ${candidates.length} 个候选账号均提示暂无权限，已停止发帖`);
+        if (!next) throw new ChannelPublishRejectedError(`同板块 ${candidates.length} 个候选账号均无法发帖，已停止：${error.message}`);
         switchedAccounts++;
-        await input.onAccountSwitch?.(`账号「${current.label}」暂无权限，切换到「${next.label}」发帖`);
+        const why = error instanceof ChannelAccountUnavailableError ? "Token 已失效" : "暂无权限";
+        await input.onAccountSwitch?.(`账号「${current.label}」${why}，切换到「${next.label}」发帖`);
         continue;
       }
+      // 发帖成功说明账号可用：清掉历史不可用标记。
+      await this.clearUnavailable(current.id);
       // Once publishing succeeds, failures in later bookkeeping must never cause another publish.
-      return { ...result, accountId: current.id, switchedAccounts, message: switchedAccounts ? `腾讯频道发布成功（因暂无权限切换 ${switchedAccounts} 次账号）` : result.message };
+      return { ...result, accountId: current.id, switchedAccounts, message: switchedAccounts ? `腾讯频道发布成功（因账号不可用切换 ${switchedAccounts} 次账号）` : result.message };
     }
     throw new Error("没有可用的发帖账号");
+  }
+
+  /** 纯文字发帖测试：不附图/视频，用来验证账号 Token 与版块发帖权限。成功即视为账号可用。 */
+  async testTextPublish(accountId: string, content?: string) {
+    const text = (content || "").trim() || `发帖测试 · ${new Date().toLocaleString("zh-CN", { hour12: false })}`;
+    if (text.length > 1000) throw new BadRequestException("测试文案不能超过 1000 字");
+    const result = await this.publish({ accountId, content: text });
+    return { ...result, content: text };
+  }
+
+  /** 重新授权：更新 Token 并清除不可用标记。 */
+  async updateToken(id: string, token: string) {
+    const trimmed = token?.trim();
+    if (!trimmed) throw new BadRequestException("Token 不能为空");
+    const account = await this.prisma.channelAccount.findUnique({ where: { id } });
+    if (!account) throw new NotFoundException("腾讯频道账号不存在");
+    return this.prisma.channelAccount.update({
+      where: { id },
+      data: {
+        tokenCipher: encryptSecret(trimmed, this.secret()),
+        tokenTail: trimmed.slice(-6),
+        unavailableAt: null,
+        unavailableReason: null,
+      },
+      select: PUBLIC_CHANNEL_ACCOUNT_SELECT,
+    });
+  }
+
+  /** 标记失败不影响发帖主流程：换账号继续，账本下次还能再记。 */
+  private async markUnavailable(id: string, reason: string) {
+    try {
+      await this.prisma.channelAccount.update({
+        where: { id },
+        data: { unavailableAt: new Date(), unavailableReason: reason.slice(0, 255) },
+      });
+    } catch {
+      // 忽略：账号可用性标记是辅助信息，不应让发帖失败第二次。
+    }
+  }
+
+  private async clearUnavailable(id: string) {
+    try {
+      await this.prisma.channelAccount.updateMany({
+        where: { id, unavailableAt: { not: null } },
+        data: { unavailableAt: null, unavailableReason: null },
+      });
+    } catch {
+      // 同上：清理标记失败只影响展示。
+    }
   }
 
   private async runAuthenticatedQuery(token: string, args: string[]) {
@@ -269,6 +353,7 @@ export class ChannelService {
       if (!result.ok || parsed?.success === false) {
         const message = scrub(parsed?.error?.message || result.stderr || result.stdout || "腾讯频道发布失败", input.token);
         // Only a definite platform rejection is safe to retry; timeouts may already have posted.
+        if (isAccountUnavailableResult(parsed, result.stderr)) throw new ChannelAccountUnavailableError(message);
         if (isPermissionDeniedResult(parsed, result.stderr, !result.ok)) throw new ChannelPermissionDeniedError(message);
         throw new Error(message);
       }

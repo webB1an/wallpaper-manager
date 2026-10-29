@@ -349,6 +349,18 @@ export class AdminController {
   }
 
   @UseGuards(AdminAuthGuard)
+  @Patch("channels/:id/token")
+  async updateChannelToken(@Param("id") id: string, @Body() body: { token: string }) {
+    return { code: 200, data: await this.admin.updateChannelToken(id, body?.token || "") };
+  }
+
+  @UseGuards(AdminAuthGuard)
+  @Post("channels/:id/test-text")
+  async testChannelText(@Param("id") id: string, @Body() body?: { content?: string }) {
+    return { code: 200, data: await this.admin.testChannelText(id, body?.content) };
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Patch("channels/:id")
   async updateChannel(@Param("id") id: string, @Body() body: { label: string }) {
     return { code: 200, data: await this.admin.updateChannelLabel(id, body.label || "") };

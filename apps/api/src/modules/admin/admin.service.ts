@@ -15,7 +15,7 @@ import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
 import { AiService } from "../ai/ai.service";
 import type { WallpaperAnalysis } from "../ai/ai.service";
-import { ChannelPermissionDeniedError, ChannelService } from "../channel/channel.service";
+import { ChannelPublishRejectedError, ChannelService } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaiduStorageService } from "../storage/baidu-storage.service";
 import { QuarkStorageService } from "../storage/quark-storage.service";
@@ -355,7 +355,9 @@ export class AdminService implements OnModuleInit {
         });
         this.logger.warn(`任务 ${task.id} 阶段 ${failure.stage} 失败：${failure.error}`);
       }
-      if (error instanceof ChannelPermissionDeniedError && checkpoint?.stage === "publish_inflight") {
+      // 明确拒绝（暂无权限 / Token 失效）时内容没发出去，退回 publish 阶段允许修复后继续；
+      // 超时等不确定结果仍留在 publish_inflight，保持“禁止自动重发”的安全语义。
+      if (error instanceof ChannelPublishRejectedError && checkpoint?.stage === "publish_inflight") {
         await saveCheckpoint({ ...checkpoint, stage: "publish" }).catch(() => undefined);
       }
       const resumable = canResumeAutoPublish(checkpoint);
@@ -604,7 +606,8 @@ export class AdminService implements OnModuleInit {
   private async pickAutoPublishAccount(board: { guildId: string; channelId: string }) {
     const accounts = await this.prisma.channelAccount.findMany({
       where: { autoPublish: true, guildId: board.guildId, channelId: board.channelId },
-      orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
+      // unavailableAt 为 null 的账号在 MySQL 升序里排最前：优先健康账号，其次最久未发帖的。
+      orderBy: [{ unavailableAt: "asc" }, { lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
       take: 1,
     });
     return accounts[0] || null;
@@ -1576,7 +1579,7 @@ export class AdminService implements OnModuleInit {
           cp.stage = "channel_inflight"; await save();
           taskResult.channel = await this.publishWallpaperToChannel(id, channelAccountId);
         } catch (error) {
-          if (error instanceof ChannelPermissionDeniedError) { cp.stage = "channel"; await save(); }
+          if (error instanceof ChannelPublishRejectedError) { cp.stage = "channel"; await save(); }
           throw error;
         }
       }
@@ -1711,7 +1714,7 @@ export class AdminService implements OnModuleInit {
             await saveGroup("done", result);
             published.push(result);
           } catch (error) {
-            if (error instanceof ChannelPermissionDeniedError) await saveGroup("pending");
+            if (error instanceof ChannelPublishRejectedError) await saveGroup("pending");
             throw error;
           }
           if (separatePosts && groupIndex < groups.length - 1) {
@@ -1848,6 +1851,20 @@ export class AdminService implements OnModuleInit {
 
   updateChannelLabel(id: string, label: string) {
     return this.channel.updateLabel(id, label);
+  }
+
+  /** 重新授权：更新 Token 并清除不可用标记。 */
+  updateChannelToken(id: string, token: string) {
+    return this.channel.updateToken(id, token);
+  }
+
+  /** 纯文字发帖测试：验证 Token 与版块权限，不消耗素材。失败原因要能直接回显给运维。 */
+  async testChannelText(id: string, content?: string) {
+    try {
+      return await this.channel.testTextPublish(id, content);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message || "测试发帖失败");
+    }
   }
 
   setDefaultChannel(id: string) {
