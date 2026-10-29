@@ -30,6 +30,24 @@ interface PublishInput {
   videoPaths?: string[];
   topicNames?: string[];
   onAccountSwitch?: (message: string) => Promise<void>;
+  /** 账号体检（纯文字测试）时关闭切换：只验证指定账号本身，避免“测试成功但其实是别的账号发的”。 */
+  allowAccountSwitch?: boolean;
+}
+
+export type ChannelSwitchReason = "unavailable" | "permission";
+
+export interface ChannelSwitchEvent {
+  accountId: string;
+  label: string;
+  reason: ChannelSwitchReason;
+}
+
+/** 提示里区分“Token 失效（已记到账号状态）”与“版块没权限（账号本身是正常的）”，避免状态与提示互相打脸。 */
+export function describeChannelSwitches(events: ChannelSwitchEvent[]): string {
+  const describe = (event: ChannelSwitchEvent) => event.reason === "unavailable"
+    ? `账号「${event.label}」Token 已失效，已标记为不可用`
+    : `账号「${event.label}」暂无该版块发帖权限，账号本身正常`;
+  return `因${events.map(describe).join("；")}，已切换 ${events.length} 次账号`;
 }
 
 /** 平台明确拒绝本次发帖（内容未被发出），可以安全地换账号重试。 */
@@ -192,7 +210,7 @@ export class ChannelService {
     const account = await this.prisma.channelAccount.findUnique({ where: { id: input.accountId } });
     if (!account) throw new NotFoundException("腾讯频道账号不存在");
     const candidates = [account];
-    let switchedAccounts = 0;
+    const switched: ChannelSwitchEvent[] = [];
     for (let index = 0; index < candidates.length; index++) {
       const current = candidates[index];
       let result: Awaited<ReturnType<ChannelService["runPublish"]>>;
@@ -209,8 +227,11 @@ export class ChannelService {
       } catch (error) {
         // 明确拒绝（暂无权限 / token 失效）时内容没有发出，换账号是安全的；超时等不确定结果不在此列。
         if (!(error instanceof ChannelPublishRejectedError)) throw error;
-        if (error instanceof ChannelAccountUnavailableError) {
-          await this.markUnavailable(current.id, error.message);
+        const unavailable = error instanceof ChannelAccountUnavailableError;
+        if (unavailable) await this.markUnavailable(current.id, error.message);
+        const why = unavailable ? "Token 已失效" : "暂无该版块发帖权限";
+        if (input.allowAccountSwitch === false) {
+          throw new ChannelPublishRejectedError(`账号「${current.label}」${why}：${error.message}`);
         }
         if (index === 0) {
           const alternatives = await this.prisma.channelAccount.findMany({
@@ -220,15 +241,21 @@ export class ChannelService {
         }
         const next = candidates[index + 1];
         if (!next) throw new ChannelPublishRejectedError(`同板块 ${candidates.length} 个候选账号均无法发帖，已停止：${error.message}`);
-        switchedAccounts++;
-        const why = error instanceof ChannelAccountUnavailableError ? "Token 已失效" : "暂无权限";
-        await input.onAccountSwitch?.(`账号「${current.label}」${why}，切换到「${next.label}」发帖`);
+        switched.push({ accountId: current.id, label: current.label, reason: unavailable ? "unavailable" : "permission" });
+        const accountState = unavailable ? `${why}，已标记为不可用` : `${why}，账号本身正常`;
+        await input.onAccountSwitch?.(`账号「${current.label}」${accountState}，切换到「${next.label}」发帖`);
         continue;
       }
       // 发帖成功说明账号可用：清掉历史不可用标记。
       await this.clearUnavailable(current.id);
       // Once publishing succeeds, failures in later bookkeeping must never cause another publish.
-      return { ...result, accountId: current.id, switchedAccounts, message: switchedAccounts ? `腾讯频道发布成功（因账号不可用切换 ${switchedAccounts} 次账号）` : result.message };
+      return {
+        ...result,
+        accountId: current.id,
+        switchedAccounts: switched.length,
+        switchReasons: switched,
+        message: switched.length ? `腾讯频道发布成功（${describeChannelSwitches(switched)}）` : result.message,
+      };
     }
     throw new Error("没有可用的发帖账号");
   }
@@ -237,7 +264,8 @@ export class ChannelService {
   async testTextPublish(accountId: string, content?: string) {
     const text = (content || "").trim() || `发帖测试 · ${new Date().toLocaleString("zh-CN", { hour12: false })}`;
     if (text.length > 1000) throw new BadRequestException("测试文案不能超过 1000 字");
-    const result = await this.publish({ accountId, content: text });
+    // 测试只针对这一个账号：不许悄悄换号，否则会把“测试通过”报成别人的成绩。
+    const result = await this.publish({ accountId, content: text, allowAccountSwitch: false });
     return { ...result, content: text };
   }
 

@@ -1,3 +1,4 @@
+import type { ChannelSwitchEvent } from "../channel/channel.service";
 import type { BridgeItem } from "./auto-publish-sources";
 
 export type AutoPublishStage = "download" | "asset" | "analyze" | "storage" | "storage_inflight" | "publish" | "publish_inflight" | "published";
@@ -12,7 +13,7 @@ export interface AutoPublishCheckpoint {
   wallpaperId?: string;
   analysis?: { title?: string; safe: boolean; sensitiveFlags: string[]; tags: string[] };
   storageWarnings?: string[];
-  publication?: { accountId: string; switchedAccounts?: number };
+  publication?: { accountId: string; switchedAccounts?: number; switchReasons?: ChannelSwitchEvent[] };
 }
 
 /** Never replay an external side effect whose result was not durably recorded. */

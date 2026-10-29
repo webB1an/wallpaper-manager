@@ -15,7 +15,7 @@ import { publicAssetUrl, shortUrl } from "../../common/public-url";
 import { positiveInt } from "../../common/query-values";
 import { AiService } from "../ai/ai.service";
 import type { WallpaperAnalysis } from "../ai/ai.service";
-import { ChannelPublishRejectedError, ChannelService } from "../channel/channel.service";
+import { ChannelPublishRejectedError, ChannelService, describeChannelSwitches } from "../channel/channel.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaiduStorageService } from "../storage/baidu-storage.service";
 import { QuarkStorageService } from "../storage/quark-storage.service";
@@ -332,8 +332,8 @@ export class AdminService implements OnModuleInit {
       // 成功后只保留缩略图：删除本地原图（网盘已有原件），后续下载走网盘回源。
       if (persisted) await this.removeUploadedFile(persisted.path);
       await this.prisma.wallpaper.update({ where: { id: record.id }, data: { assetPath: null } });
-      const message = `已发布「${displayTitle}」到 ${boardLabel}${publication.switchedAccounts ? `（暂无权限，已切换 ${publication.switchedAccounts} 次账号）` : ""}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
-      await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true, accountId: publication.accountId, switchedAccounts: publication.switchedAccounts } });
+      const message = `已发布「${displayTitle}」到 ${boardLabel}${publication.switchReasons?.length ? `（${describeChannelSwitches(publication.switchReasons)}）` : ""}${storageWarnings.length ? `（${storageWarnings.join("；")}）` : ""}`;
+      await this.tasks.update(task.id, { status: "success", progress: 100, message, result: { ok: true, accountId: publication.accountId, switchedAccounts: publication.switchedAccounts, switchReasons: publication.switchReasons } });
       await this.prisma.autoPublishBoard.update({ where: { id: board.id }, data: { lastRunAt: new Date(), lastMessage: message } });
       await removeBridgeTransfer(task.id).catch((error) => this.logger.warn(`桥接缓存清理失败：${(error as Error).message}`));
       return { ok: true, message };

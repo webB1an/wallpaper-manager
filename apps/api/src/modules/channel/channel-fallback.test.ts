@@ -62,6 +62,7 @@ function harness(errors: Array<Error | null>) {
     cleared,
     lookups: () => lookups,
     run: () => service.publish({ accountId: "a", content: "fixture", onAccountSwitch: async (message) => { notices.push(message); } }),
+    test: () => service.testTextPublish("a", "fixture"),
   };
 }
 
@@ -71,6 +72,24 @@ test("explicit permission rejection switches to next same-board account", async 
   assert.deepEqual(h.calls, ["a", "b"]);
   assert.equal(result.accountId, "b"); assert.equal(result.switchedAccounts, 1);
   assert.equal(h.notices.length, 1);
+  // 版块权限不足不等于账号不可用：提示必须说明账号本身正常，否则列表里的“正常”会看起来像 bug。
+  assert.match(result.message, /暂无该版块发帖权限/);
+  assert.match(result.message, /账号本身正常/);
+  assert.doesNotMatch(result.message, /标记为不可用/);
+  assert.equal(h.marked.length, 0);
+});
+
+test("account test never silently switches to another account", async () => {
+  const permission = harness([new ChannelPermissionDeniedError("暂无权限"), null]);
+  await assert.rejects(permission.test(), /账号「a」暂无该版块发帖权限/);
+  assert.deepEqual(permission.calls, ["a"]);
+  assert.equal(permission.lookups(), 0);
+
+  const expired = harness([new ChannelAccountUnavailableError("token is expired (100051)"), null]);
+  await assert.rejects(expired.test(), /Token 已失效/);
+  assert.deepEqual(expired.calls, ["a"]);
+  // 体检失败也要把账号记成不可用，列表状态与测试结论一致。
+  assert.equal(expired.marked.length, 1);
 });
 
 test("success never tries another account", async () => {

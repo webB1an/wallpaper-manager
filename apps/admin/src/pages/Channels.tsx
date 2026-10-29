@@ -227,7 +227,7 @@ export function Channels() {
     setSavingToken(true);
     try {
       await request(`/api/admin/channels/${tokenTarget.id}/token`, { method: "PATCH", body: JSON.stringify({ token }) });
-      message.success("Token 已更新，账号恢复可用");
+      message.success("Token 已保存，不可用标记已清除；建议立即做一次纯文字发帖测试确认");
       setTokenTarget(null);
       setTokenValue("");
       await load();
