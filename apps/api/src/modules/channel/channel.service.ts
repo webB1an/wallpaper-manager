@@ -82,6 +82,46 @@ export function sortChannelCandidates<T extends { unavailableAt: Date | null; la
   });
 }
 
+/**
+ * 话题名清洗：去首尾空白与前导 #，丢掉空串并去重。
+ * CLI 对空数组、空话题名都是硬性拒绝（“topic_names 不能为空数组”），所以必须在传参前过滤干净。
+ */
+export function normalizeTopicNames(names?: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of names || []) {
+    if (typeof raw !== "string") continue;
+    const name = raw.trim().replace(/^#+/, "").trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    result.push(name);
+  }
+  return result;
+}
+
+export interface ChannelPublishPayloadInput {
+  guildId: string;
+  channelId: string;
+  content: string;
+  imagePaths?: readonly string[];
+  videoPaths?: readonly string[];
+  topicNames?: readonly string[];
+}
+
+/** CLI 的 stdin JSON：没有有效话题时整体省略 topic_names（空数组会被平台校验拦下）。 */
+export function buildChannelPublishPayload(input: ChannelPublishPayloadInput) {
+  const topics = normalizeTopicNames(input.topicNames).slice(0, 8);
+  const payload: Record<string, unknown> = {
+    guild_id: input.guildId,
+    channel_id: input.channelId,
+    content: input.content,
+    file_paths: (input.imagePaths || []).map((filePath) => ({ file_path: filePath.replace(/\\/g, "/") })),
+    video_paths: (input.videoPaths || []).map((filePath) => ({ file_path: filePath.replace(/\\/g, "/") })),
+  };
+  if (topics.length) payload.topic_names = topics;
+  return payload;
+}
+
 export interface TencentGuildOption {
   id: string;
   name: string;
@@ -357,14 +397,14 @@ export class ChannelService {
     try {
       await mkdir(profileDir, { recursive: true });
       await writeFile(dotenvPath, `QQ_AI_CONNECT_TOKEN=${input.token}\n`, { encoding: "utf8", mode: 0o600 });
-      await writeFile(stdinPath, JSON.stringify({
-        guild_id: input.guildId,
-        channel_id: input.channelId,
+      await writeFile(stdinPath, JSON.stringify(buildChannelPublishPayload({
+        guildId: input.guildId,
+        channelId: input.channelId,
         content: input.content,
-        file_paths: input.imagePaths.map((filePath) => ({ file_path: filePath.replace(/\\/g, "/") })),
-        video_paths: input.videoPaths.map((filePath) => ({ file_path: filePath.replace(/\\/g, "/") })),
-        topic_names: input.topicNames.slice(0, 8),
-      }), { encoding: "utf8", mode: 0o600 });
+        imagePaths: input.imagePaths,
+        videoPaths: input.videoPaths,
+        topicNames: input.topicNames,
+      })), { encoding: "utf8", mode: 0o600 });
       const cli = this.cliInvocation(["feed", "publish-feed", "--yes", "--json"]);
       const result = await runCli(cli.command, cli.args, {
         cwd: workDir,

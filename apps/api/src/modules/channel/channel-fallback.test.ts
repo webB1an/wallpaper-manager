@@ -2,11 +2,13 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  buildChannelPublishPayload,
   ChannelAccountUnavailableError,
   ChannelPermissionDeniedError,
   ChannelService,
   isAccountUnavailableResult,
   isPermissionDeniedResult,
+  normalizeTopicNames,
   scrub,
   sortChannelCandidates,
 } from "./channel.service";
@@ -161,4 +163,27 @@ test("candidate ordering prefers healthy accounts, then least recently used", ()
 test("error redaction does not insert text between every character", () => {
   assert.equal(scrub("暂无权限", "fixture-token"), "暂无权限");
   assert.equal(scrub("fixture-token path.env", "fixture-token", "path.env"), "<redacted-token> <redacted-dotenv>");
+});
+
+test("topic names are cleaned and never sent as an empty array", () => {
+  assert.deepEqual(normalizeTopicNames([" 唯美 ", "#日落", "#", "", "   ", "日落"]), ["唯美", "日落"]);
+  const bare = buildChannelPublishPayload({ guildId: "g", channelId: "c", content: "hi", topicNames: [] });
+  assert.equal("topic_names" in bare, false);
+  assert.equal("topic_names" in buildChannelPublishPayload({ guildId: "g", channelId: "c", content: "hi", topicNames: ["", "  "] }), false);
+  const withTopics = buildChannelPublishPayload({ guildId: "g", channelId: "c", content: "hi", topicNames: ["#海边", "海边", "少女"] });
+  assert.deepEqual(withTopics.topic_names, ["海边", "少女"]);
+  const capped = buildChannelPublishPayload({ guildId: "g", channelId: "c", content: "hi", topicNames: Array.from({ length: 12 }, (_, i) => `t${i}`) });
+  assert.equal((capped.topic_names as string[]).length, 8);
+});
+
+test("publish payload keeps media paths portable", () => {
+  const payload = buildChannelPublishPayload({
+    guildId: "guild",
+    channelId: "board",
+    content: "hi",
+    imagePaths: ["C:\\wall\\a.png"],
+    videoPaths: ["C:\\wall\\b.mp4"],
+  });
+  assert.deepEqual(payload.file_paths, [{ file_path: "C:/wall/a.png" }]);
+  assert.deepEqual(payload.video_paths, [{ file_path: "C:/wall/b.mp4" }]);
 });
