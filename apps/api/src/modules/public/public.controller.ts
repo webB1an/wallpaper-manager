@@ -37,6 +37,14 @@ export class PublicController {
     return { code: 200, data: await this.service.hero() };
   }
 
+  /**
+   * 随机壁纸（只读推送用）。必须声明在 wallpapers/:id 之前，否则会被 :id 吃掉。
+   */
+  @Get("wallpapers/random")
+  async random(@Query() query: { tag?: string; type?: string; orientation?: string; exclude?: string }) {
+    return { code: 200, data: await this.service.randomCard(query) };
+  }
+
   @Get("wallpapers/:id")
   async detail(@Param("id") id: string) {
     return { code: 200, data: await this.service.detail(id) };

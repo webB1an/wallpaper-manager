@@ -280,6 +280,54 @@ export class PublicService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * 随机抽取一张已上架壁纸，供外部推送（QQ 机器人等）使用。
+   * 只读：不增加 viewCount、不写搜索日志，避免污染热门排序。
+   * exclude 支持逗号分隔的壁纸 ID，用于推送端做短期去重。
+   */
+  async randomCard(query: { tag?: string; type?: string; orientation?: string; exclude?: string }) {
+    const type = optionalWallpaperType(query.type);
+    const orientation = optionalWallpaperOrientation(query.orientation);
+    const tag = cleanSearchText(query.tag);
+    const excludeIds = String(query.exclude || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    const where = {
+      status: WallpaperStatus.published,
+      collectionOnly: false,
+      ...(type ? { type } : {}),
+      ...(orientation ? { orientation } : {}),
+      ...(tag ? { tags: { some: { tag: { name: tag } } } } : {}),
+      ...(excludeIds.length ? { id: { notIn: excludeIds } } : {}),
+    };
+    const total = await this.prisma.wallpaper.count({ where });
+    if (!total) throw new NotFoundException("没有可推送的壁纸");
+    const item = await this.prisma.wallpaper.findFirst({
+      where,
+      include: {
+        tags: { include: { tag: true }, orderBy: [{ sortOrder: "asc" }, { tagId: "asc" }] },
+        shortLinks: { include: { storageLink: true } },
+      },
+      orderBy: { id: "asc" },
+      skip: Math.floor(Math.random() * total),
+    });
+    if (!item) throw new NotFoundException("没有可推送的壁纸");
+    return {
+      ...wallpaperCard(item),
+      shortLinks: item.shortLinks
+        .filter((link) => link.storageLink.isActive)
+        .sort(compareShortLinks)
+        .map((link) => ({
+          provider: link.provider,
+          label: link.provider === StorageProvider.quark ? "夸克下载" : "百度备用",
+          url: shortUrl(this.config, link.code),
+          passcode: resolvePasscode(link.storageLink.provider, link.storageLink.url, link.storageLink.passcode),
+        })),
+    };
+  }
+
   /** 首页轮播：每 6 小时按时间桶确定性随机换一批（热门 + 最新混合），同桶内保持稳定。 */
   async hero() {
     const ROTATE_MS = 6 * 60 * 60 * 1000;

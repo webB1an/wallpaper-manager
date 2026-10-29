@@ -97,3 +97,57 @@ test("memberRequestStatus：月度上限取配置（0-100 封顶），默认 3 �
   assert.equal(status.remaining, 1);
   assert.equal(status.hasActive, false);
 });
+
+test("randomCard：只读随机抽取，透传 exclude 且不增加浏览量", async () => {
+  const captured: { count?: any; findFirst?: any } = {};
+  const svc = makeService({
+    wallpaper: {
+      count: async (args: any) => {
+        captured.count = args;
+        return 3;
+      },
+      findFirst: async (args: any) => {
+        captured.findFirst = args;
+        return {
+          id: "w1",
+          title: "猫耳少女",
+          type: "static",
+          orientation: "portrait",
+          coverUrl: "https://wall-api.wdbzk.com/assets/covers/a.jpg",
+          viewCount: 5,
+          downloadCount: 1,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          tags: [{ tag: { name: "动漫" } }],
+          shortLinks: [{
+            code: "abc",
+            provider: "quark",
+            storageLink: { isPrimary: true, isActive: true, provider: "quark", url: "https://pan.quark.cn/s/x", passcode: null },
+          }],
+        };
+      },
+      update: async () => assert.fail("随机推送不应更新壁纸（浏览量不能被污染）"),
+    },
+  });
+
+  const card = await svc.randomCard({ tag: "动漫", exclude: "w2, w3" });
+  assert.deepEqual(card.tags, ["动漫"]);
+  assert.equal(card.shortLinks[0].url, "https://r.wdbzk.com/abc");
+  assert.equal(card.shortLinks[0].label, "夸克下载");
+  assert.deepEqual(captured.count.where.id.notIn, ["w2", "w3"], "exclude 应转成 notIn 去重条件");
+  assert.equal(captured.count.where.status, "published");
+  assert.equal(captured.count.where.collectionOnly, false);
+  assert.equal(typeof captured.findFirst.skip, "number", "随机偏移应落在 [0, total)");
+});
+
+test("randomCard：没有可推送壁纸时报 404，不返回空卡片", async () => {
+  const svc = makeService({
+    wallpaper: {
+      count: async () => 0,
+      findFirst: async () => assert.fail("没有候选时不应继续查询"),
+    },
+  });
+  await assert.rejects(svc.randomCard({}), (error: any) => {
+    assert.ok(error instanceof NotFoundException);
+    return true;
+  });
+});
