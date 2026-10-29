@@ -2115,7 +2115,8 @@ export class AdminService implements OnModuleInit {
     // 未显式指定账号时（如小程序上传自动发帖），在默认频道所属板块内，于开启自动发帖的账号里轮换最近未使用者。
     const rotating = await this.prisma.channelAccount.findMany({
       where: { autoPublish: true, guildId: fallback.guildId, channelId: fallback.channelId },
-      orderBy: [{ lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
+      // 与自动发帖一致：健康账号优先（unavailableAt 为 NULL 在 MySQL 升序里排最前），再轮换最久未发帖的。
+      orderBy: [{ unavailableAt: "asc" }, { lastAutoPublishAt: "asc" }, { createdAt: "asc" }],
       take: 1,
     });
     return rotating[0] || fallback;

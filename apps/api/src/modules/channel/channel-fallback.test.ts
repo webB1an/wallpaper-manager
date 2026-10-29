@@ -14,7 +14,7 @@ import {
 } from "./channel.service";
 import { encryptSecret } from "../../common/crypto";
 
-function harness(errors: Array<Error | null>) {
+function harness(errors: Array<Error | null>, options: { unavailable?: string[] } = {}) {
   const secret = "fixture-secret-123456789012345678901234567890";
   const accounts = ["a", "b", "c"].map((id, index) => ({
     id,
@@ -22,7 +22,7 @@ function harness(errors: Array<Error | null>) {
     guildId: "guild",
     channelId: "board",
     tokenCipher: encryptSecret(id, secret),
-    unavailableAt: null,
+    unavailableAt: options.unavailable?.includes(id) ? new Date(2026, 9, 29) : null,
     lastAutoPublishAt: null,
     createdAt: new Date(2026, 0, index + 1),
   }));
@@ -34,7 +34,7 @@ function harness(errors: Array<Error | null>) {
   const service: ChannelService = Object.assign(Object.create(ChannelService.prototype), {
     secret: () => secret,
     prisma: { channelAccount: {
-      findUnique: async () => accounts[0],
+      findUnique: async (args: { where: { id: string } }) => accounts.find((account) => account.id === args.where.id) ?? null,
       findMany: async (query: { where: unknown }) => {
         lookups++;
         assert.deepEqual(query.where, { id: { not: "a" }, autoPublish: true, guildId: "guild", channelId: "board" });
@@ -101,8 +101,30 @@ test("success never tries another account", async () => {
 
 test("all accounts denied stop after one attempt each", async () => {
   const h = harness(Array.from({ length: 3 }, () => new ChannelPermissionDeniedError("暂无权限")));
-  await assert.rejects(h.run(), /3 个候选账号均无法发帖/);
+  await assert.rejects(h.run(), /3 个账号均无法发帖/);
   assert.deepEqual(h.calls, ["a", "b", "c"]);
+});
+
+test("an account marked unavailable is skipped without a wasted attempt", async () => {
+  const h = harness([null], { unavailable: ["a"] });
+  const result = await h.run();
+  assert.deepEqual(h.calls, ["b"]);
+  assert.equal(result.accountId, "b");
+  assert.equal(h.notices[0], "账号「a」此前已标记不可用（Token 失效），本次跳过");
+  assert.match(result.message, /已切换 1 次账号/);
+});
+
+test("every account marked unavailable fails fast without touching the platform", async () => {
+  const h = harness([null], { unavailable: ["a", "b", "c"] });
+  await assert.rejects(h.run(), /3 个账号均已标记为不可用（a、b、c）/);
+  assert.deepEqual(h.calls, []);
+});
+
+test("an explicit account check still runs on a marked account", async () => {
+  const h = harness([new ChannelAccountUnavailableError("token is expired (100051)")], { unavailable: ["a"] });
+  await assert.rejects(h.test(), /Token 已失效/);
+  assert.deepEqual(h.calls, ["a"]);
+  assert.equal(h.marked.length, 1);
 });
 
 test("expired token marks the account unavailable and switches to the next one", async () => {

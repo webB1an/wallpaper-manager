@@ -4,6 +4,7 @@ import { FilesInterceptor } from "@nestjs/platform-express";
 import { RewardDownloadType, StorageProvider, WallpaperOrientation, WallpaperStatus, WallpaperType } from "@prisma/client";
 import { removeUploadedTempFiles, uploadDiskStorage, uploadFileFilter, uploadMaxBytes } from "../../common/upload";
 import { AdminService } from "./admin.service";
+import { ChannelPublishRejectedError } from "../channel/channel.service";
 import { AdminAuthGuard } from "./auth.guard";
 const STORAGE_FILTERS = new Set(["has_quark", "has_baidu", "missing_quark", "missing_baidu", "missing_active", "missing_short", "unpublished_active_short"]);
 const AI_REVIEW_FILTERS = new Set(["unreviewed", "safe", "blocked"]);
@@ -184,7 +185,7 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Post("wallpapers/:id/publish-channel")
   async publishChannel(@Param("id") id: string, @Body() body?: { manualReviewConfirmed?: boolean }) {
-    return { code: 200, data: await this.admin.publishWallpaperToChannel(id, undefined, body?.manualReviewConfirmed === true) };
+    return { code: 200, data: await this.withChannelRejection(() => this.admin.publishWallpaperToChannel(id, undefined, body?.manualReviewConfirmed === true)) };
   }
 
   @UseGuards(AdminAuthGuard)
@@ -196,7 +197,17 @@ export class AdminController {
   @UseGuards(AdminAuthGuard)
   @Post("channels/publish")
   async publishChannelBatch(@Body() body: { ids: string[]; accountId?: string; manualReviewConfirmed?: boolean }) {
-    return { code: 200, data: await this.admin.publishWallpapersToChannel(body.ids || [], body.accountId, body.manualReviewConfirmed === true) };
+    return { code: 200, data: await this.withChannelRejection(() => this.admin.publishWallpapersToChannel(body.ids || [], body.accountId, body.manualReviewConfirmed === true)) };
+  }
+
+  /** 平台明确拒绝（无权限 / Token 失效 / 全账号不可用）需要原样回显，否则前端只能看到 500 的 Internal server error。 */
+  private async withChannelRejection<T>(run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (error instanceof ChannelPublishRejectedError) throw new BadRequestException(error.message);
+      throw error;
+    }
   }
 
   @UseGuards(AdminAuthGuard)

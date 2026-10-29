@@ -71,7 +71,7 @@ export function isAccountUnavailableResult(parsed: { success?: boolean; error?: 
     || /token\s*(?:is\s*)?(?:expired|invalid)|token\s*(?:已)?(?:过期|失效)|登录态(?:已)?失效/i.test(text);
 }
 
-/** 可用账号优先，其次按最久未发帖；标记为不可用的账号排到最后，但仍会尝试（可能已在别处重新授权）。 */
+/** 可用账号优先，其次按最久未发帖；标记为不可用的账号排到最后，调用方会直接跳过它们。 */
 export function sortChannelCandidates<T extends { unavailableAt: Date | null; lastAutoPublishAt: Date | null; createdAt: Date; id: string }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
     const badDiff = (a.unavailableAt ? 1 : 0) - (b.unavailableAt ? 1 : 0);
@@ -249,8 +249,33 @@ export class ChannelService {
   async publish(input: PublishInput) {
     const account = await this.prisma.channelAccount.findUnique({ where: { id: input.accountId } });
     if (!account) throw new NotFoundException("腾讯频道账号不存在");
-    const candidates = [account];
+    const allowSwitch = input.allowAccountSwitch !== false;
     const switched: ChannelSwitchEvent[] = [];
+    const candidates = [account];
+    // 同板块候选只在需要时查一次（初始账号被标记过，或它明确失败需要换号）。
+    let expanded = false;
+    const expand = async () => {
+      expanded = true;
+      const alternatives = await this.prisma.channelAccount.findMany({
+        where: { id: { not: account.id }, autoPublish: true, guildId: account.guildId, channelId: account.channelId },
+      });
+      return { alternatives, healthy: sortChannelCandidates(alternatives).filter((row) => !row.unavailableAt) };
+    };
+
+    if (allowSwitch && account.unavailableAt) {
+      const { alternatives, healthy } = await expand();
+      // 全部账号都已知不可用时不空跑：每一次尝试都必然被平台拒绝，还把任务卡在等待 CLI 上。
+      if (!healthy.length) {
+        throw new ChannelPublishRejectedError(
+          `同板块 ${alternatives.length + 1} 个账号均已标记为不可用（${[account, ...alternatives].map((row) => row.label).join("、")}），请在管理端「腾讯频道」更新 Token 后再发帖`,
+        );
+      }
+      switched.push({ accountId: account.id, label: account.label, reason: "unavailable" });
+      await input.onAccountSwitch?.(`账号「${account.label}」此前已标记不可用（Token 失效），本次跳过`);
+      candidates.length = 0;
+      candidates.push(...healthy);
+    }
+
     for (let index = 0; index < candidates.length; index++) {
       const current = candidates[index];
       let result: Awaited<ReturnType<ChannelService["runPublish"]>>;
@@ -270,17 +295,15 @@ export class ChannelService {
         const unavailable = error instanceof ChannelAccountUnavailableError;
         if (unavailable) await this.markUnavailable(current.id, error.message);
         const why = unavailable ? "Token 已失效" : "暂无该版块发帖权限";
-        if (input.allowAccountSwitch === false) {
+        if (!allowSwitch) {
           throw new ChannelPublishRejectedError(`账号「${current.label}」${why}：${error.message}`);
         }
-        if (index === 0) {
-          const alternatives = await this.prisma.channelAccount.findMany({
-            where: { id: { not: account.id }, autoPublish: true, guildId: account.guildId, channelId: account.channelId },
-          });
-          candidates.push(...sortChannelCandidates(alternatives));
+        if (!expanded) {
+          const { healthy } = await expand();
+          candidates.push(...healthy);
         }
         const next = candidates[index + 1];
-        if (!next) throw new ChannelPublishRejectedError(`同板块 ${candidates.length} 个候选账号均无法发帖，已停止：${error.message}`);
+        if (!next) throw new ChannelPublishRejectedError(`同板块 ${candidates.length} 个账号均无法发帖，已停止：${error.message}`);
         switched.push({ accountId: current.id, label: current.label, reason: unavailable ? "unavailable" : "permission" });
         const accountState = unavailable ? `${why}，已标记为不可用` : `${why}，账号本身正常`;
         await input.onAccountSwitch?.(`账号「${current.label}」${accountState}，切换到「${next.label}」发帖`);
