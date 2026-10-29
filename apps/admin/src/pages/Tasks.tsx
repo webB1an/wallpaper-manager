@@ -7,6 +7,19 @@ import type { TaskItem } from "../types";
 
 export function Tasks() {
   const [resuming, setResuming] = useState<string>();
+  const [pruning, setPruning] = useState(false);
+  const pruneTasks = async () => {
+    setPruning(true);
+    try {
+      const result = await request<{ days: number; removed: number }>("/api/admin/tasks/prune", { method: "POST" });
+      message.success(`已清理 ${result.removed} 条超过 ${result.days} 天的任务记录`);
+      await load(1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "清理失败");
+    } finally {
+      setPruning(false);
+    }
+  };
   const resumeTask = async (id: string, confirmMissingUploads = false) => {
     setResuming(id);
     try {
@@ -47,7 +60,7 @@ export function Tasks() {
   }, [autoRefresh, page, status, type]);
   return (
     <section>
-      <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。时间均为北京时间；最后更新不代表首次失败时间。" />
+      <Header title="任务队列" subtitle="查看上传、AI、网盘同步、wdbzk 入库、频道发帖等任务状态。时间均为北京时间；最后更新不代表首次失败时间。任务记录只保留最近 7 天（TASK_RETENTION_DAYS 可调）。" />
       <Space className="toolbar">
         <Button onClick={() => void load()}>刷新</Button>
         <Tag color="gold">共 {data.total} 条</Tag>
@@ -77,6 +90,15 @@ export function Tasks() {
         />
         <span>自动刷新</span>
         <Switch checked={autoRefresh} onChange={setAutoRefresh} />
+        <Popconfirm
+          title="立即清理过期任务记录？"
+          description="只删除已结束且超过保留期的任务，排队中/执行中的任务不会被删除。"
+          okText="清理"
+          cancelText="取消"
+          onConfirm={pruneTasks}
+        >
+          <Button loading={pruning}>清理过期任务</Button>
+        </Popconfirm>
       </Space>
       <Table
         rowKey="id"
