@@ -14,6 +14,8 @@ github-*.png
 .DS_Store
 Thumbs.db
 .runs/
+.workbuddy/
+deploy-logs.zip
 /uploads/
 /storage/
 coverage/

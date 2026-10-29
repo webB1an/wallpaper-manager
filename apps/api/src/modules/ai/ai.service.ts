@@ -100,7 +100,12 @@ export class AiService {
         signal: AbortSignal.timeout(60_000),
       });
 
-      if (!response.ok) throw new Error(`DeepSeek 识图失败 (${response.status})`);
+      if (!response.ok) {
+        // 带上响应体：DeepSeek 的 401 会回显 key 末四位（Your api key: ****850a is invalid），
+        // 是现场判断“服务器到底用了哪把 key”的唯一线索；不打日志只能看到状态码。
+        const detail = (await response.text().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 200);
+        throw new Error(`DeepSeek 识图失败 (${response.status})${detail ? `：${detail}` : ""}`);
+      }
       const body = (await response.json()) as { choices?: Array<{ message?: { content?: string | null } }> };
       const raw = body.choices?.[0]?.message?.content;
       if (!raw) throw new Error("DeepSeek 未返回识别结果");
